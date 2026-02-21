@@ -138,8 +138,7 @@ const T={
   step:'eagle_eye_app_steps',
   part:'eagle_eye_app_parts',
   fast:'eagle_eye_app_fasteners',
-  ecn:'eagle_eye_app_ecn_log',
-  master:'master_parts_list_all'
+  ecn:'eagle_eye_app_ecn_log'
 };
 
 // ═══ DATA CONTEXT ═══
@@ -153,7 +152,6 @@ function DataProvider({children}){
   const [steps,setSteps]=useState([]);
   const [parts,setParts]=useState([]);
   const [fasts,setFasts]=useState([]);
-  const [masterMap,setMasterMap]=useState({});
   const [loading,setLoading]=useState(true);
   const [error,setError]=useState(null);
   const [toast,setToast]=useState(null);
@@ -163,14 +161,7 @@ function DataProvider({children}){
   // Load all data for HBD_assy
   const loadAll=useCallback(async()=>{
     try{
-      // Load master parts (shared table)
-      const {data:mp}=await sb.from(T.master).select('pn,name,location');
-      const mm={};
-      (mp||[]).forEach(p=>{mm[p.pn]={name:p.name,location:p.location};});
-      setMasterMap(mm);
-
-      const {data:a,error:ae}=await sb.from(T.assy).select('*').eq('tag','HBD_assy').single();
-      if(ae){setError('Assemblies query failed: '+ae.message+' (code: '+ae.code+', details: '+ae.details+')');setLoading(false);return;}
+      const {data:a}=await sb.from(T.assy).select('*').eq('tag','HBD_assy').single();
       if(!a){setError('Assembly HBD_assy not found. Run the SQL setup first.');setLoading(false);return;}
       setAssy(a);
       const {data:g}=await sb.from(T.grp).select('*').eq('assembly_id',a.id).order('sort_order');
@@ -288,10 +279,7 @@ function DataProvider({children}){
     await refresh();
   };
 
-  // Lookup helper: pn → {name, location}
-  const lookup=useCallback((pn)=>masterMap[pn]||{name:null,location:null},[masterMap]);
-
-  const val={assy,groups,steps,parts,fasts,loading,error,toast,masterMap,lookup,
+  const val={assy,groups,steps,parts,fasts,loading,error,toast,
     addStep,updateStep,deleteStep,moveStep,swapSteps,
     addPart,updatePart,deletePart,swapParts,
     addFast,updateFast,deleteFast,swapFasts,
@@ -374,7 +362,7 @@ function MoveModal({stepData,onClose}){
 
 // ═══ DETAIL PANEL ═══
 function DetailPanel({stepId,ecnChanges}){
-  const {groups,steps,parts,fasts,deleteStep,swapParts,deletePart,swapFasts,deleteFast,lookup}=useData();
+  const {groups,steps,parts,fasts,deleteStep,swapParts,deletePart,swapFasts,deleteFast}=useData();
   const [modal,setModal]=useState(null);
   if(!stepId)return <div className="empty"><div className="big">🔧</div><div className="msg">Select a step to view details<br/>Right-click steps for more actions</div></div>;
   const s=steps.find(x=>x.id===stepId);
@@ -400,31 +388,19 @@ function DetailPanel({stepId,ecnChanges}){
     </div>
 
     <div className="section-title" style={{color:'var(--green)'}}>PARTS ({sp.length})<button className="add-btn" onClick={()=>setModal({t:'addP',sid:stepId})}>+ Add</button></div>
-    {sp.map((p,i)=>{const m=lookup(p.pn);return <div key={p.id}>
-      <div className="item-row" style={{background:i%2?'#071a12':'transparent'}}>
-        <div className="dot" style={{background:'var(--green)'}}/><span className="mono" style={{color:'#34d399'}}>{p.pn}</span><span className="iqty" style={{color:'#6ee7b7'}}>×{p.qty}</span>
-        <div className="row-actions"><button className="up-btn" onClick={()=>swapParts(stepId,p.id,-1)}>▲</button><button className="dn-btn" onClick={()=>swapParts(stepId,p.id,1)}>▼</button><button className="edit-btn" onClick={()=>setModal({t:'editP',sid:stepId,d:p})}>✏️</button><button className="del-btn" onClick={()=>{if(confirm('Delete?'))deletePart(p.id);}}>✕</button></div>
-      </div>
-      <div style={{paddingLeft:11,display:'flex',gap:12,fontSize:10,marginTop:1}}>
-        {m.name&&<span style={{color:'#86efac'}}>{m.name}</span>}
-        {m.location&&<span style={{color:'var(--text4)'}}>📍 {m.location}</span>}
-        {!m.name&&<span style={{color:'#475569',fontStyle:'italic'}}>not in master DB</span>}
-      </div>
-    </div>;})}
+    {sp.map((p,i)=><div key={p.id} className="item-row" style={{background:i%2?'#071a12':'transparent'}}>
+      <div className="dot" style={{background:'var(--green)'}}/><span className="mono" style={{color:'#34d399'}}>{p.pn}</span><span className="iqty" style={{color:'#6ee7b7'}}>×{p.qty}</span>
+      <div className="row-actions"><button className="up-btn" onClick={()=>swapParts(stepId,p.id,-1)}>▲</button><button className="dn-btn" onClick={()=>swapParts(stepId,p.id,1)}>▼</button><button className="edit-btn" onClick={()=>setModal({t:'editP',sid:stepId,d:p})}>✏️</button><button className="del-btn" onClick={()=>{if(confirm('Delete?'))deletePart(p.id);}}>✕</button></div>
+    </div>)}
 
     <div className="section-title" style={{color:'var(--red)',marginTop:16}}>FASTENERS ({sf.length})<button className="add-btn" onClick={()=>setModal({t:'addF',sid:stepId})}>+ Add</button></div>
-    {sf.map((f,i)=>{const m=lookup(f.pn);return <div key={f.id}>
+    {sf.map((f,i)=><div key={f.id}>
       <div className="item-row" style={{background:i%2?'#1a0505':'transparent'}}>
         <div className="dot" style={{background:'var(--red)'}}/><span className="mono" style={{color:'#fca5a5'}}>{f.pn}</span><span className="iqty" style={{color:'#f87171'}}>×{f.qty}</span>
         <div className="row-actions"><button className="up-btn" onClick={()=>swapFasts(stepId,f.id,-1)}>▲</button><button className="dn-btn" onClick={()=>swapFasts(stepId,f.id,1)}>▼</button><button className="edit-btn" onClick={()=>setModal({t:'editF',sid:stepId,d:f})}>✏️</button><button className="del-btn" onClick={()=>{if(confirm('Delete?'))deleteFast(f.id);}}>✕</button></div>
       </div>
-      <div style={{paddingLeft:11,display:'flex',gap:12,fontSize:10,marginTop:1}}>
-        {m.name&&<span style={{color:'#fecaca'}}>{m.name}</span>}
-        {m.location&&<span style={{color:'var(--text4)'}}>📍 {m.location}</span>}
-        {!m.name&&<span style={{color:'#475569',fontStyle:'italic'}}>not in master DB</span>}
-      </div>
       <div className="fast-meta"><span><span style={{color:'var(--text4)'}}>LT </span><span style={{color:f.loctite==='---'?'var(--text4)':'var(--yellow)',fontWeight:700}}>{f.loctite}</span></span><span><span style={{color:'var(--text4)'}}>TQ </span><span style={{color:!f.torque||f.torque==='---'?'var(--text4)':'var(--blue)',fontWeight:700}}>{f.torque||'—'}</span></span></div>
-    </div>;})}
+    </div>)}
 
     {modal?.t==='addP'&&<PartModal mode="add" stepId={modal.sid} onClose={()=>setModal(null)}/>}
     {modal?.t==='editP'&&<PartModal mode="edit" stepId={modal.sid} data={modal.d} onClose={()=>setModal(null)}/>}
@@ -437,7 +413,7 @@ function DetailPanel({stepId,ecnChanges}){
 
 // ═══ LIST VIEW ═══
 function ListView({selected,setSelected,ecnOn,brush,ecnChanges,setEcnChanges,search}){
-  const {groups,steps,parts,fasts,swapSteps,deleteStep,lookup}=useData();
+  const {groups,steps,parts,fasts,swapSteps,deleteStep}=useData();
   const [exp,setExp]=useState(new Set());
   const [ctx,setCtx]=useState(null);
   const [modal,setModal]=useState(null);
@@ -451,8 +427,8 @@ function ListView({selected,setSelected,ecnOn,brush,ecnChanges,setEcnChanges,sea
   const matchStep=s=>{
     if(!searchLower)return true;
     if(s.label.toLowerCase().includes(searchLower))return true;
-    if(parts.some(p=>p.step_id===s.id&&(p.pn.toLowerCase().includes(searchLower)||(lookup(p.pn).name||'').toLowerCase().includes(searchLower))))return true;
-    if(fasts.some(f=>f.step_id===s.id&&(f.pn.toLowerCase().includes(searchLower)||(lookup(f.pn).name||'').toLowerCase().includes(searchLower))))return true;
+    if(parts.some(p=>p.step_id===s.id&&p.pn.toLowerCase().includes(searchLower)))return true;
+    if(fasts.some(f=>f.step_id===s.id&&f.pn.toLowerCase().includes(searchLower)))return true;
     return false;
   };
 
@@ -498,7 +474,7 @@ function ListView({selected,setSelected,ecnOn,brush,ecnChanges,setEcnChanges,sea
 
 // ═══ GRAPH VIEW ═══
 function GraphView({selected,setSelected,ecnOn,brush,ecnChanges,setEcnChanges}){
-  const {groups,steps,parts,fasts,lookup}=useData();
+  const {groups,steps,parts,fasts}=useData();
   const ref=useRef(null);const [dim,setDim]=useState({w:900,h:700});const [hov,setHov]=useState(null);
   useEffect(()=>{if(ref.current){const r=ref.current.getBoundingClientRect();setDim({w:r.width||900,h:r.height||700});}},[]);
 
@@ -525,9 +501,9 @@ function GraphView({selected,setSelected,ecnOn,brush,ecnChanges,setEcnChanges}){
     <text x={fX} y={12} fontSize={9} fill="#334155" fontWeight={700}>FASTENERS ({fnList.length})</text>
     {sortedSteps.map((s,si)=>parts.filter(p=>p.step_id===s.id).map((p,pi)=>{const pi2=pnList.indexOf(p.pn);if(pi2<0)return null;const e=ecnChanges[s.id];const a=active===s.id;return <line key={`ps${si}-${pi}`} x1={pX+105} y1={pYf(pi2)} x2={sX} y2={sYf(si)} stroke={e?ecnC[e]:a?gColor(s.group_id):'#1e293b'} strokeWidth={a?1.5:0.4} opacity={a?0.7:e?0.5:0.15}/>;}))}
     {sortedSteps.map((s,si)=>fasts.filter(f=>f.step_id===s.id).map((f,fi)=>{const fi2=fnList.indexOf(f.pn);if(fi2<0)return null;const e=ecnChanges[s.id];const a=active===s.id;return <line key={`sf${si}-${fi}`} x1={sX+155} y1={sYf(si)} x2={fX} y2={fYf(fi2)} stroke={e?ecnC[e]:a?'#f87171':'#1e293b'} strokeWidth={a?1.5:0.4} opacity={a?0.7:e?0.5:0.15}/>;}))}
-    {pnList.map((p,i)=>{const a=ap.includes(p);const nm=lookup(p).name;return <g key={`p${i}`}><rect x={pX} y={pYf(i)-7} width={103} height={14} rx={3} fill={a?'#0c4a6e':'#111827'} stroke={a?'#38bdf8':'#1e293b33'} strokeWidth={a?1:0.5}/><text x={pX+4} y={pYf(i)+3} fontSize={6.5} fill={a?'#7dd3fc':'#475569'} style={{fontFamily:'monospace'}}>{(nm||p).slice(0,18)}</text></g>;})}
+    {pnList.map((p,i)=>{const a=ap.includes(p);return <g key={`p${i}`}><rect x={pX} y={pYf(i)-7} width={103} height={14} rx={3} fill={a?'#0c4a6e':'#111827'} stroke={a?'#38bdf8':'#1e293b33'} strokeWidth={a?1:0.5}/><text x={pX+4} y={pYf(i)+3} fontSize={6.5} fill={a?'#7dd3fc':'#475569'} style={{fontFamily:'monospace'}}>{p.slice(0,18)}</text></g>;})}
     {sortedSteps.map((s,i)=>{const e=ecnChanges[s.id];const a=active===s.id;const gc=gColor(s.group_id);return <g key={`s${i}`} onMouseEnter={()=>setHov(s.id)} onMouseLeave={()=>setHov(null)} onClick={()=>click(s.id)} style={{cursor:'pointer'}}><rect x={sX} y={sYf(i)-8} width={153} height={16} rx={4} fill={e?ecnBg[e]:a?gc+'22':'#111827'} stroke={e?ecnC[e]:a?gc:'#1e293b44'} strokeWidth={a||e?1.5:0.5}/><text x={sX+5} y={sYf(i)+3} fontSize={7.5} fill={a?'#f1f5f9':e?ecnC[e]:'#94a3b8'} fontWeight={a?700:400} style={{fontFamily:'system-ui'}}>{s.label.slice(0,24)}</text>{e&&<text x={sX+145} y={sYf(i)+4} fontSize={9} fill={ecnC[e]} fontWeight={900} textAnchor="end">{ecnI[e]}</text>}</g>;})}
-    {fnList.map((f,i)=>{const a=af.includes(f);const nm=lookup(f).name;return <g key={`f${i}`}><rect x={fX} y={fYf(i)-7} width={88} height={14} rx={3} fill={a?'#450a0a':'#111827'} stroke={a?'#f87171':'#1e293b33'} strokeWidth={a?1:0.5}/><text x={fX+4} y={fYf(i)+3} fontSize={6.5} fill={a?'#fca5a5':'#475569'} style={{fontFamily:'monospace'}}>{(nm||f).slice(0,15)}</text></g>;})}
+    {fnList.map((f,i)=>{const a=af.includes(f);return <g key={`f${i}`}><rect x={fX} y={fYf(i)-7} width={88} height={14} rx={3} fill={a?'#450a0a':'#111827'} stroke={a?'#f87171':'#1e293b33'} strokeWidth={a?1:0.5}/><text x={fX+4} y={fYf(i)+3} fontSize={6.5} fill={a?'#fca5a5':'#475569'} style={{fontFamily:'monospace'}}>{f.slice(0,15)}</text></g>;})}
   </svg></div>);
 }
 
@@ -559,7 +535,7 @@ function KanbanView({selected,setSelected,ecnOn,brush,ecnChanges,setEcnChanges})
 
 // ═══ MAIN APP ═══
 function AppInner(){
-  const {assy,loading,error,toast,steps,masterMap}=useData();
+  const {assy,loading,error,toast,steps}=useData();
   const [view,setView]=useState('list');const [selected,setSelected]=useState(null);
   const [ecnOn,setEcnOn]=useState(false);const [brush,setBrush]=useState('remove');
   const [ecnChanges,setEcnChanges]=useState({});const [search,setSearch]=useState('');
@@ -584,10 +560,10 @@ function AppInner(){
           <div className="status" style={{background:'var(--green)'}}/>
           <h1><span>Eagle Eye</span></h1>
           <span className="tag-badge">{assy?.tag}</span>
-          <span className="count">{steps.length} steps · {Object.keys(masterMap).length} master parts</span>
+          <span className="count">{steps.length} steps</span>
         </div>
         <div className="tabs">{[{v:'list',l:'📋 List'},{v:'graph',l:'🔗 Graph'},{v:'kanban',l:'📊 Kanban'}].map(t=><button key={t.v} className={'tab'+(view===t.v?' active':'')} onClick={()=>setView(t.v)}>{t.l}</button>)}</div>
-        <div className="search-box"><input value={search} onChange={e=>setSearch(e.target.value)} placeholder="Search P/N, part name, step..."/></div>
+        <div className="search-box"><input value={search} onChange={e=>setSearch(e.target.value)} placeholder="Search P/N, step..."/></div>
         <div className="ecn-bar">
           <button className="ecn-btn" onClick={()=>setEcnOn(!ecnOn)} style={{border:ecnOn?'1px solid var(--yellow)':'1px solid var(--text4)',background:ecnOn?'#451a03':'transparent',color:ecnOn?'var(--yellow)':'var(--text4)'}}>{ecnOn?'⚡ ECN':'ECN'}</button>
           {ecnOn&&[{s:'remove',l:'Remove',c:'var(--red)'},{s:'replace',l:'Replace',c:'var(--yellow)'},{s:'add',l:'Add',c:'var(--green)'},{s:'modify',l:'Modify',c:'var(--blue)'}].map(b=><button key={b.s} className="ecn-brush" onClick={()=>setBrush(b.s)} style={{border:'1px solid '+(brush===b.s?b.c:'var(--border)'),background:brush===b.s?b.c+'18':'transparent',color:brush===b.s?b.c:'var(--text4)'}}>{b.l}</button>)}

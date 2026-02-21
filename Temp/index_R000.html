@@ -1,0 +1,723 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Assembly Tree — H&B</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/sql.js/1.10.3/sql-wasm.js"></script>
+<script src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
+<script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
+<script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+<style>
+*{margin:0;padding:0;box-sizing:border-box;}
+:root{
+  --bg:#0c1222;--bg2:#111827;--bg3:#1e293b;--border:#1e293b;
+  --text:#e2e8f0;--text2:#94a3b8;--text3:#64748b;--text4:#475569;
+  --blue:#60a5fa;--green:#10b981;--red:#ef4444;--yellow:#f59e0b;--purple:#8b5cf6;--cyan:#06b6d4;--pink:#ec4899;
+}
+body{font-family:'Segoe UI','Noto Sans JP',system-ui,sans-serif;background:var(--bg);color:var(--text);height:100vh;overflow:hidden;}
+button{cursor:pointer;font-family:inherit;border:none;outline:none;}
+input,textarea,select{font-family:inherit;outline:none;}
+::-webkit-scrollbar{width:6px;height:6px;}
+::-webkit-scrollbar-track{background:transparent;}
+::-webkit-scrollbar-thumb{background:var(--bg3);border-radius:3px;}
+
+.app{display:flex;height:100vh;}
+.sidebar{width:420px;border-right:1px solid var(--border);display:flex;flex-direction:column;flex-shrink:0;}
+.main{flex:1;display:flex;flex-direction:column;overflow:hidden;}
+
+/* Header */
+.hdr{padding:10px 14px;border-bottom:1px solid var(--border);display:flex;align-items:center;gap:8px;}
+.hdr h1{font-size:14px;font-weight:800;}.hdr h1 span{color:var(--blue);}
+.hdr .count{font-size:10px;color:var(--text4);margin-left:auto;}
+
+/* Tabs */
+.tabs{padding:6px 14px;border-bottom:1px solid var(--border);display:flex;gap:3px;}
+.tab{font-size:10px;padding:4px 12px;border-radius:5px;border:1px solid var(--border);background:transparent;color:var(--text4);flex:1;font-weight:400;transition:all .15s;}
+.tab.active{border-color:var(--blue);background:#1e3a5f;color:#93c5fd;font-weight:700;}
+
+/* Search */
+.search-box{padding:6px 14px;border-bottom:1px solid var(--border);}
+.search-box input{width:100%;padding:5px 10px;background:var(--bg3);border:1px solid #334155;border-radius:6px;color:var(--text);font-size:11px;}
+
+/* ECN bar */
+.ecn-bar{padding:6px 14px;border-bottom:1px solid var(--border);display:flex;align-items:center;gap:5px;flex-wrap:wrap;}
+.ecn-btn{font-size:10px;padding:3px 10px;border-radius:4px;font-weight:800;}
+.ecn-brush{font-size:9px;padding:2px 7px;border-radius:4px;font-weight:700;}
+.ecn-summary{padding:6px 14px;border-bottom:1px solid var(--border);font-size:10px;color:var(--yellow);background:rgba(69,26,3,0.13);}
+
+/* Tree */
+.tree{flex:1;overflow-y:auto;}
+.group-hdr{display:flex;align-items:center;gap:8px;padding:8px 14px;cursor:pointer;background:var(--bg2);user-select:none;}
+.group-hdr .arrow{font-size:9px;color:var(--text4);transition:transform .15s;display:inline-block;}
+.group-hdr .arrow.open{transform:rotate(90deg);}
+.group-hdr .icon{font-size:12px;}
+.group-hdr .label{font-size:12px;font-weight:700;flex:1;}
+.group-hdr .cnt{font-size:10px;color:var(--text4);}
+.group-hdr .ecn-cnt{font-size:9px;font-weight:800;color:var(--yellow);background:#451a03;padding:1px 6px;border-radius:3px;}
+
+.step-row{display:flex;align-items:center;gap:8px;padding:5px 10px 5px 24px;cursor:pointer;transition:all .1s;border-left:3px solid transparent;}
+.step-row:hover{background:rgba(255,255,255,0.02);}
+.step-row.selected{background:#172033;border-left-color:#3b82f6;}
+.step-row .sid{font-family:monospace;font-size:11px;color:var(--text4);min-width:24px;}
+.step-row .badge{font-size:9px;font-weight:800;padding:2px 6px;border-radius:3px;font-family:monospace;letter-spacing:0.8px;}
+.badge-step{background:#064e3b;color:#6ee7b7;}
+.badge-prep{background:#312e81;color:#a5b4fc;}
+.badge-kanryo{background:#7f1d1d;color:#fca5a5;}
+.badge-note{background:#1e3a5f;color:#93c5fd;}
+.step-row .slabel{font-size:12px;flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+.step-row .slabel.kanryo{color:var(--yellow);font-weight:800;}
+.tag{font-size:9px;padding:1px 5px;border-radius:3px;font-weight:700;}
+.tag-p{background:#0c4a6e;color:#38bdf8;}
+.tag-f{background:#450a0a;color:#f87171;}
+.ecn-mark{font-size:10px;font-weight:800;}
+
+/* Detail panel */
+.detail{padding:16px;overflow-y:auto;height:100%;}
+.detail-hdr{display:flex;align-items:flex-start;gap:10px;margin-bottom:16px;}
+.detail-hdr .did{font-size:22px;font-weight:900;color:#334155;font-family:monospace;line-height:1;}
+.detail-hdr .dinfo{flex:1;}
+.detail-hdr .dgrp{font-size:10px;font-weight:600;margin-bottom:2px;}
+.detail-hdr .dlabel{font-size:15px;font-weight:700;}
+.section-title{font-size:10px;font-weight:800;letter-spacing:1px;margin-bottom:4px;}
+.parts-list,.fast-list{border-radius:6px;overflow:hidden;margin-bottom:14px;}
+.part-row,.fast-row{display:flex;align-items:center;gap:8px;padding:6px 10px;font-size:11px;}
+.part-row{border-bottom:1px solid #064e3b;}
+.fast-row{border-bottom:1px solid #7f1d1d;}
+.dot{width:5px;height:5px;border-radius:50%;flex-shrink:0;}
+.mono{font-family:monospace;min-width:140px;}
+.fast-meta{display:flex;gap:16px;margin-top:3px;padding-left:13px;font-size:10px;}
+
+/* Import/Export bar */
+.io-bar{padding:6px 14px;border-bottom:1px solid var(--border);display:flex;gap:6px;align-items:center;}
+.io-btn{font-size:9px;padding:3px 10px;border-radius:4px;border:1px solid var(--border);background:transparent;color:var(--text3);font-weight:600;}
+.io-btn:hover{border-color:var(--text2);color:var(--text2);}
+
+/* CRUD Modal */
+.modal-overlay{position:fixed;inset:0;background:rgba(0,0,0,0.7);display:flex;align-items:center;justify-content:center;z-index:100;}
+.modal{background:var(--bg2);border:1px solid var(--border);border-radius:10px;padding:20px;width:480px;max-height:80vh;overflow-y:auto;}
+.modal h3{font-size:14px;font-weight:700;margin-bottom:12px;color:var(--blue);}
+.form-row{margin-bottom:10px;}
+.form-row label{display:block;font-size:10px;color:var(--text3);margin-bottom:3px;font-weight:600;letter-spacing:0.5px;}
+.form-row input,.form-row select{width:100%;padding:6px 10px;background:var(--bg);border:1px solid #334155;border-radius:6px;color:var(--text);font-size:12px;}
+.form-row select{appearance:none;}
+.form-actions{display:flex;gap:8px;margin-top:16px;}
+.btn-primary{padding:6px 16px;border-radius:6px;background:var(--blue);color:#fff;font-size:11px;font-weight:700;}
+.btn-danger{padding:6px 16px;border-radius:6px;background:var(--red);color:#fff;font-size:11px;font-weight:700;}
+.btn-ghost{padding:6px 16px;border-radius:6px;background:transparent;border:1px solid var(--border);color:var(--text3);font-size:11px;font-weight:600;}
+
+/* Kanban */
+.kanban{display:flex;gap:8px;padding:12px;flex:1;overflow-x:auto;background:#060c18;}
+.kan-col{min-width:190px;max-width:220px;flex-shrink:0;display:flex;flex-direction:column;}
+.kan-hdr{padding:8px 10px;border-radius:8px 8px 0 0;margin-bottom:6px;}
+.kan-cards{display:flex;flex-direction:column;gap:4px;flex:1;overflow-y:auto;}
+.kan-card{padding:8px 10px;background:var(--bg2);border:1px solid var(--border);border-radius:6px;cursor:pointer;transition:all .15s;position:relative;}
+.kan-card:hover{border-color:var(--text3);}
+.kan-card.selected{border-color:var(--blue);}
+.kan-card .kname{font-size:11px;margin-bottom:4px;}
+.kan-card .ktags{display:flex;gap:4px;flex-wrap:wrap;}
+
+/* Graph */
+.graph-container{flex:1;overflow:hidden;background:#060c18;position:relative;}
+.graph-container svg{width:100%;height:100%;}
+
+/* Empty state */
+.empty{display:flex;align-items:center;justify-content:center;height:100%;flex-direction:column;gap:10px;}
+.empty .big{font-size:48px;opacity:0.15;}
+.empty .msg{font-size:13px;color:#334155;text-align:center;line-height:1.8;}
+
+/* Context menu */
+.ctx-menu{position:fixed;background:var(--bg2);border:1px solid var(--border);border-radius:8px;padding:4px;z-index:200;min-width:160px;box-shadow:0 8px 32px rgba(0,0,0,0.5);}
+.ctx-item{padding:6px 12px;font-size:11px;color:var(--text2);border-radius:4px;cursor:pointer;display:flex;align-items:center;gap:8px;}
+.ctx-item:hover{background:rgba(255,255,255,0.05);color:var(--text);}
+.ctx-sep{height:1px;background:var(--border);margin:4px 0;}
+</style>
+</head>
+<body>
+<div id="root"></div>
+<script type="text/babel">
+const { useState, useEffect, useMemo, useCallback, useRef, createContext, useContext } = React;
+
+// ═══════════════════════════════════════════════════════
+// DB LAYER
+// ═══════════════════════════════════════════════════════
+const SEED_SQL = `
+CREATE TABLE IF NOT EXISTS assemblies (id INTEGER PRIMARY KEY, name TEXT NOT NULL, version TEXT DEFAULT '1.0', created_at TEXT DEFAULT (datetime('now')), updated_at TEXT DEFAULT (datetime('now')));
+CREATE TABLE IF NOT EXISTS groups (id INTEGER PRIMARY KEY, assembly_id INTEGER, label TEXT NOT NULL, color TEXT, icon TEXT, sort_order INTEGER);
+CREATE TABLE IF NOT EXISTS steps (id INTEGER PRIMARY KEY, group_id INTEGER, label TEXT NOT NULL, type TEXT DEFAULT 'step', sort_order INTEGER);
+CREATE TABLE IF NOT EXISTS parts (id INTEGER PRIMARY KEY, step_id INTEGER, pn TEXT, name TEXT, qty INTEGER DEFAULT 1, sort_order INTEGER);
+CREATE TABLE IF NOT EXISTS fasteners (id INTEGER PRIMARY KEY, step_id INTEGER, pn TEXT, name TEXT, qty INTEGER DEFAULT 1, loctite TEXT, torque TEXT, sort_order INTEGER);
+CREATE TABLE IF NOT EXISTS ecn_log (id INTEGER PRIMARY KEY, step_id INTEGER, change_type TEXT, description TEXT, created_at TEXT DEFAULT (datetime('now')));
+
+INSERT OR IGNORE INTO assemblies VALUES (1,'Head & Body','1.0',datetime('now'),datetime('now'));
+INSERT OR IGNORE INTO groups VALUES (1,1,'Prep (Loctite)','#8b5cf6','🧪',1),(2,1,'完了: Body','#10b981','🏗️',2),(3,1,'完了: Motor & Gear housing','#f59e0b','⚙️',3),(4,1,'完了: Head','#ef4444','🔩',4),(5,1,'完了: Camera','#06b6d4','📷',5),(6,1,'Final Assembly','#ec4899','✅',6);
+
+INSERT OR IGNORE INTO steps VALUES
+(1,1,'Motor assy','step',1),(2,1,'Loctite 648 parts','prep',2),(3,1,'Ball bearing in Dovel pin','step',3),(4,1,'Loctite 425 parts','prep',4),
+(5,2,'Frame galina plate 組立','step',1),(6,2,'Frame side plate 組立','step',2),(7,2,'Arm joint plate 組立','step',3),(8,2,'Middle frame 組立','step',4),(9,2,'Body 組立','step',5),(10,2,'Hook arm 組立','step',6),(11,2,'Galina bot cover','step',7),(12,2,'Galina 組立','step',8),(13,2,'Wifi plate 組立','step',9),(14,2,'Galina back cover','step',10),(15,2,'Body','kanryo',11),
+(16,3,'Encoder shaft 組立','step',1),(17,3,'White gears 組立','step',2),(18,3,'Hex and round pins 組立','step',3),(19,3,'Gearbox cover 組立','step',4),(20,3,'PCB holder 組立','step',5),(21,3,'PCB 組立','step',6),(22,3,'Motor & Gear housing','kanryo',7),
+(23,4,'Attach the base ring sheet metal','step',1),(24,4,'Attaching the ring holder','step',2),(25,4,'Mounting the CAM follower','step',3),(26,4,'Mount the head on body','step',4),(27,4,'Attach the motor to head','step',5),(28,4,'①Sandwich ring gear ②Mesh gears ③Test rotation ④Fix CAM follower','note',6),(29,4,'Attach the ring gear top spring clasp','step',7),(30,4,'Head','kanryo',8),
+(31,5,'Cable carrier bracket assy','step',1),(32,5,'Camera assy','step',2),(33,5,'LED mounting','step',3),(34,5,'Camera cable pusher plate mounting','step',4),(35,5,'Wire strap','step',5),(36,5,'Mount the wires on camera assy','step',6),(37,5,'Head camera harness sleeve 500mm','step',7),(38,5,'10 mm rubber and apply the Nitto tape','step',8),(39,5,'Camera','kanryo',9),
+(40,6,'Mounting the head cover','step',1),(41,6,'Cable guide bracket assy','step',2);
+
+INSERT OR IGNORE INTO parts VALUES
+(1,1,'GPMP-0800012-0-2','Gearbox Support',1,1),(2,1,'GPEP-0000006-0-0','2232U 024 SR + Connector',1,2),
+(3,2,'GPMP-0800019-0-0','MotorPinion',1,1),(4,2,'GPMP-0800014-0-1','Encoder Shaft',1,2),(5,2,'GPMP-0800022-0-0','Gear Stage-32',1,3),(6,2,'GPMP-0800018-0-1','MagnetSupport',1,4),(7,2,'GPCP-0000030-0-0','D42DIA',1,5),(8,2,'GPMP-0800005-0-1','Head Assy Arm Mount',1,6),(9,2,'GPCP-0000007-0-0','3020-H7',2,7),
+(10,3,'GPCP-0000006-0-0','4006-H7',9,1),(11,3,'GPCP-0000005-0-0','SMR74',9,2),
+(12,4,'GPMP-0800004-0-1','Ring Gear 387 Teeth',1,1),
+(13,5,'GPCP-0000066-0-0','FFW-0306-25N',1,1),(14,7,'GPMP-0500020-0-0','ARM-JOINT-PLATE',1,1),(15,8,'GPMP-0400001-0-1','Frame Middle',1,1),(16,10,'GPMP-0500021-0-0','HOOK-ARM',1,1),(17,11,'GPCP-0400015-0-0','Galina Bot cover',1,1),(18,13,'GPMP-0400011-0-0','Wifi Antenna Plate',1,1),(19,14,'GPCP-0400013-0-0','Galina Back Cover',1,1),(20,15,'GPHP-0000012-0-1','CAN_Cable_G200',1,1),
+(21,16,'GPCP-0000085-0-0','DDL940',2,1),(22,17,'GPCP-0000033-0-0','SSFMR3-19.5-LKC',4,1),(23,17,'GPMP-0800025-0-0','Gear Stage-40-15',2,2),(24,17,'GPMP-0800024-0-0','Gear Stage-35-17',2,3),(25,17,'GPMP-0800023-0-0','Gear Stage-33-15',1,4),(26,18,'GPCP-0000024-0-0','BFPSPA3-P2_00-L3-B3_0',1,1),(27,18,'GPCP-0000086-0-0','BFPBPD2-P3-L3-B3',1,2),(28,19,'GPMP-0800013-0-2','Gear Box Cover',1,1),(29,20,'GPMP-0800020-0-1','PCB_Holder',1,1),(30,21,'GPCP-0000080-0-0','SP-O2-3-12P',3,1),
+(31,23,'GPMP-0800011-0-2','Head Support',1,1),(32,23,'GPMP-0800009-0-2','Base Ring Sheet Metal',1,2),(33,24,'GPMP-0800021-0-1','RingHolder',1,1),(34,24,'GPCP-0000020-0-0','MR74ZZ',2,2),(35,24,'GPMP-0800015-0-0','Bearing Spacer',2,3),(36,24,'GPCP-0000057-0-0','SSFR4-15.5-LKC',2,4),(37,25,'GPCP-0000077-0-0','WSSS8-4-1.5',2,1),(38,25,'GPCP-0000088-0-0','NN1-M4-SUS',2,2),(39,29,'GPMP-0800026-0-0','Ring Gear Top Spring Clasp',2,1),
+(40,31,'GPMP-0400010-1-1','Cable Carrier Bracket Stock Side',1,1),(41,31,'GPMP-0400009-1-0','Cable Carrier Bracket Galina Side',1,2),(42,31,'GPCP-0000083-0-0','UPWH3-10',2,3),(43,31,'GPMP-0400004-0-1','Cable Carrier Level Plate',1,4),(44,32,'GPMP-0800008-0-1','Camera Bracket',1,1),(45,33,'GPEP-0000005-0-0','FSA00EM000030JPSL0',1,1),(46,34,'GPMP-0800016-0-1','MIPI LED Cable Bracket',1,1),(47,36,'GPHP-0000019-0-2','LED_EX_Cable_600',1,1),(48,36,'GPHP-0000001-0-1','81973-400B-002',2,2),(49,39,'GPCP-0000003-0-0','WSX-STN-M3X10-1.2',2,1),
+(50,40,'GPMP-0800002-0-1','Head Cover',1,1),(51,41,'GPMP-0400008-0-1','Cable Guide Bracket',1,1);
+
+INSERT OR IGNORE INTO fasteners VALUES
+(1,1,'GPCP-0000023-0-0','CBBTS2-5',3,'222','0.315 Nm',1),
+(2,5,'GPCP-0000002-0-0','RXMS-2V0',2,'---','---',1),(3,5,'GPCP-0000010-0-1','BSB-315CE',1,'222','0.65 Nm',2),(4,5,'GPCP-0000010-0-1','BSB-315CE',2,'222','0.65 Nm',3),
+(5,6,'GPCP-0000010-0-1','BSB-315CE',3,'222','0.65 Nm',1),(6,7,'GPCP-0000172-0-0','AFPBPA3-P4-L5-B3',4,'---','---',1),(7,8,'GPCP-0000011-0-0','CSH-SUS-M3-5',4,'222','1.14 Nm',1),(8,9,'GPCP-0000013-0-0','CSH-SUS-M4-8',6,'222','2.7 Nm',1),(9,10,'GPCP-0000127-0-0','CBE6-30',3,'243','5.2 Nm',1),(10,11,'GPCP-0000093-0-0','CBE3-6',2,'425','1.14 Nm',1),
+(11,12,'GPCP-0000011-0-0','CSH-SUS-M3-5',4,'222','1.14 Nm',1),(12,12,'GPCP-0000084-0-0','CSPPNSB-STNB-TPT3-8',1,'425','0.315 Nm',2),(13,13,'GPCP-0000011-0-0','CSH-SUS-M3-5',2,'425','1.14 Nm',1),(14,14,'GPCP-0000101-0-0','CBE2-6',1,'222','0.315 Nm',1),
+(15,16,'GPCP-0000021-0-0','MSW3',1,'---','0.315 Nm',1),(16,19,'GPCP-0000031-0-0','CSH-SUS-M3-6',2,'222','1.14 Nm',1),(17,19,'GPCP-0000094-0-0','GPCP-0000094',2,'425','0.65 Nm',2),(18,20,'GPCP-0000023-0-0','CBBTS2-5',2,'222','0.315 Nm',1),(19,21,'GPCP-0000101-0-0','CBE2-6',3,'---','0.315 Nm',1),
+(20,23,'GPCP-0000031-0-0','CSH-SUS-M3-6',2,'222','1.14 Nm',1),(21,23,'GPCP-0000016-0-0','CSH-SUS-M3-20',2,'243','1.14 Nm',2),(22,24,'GPCP-0000031-0-0','CSH-SUS-M3-6',1,'425','1.14 Nm',1),(23,25,'GPCP-0000076-0-0','CF4-A',2,'---','1.14 Nm',1),(24,26,'GPCP-0000017-0-0','CSH-SUS-M4-10',2,'222','2.7 Nm',1),(25,26,'GPCP-0000011-0-0','CSH-SUS-M3-5',2,'222','1.14 Nm',2),(26,27,'GPCP-0000014-0-0','CSH-SUS-M3-10',2,'222','1.14 Nm',1),(27,29,'GPCP-0000014-0-0','CSH-SUS-M3-10',4,'425','1.14 Nm',1),
+(28,31,'GPCP-0000084-0-0','CSPPNSB-STNB-TPT3-8',2,'---','0.65 Nm',1),(29,31,'GPCP-0000068-0-0','BCBFB3-6',4,'425','0.65 Nm',2),(30,31,'GPCP-0000140-0-0','SFB3-5',2,'425','0.65 Nm',3),(31,32,'GPEP-0000004-0-0','See3CAM AR0821 + Lens',2,'---','0.315 Nm',1),(32,33,'GPCP-0000018-0-0','CSH-SUS-M2-5',2,'222','0.315 Nm',1),(33,34,'GPCP-0000101-0-0','CBE2-6',2,'222','0.176 Nm',1),(34,39,'GPCP-0000084-0-0','CSPPNSB-STNB-TPT3-8',2,'---','0.65 Nm',1),
+(35,40,'GPCP-0000084-0-0','CSPPNSB-STNB-TPT3-8',6,'---','0.65 Nm',1),(36,40,'GPCP-0000034-0-0','CBSST3-5',1,'---','---',2),(37,41,'GPCP-0000010-0-1','BSB-315CE',2,'222','0.65 Nm',1);
+`;
+
+// IndexedDB persistence
+const IDB_NAME='assy_tree_db';const IDB_STORE='db_store';const IDB_KEY='main_db';
+function idbOpen(){return new Promise((res,rej)=>{const r=indexedDB.open(IDB_NAME,1);r.onupgradeneeded=e=>{e.target.result.createObjectStore(IDB_STORE);};r.onsuccess=e=>res(e.target.result);r.onerror=e=>rej(e);});}
+async function idbSave(data){const db=await idbOpen();return new Promise((res,rej)=>{const tx=db.transaction(IDB_STORE,'readwrite');tx.objectStore(IDB_STORE).put(data,IDB_KEY);tx.oncomplete=()=>res();tx.onerror=e=>rej(e);});}
+async function idbLoad(){const db=await idbOpen();return new Promise((res,rej)=>{const tx=db.transaction(IDB_STORE,'readonly');const r=tx.objectStore(IDB_STORE).get(IDB_KEY);r.onsuccess=()=>res(r.result||null);r.onerror=e=>rej(e);});}
+
+// DB Context
+const DBContext = createContext(null);
+
+// ═══════════════════════════════════════════════════════
+// QUERY HELPERS
+// ═══════════════════════════════════════════════════════
+function query(db, sql, params=[]){
+  const r=db.exec(sql,params);
+  if(!r.length)return[];
+  const cols=r[0].columns;
+  return r[0].values.map(row=>{const o={};cols.forEach((c,i)=>o[c]=row[i]);return o;});
+}
+function run(db,sql,params=[]){db.run(sql,params);}
+
+function getGroups(db){return query(db,"SELECT * FROM groups ORDER BY sort_order");}
+function getSteps(db,groupId){return query(db,"SELECT * FROM steps WHERE group_id=? ORDER BY sort_order",[groupId]);}
+function getAllSteps(db){return query(db,"SELECT s.*, g.label as group_label, g.color as group_color, g.icon as group_icon FROM steps s JOIN groups g ON s.group_id=g.id ORDER BY g.sort_order, s.sort_order");}
+function getParts(db,stepId){return query(db,"SELECT * FROM parts WHERE step_id=? ORDER BY sort_order",[stepId]);}
+function getFasteners(db,stepId){return query(db,"SELECT * FROM fasteners WHERE step_id=? ORDER BY sort_order",[stepId]);}
+function getAllParts(db){return query(db,"SELECT p.*, s.label as step_label, s.group_id FROM parts p JOIN steps s ON p.step_id=s.id ORDER BY s.group_id, s.sort_order, p.sort_order");}
+function getAllFasteners(db){return query(db,"SELECT f.*, s.label as step_label, s.group_id FROM fasteners f JOIN steps s ON f.step_id=s.id ORDER BY s.group_id, s.sort_order, f.sort_order");}
+function searchAll(db,q){
+  const like=`%${q}%`;
+  return query(db,`SELECT DISTINCT s.id, s.label, s.type, g.label as group_label, g.color as group_color
+    FROM steps s JOIN groups g ON s.group_id=g.id
+    LEFT JOIN parts p ON p.step_id=s.id LEFT JOIN fasteners f ON f.step_id=s.id
+    WHERE s.label LIKE ? OR p.pn LIKE ? OR p.name LIKE ? OR f.pn LIKE ? OR f.name LIKE ?
+    ORDER BY g.sort_order, s.sort_order`,[like,like,like,like,like]);
+}
+function getImpact(db,stepIds){
+  if(!stepIds.length)return{parts:[],fasteners:[]};
+  const ph=stepIds.map(()=>'?').join(',');
+  return{
+    parts:query(db,`SELECT p.*,s.label as step_label FROM parts p JOIN steps s ON p.step_id=s.id WHERE p.step_id IN (${ph})`,stepIds),
+    fasteners:query(db,`SELECT f.*,s.label as step_label FROM fasteners f JOIN steps s ON f.step_id=s.id WHERE f.step_id IN (${ph})`,stepIds)
+  };
+}
+
+// ═══════════════════════════════════════════════════════
+// DETAIL PANEL
+// ═══════════════════════════════════════════════════════
+function DetailPanel({stepId,ecnChanges,onEdit}){
+  const db=useContext(DBContext);
+  if(!db||!stepId)return <div className="empty"><div className="big">🔧</div><div className="msg">Click a step to see parts & fasteners<br/>Toggle <b style={{color:'var(--yellow)'}}>ECN</b> to mark changes</div></div>;
+
+  const steps=getAllSteps(db);
+  const s=steps.find(x=>x.id===stepId);
+  if(!s)return null;
+  const parts=getParts(db,stepId);
+  const fast=getFasteners(db,stepId);
+  const ecn=ecnChanges[stepId]||'none';
+  const ecnColors={none:{},remove:{bg:'rgba(239,68,68,0.1)',bd:'#ef4444'},replace:{bg:'rgba(245,158,11,0.1)',bd:'#f59e0b'},add:{bg:'rgba(16,185,129,0.1)',bd:'#10b981'},modify:{bg:'rgba(59,130,246,0.1)',bd:'#3b82f6'}};
+  const ec=ecnColors[ecn]||{};
+
+  return(
+    <div className="detail">
+      <div className="detail-hdr">
+        <div className="did">{s.id}</div>
+        <div className="dinfo">
+          <div className="dgrp" style={{color:s.group_color}}>↳ {s.group_label}</div>
+          <div className="dlabel" style={{color:s.type==='kanryo'?'var(--yellow)':'var(--text)'}}>{s.label}</div>
+        </div>
+        {ecn!=='none'&&<span style={{padding:'3px 10px',borderRadius:5,background:ec.bg,border:'1px solid '+ec.bd,color:ec.bd,fontSize:10,fontWeight:800,textTransform:'uppercase'}}>{ecn}</span>}
+      </div>
+
+      {parts.length>0&&<div>
+        <div className="section-title" style={{color:'var(--green)'}}>PARTS ({parts.length})
+          <button onClick={()=>onEdit('part',stepId)} style={{marginLeft:8,fontSize:9,padding:'1px 6px',borderRadius:3,border:'1px solid #064e3b',background:'transparent',color:'var(--green)',cursor:'pointer'}}>+ Add</button>
+        </div>
+        <div className="parts-list" style={{border:'1px solid #064e3b'}}>
+          {parts.map((p,i)=>(
+            <div key={p.id} className="part-row" style={{background:i%2?'#071a12':'#0a2318'}}>
+              <div className="dot" style={{background:'var(--green)'}}/>
+              <span className="mono" style={{color:'#34d399'}}>{p.pn}</span>
+              <span style={{color:'#d1fae5',flex:1}}>{p.name}</span>
+              <span style={{color:'#6ee7b7',fontWeight:600}}>×{p.qty}</span>
+            </div>
+          ))}
+        </div>
+      </div>}
+
+      {parts.length===0&&<div style={{marginBottom:14}}>
+        <div className="section-title" style={{color:'var(--green)'}}>PARTS (0)
+          <button onClick={()=>onEdit('part',stepId)} style={{marginLeft:8,fontSize:9,padding:'1px 6px',borderRadius:3,border:'1px solid #064e3b',background:'transparent',color:'var(--green)',cursor:'pointer'}}>+ Add</button>
+        </div>
+      </div>}
+
+      {fast.length>0&&<div>
+        <div className="section-title" style={{color:'var(--red)'}}>FASTENERS ({fast.length})
+          <button onClick={()=>onEdit('fastener',stepId)} style={{marginLeft:8,fontSize:9,padding:'1px 6px',borderRadius:3,border:'1px solid #7f1d1d',background:'transparent',color:'var(--red)',cursor:'pointer'}}>+ Add</button>
+        </div>
+        <div className="fast-list" style={{border:'1px solid #7f1d1d'}}>
+          {fast.map((f,i)=>(
+            <div key={f.id} className="fast-row" style={{background:i%2?'#1a0505':'#200a0a',flexDirection:'column'}}>
+              <div style={{display:'flex',alignItems:'center',gap:8}}>
+                <div className="dot" style={{background:'var(--red)'}}/>
+                <span className="mono" style={{color:'#fca5a5'}}>{f.pn}</span>
+                <span style={{color:'#fecaca',flex:1}}>{f.name}</span>
+                <span style={{color:'#f87171',fontWeight:600}}>×{f.qty}</span>
+              </div>
+              <div className="fast-meta">
+                <span><span style={{color:'var(--text4)'}}>LT </span><span style={{color:f.loctite==='---'?'var(--text4)':'var(--yellow)',fontWeight:700}}>{f.loctite}</span></span>
+                <span><span style={{color:'var(--text4)'}}>TQ </span><span style={{color:!f.torque||f.torque==='---'?'var(--text4)':'var(--blue)',fontWeight:700}}>{f.torque||'—'}</span></span>
+              </div>
+            </div>
+          ))}
+        </div>
+      </div>}
+
+      {fast.length===0&&<div>
+        <div className="section-title" style={{color:'var(--red)'}}>FASTENERS (0)
+          <button onClick={()=>onEdit('fastener',stepId)} style={{marginLeft:8,fontSize:9,padding:'1px 6px',borderRadius:3,border:'1px solid #7f1d1d',background:'transparent',color:'var(--red)',cursor:'pointer'}}>+ Add</button>
+        </div>
+      </div>}
+    </div>
+  );
+}
+
+// ═══════════════════════════════════════════════════════
+// LIST VIEW
+// ═══════════════════════════════════════════════════════
+function ListView({selected,setSelected,ecnOn,brush,ecnChanges,setEcnChanges,search}){
+  const db=useContext(DBContext);
+  const [exp,setExp]=useState(new Set());
+  
+  useEffect(()=>{if(db){const gs=getGroups(db);setExp(new Set(gs.map(g=>g.id)));}},[db]);
+  
+  if(!db)return null;
+  const groups=getGroups(db);
+  const searchResults=search?searchAll(db,search):null;
+  const matchIds=searchResults?new Set(searchResults.map(r=>r.id)):null;
+  
+  const toggle=id=>setExp(p=>{const n=new Set(p);n.has(id)?n.delete(id):n.add(id);return n;});
+  const click=id=>{
+    if(ecnOn){setEcnChanges(p=>{const n={...p};n[id]===brush?delete n[id]:(n[id]=brush);return n;});}
+    else{setSelected(selected===id?null:id);}
+  };
+
+  const ecnColors={remove:'#ef4444',replace:'#f59e0b',add:'#10b981',modify:'#3b82f6'};
+  const ecnIcons={remove:'✕',replace:'↻',add:'+',modify:'~'};
+  const ecnBgs={remove:'rgba(239,68,68,0.08)',replace:'rgba(245,158,11,0.08)',add:'rgba(16,185,129,0.08)',modify:'rgba(59,130,246,0.08)'};
+  const badgeClass={step:'badge-step',prep:'badge-prep',kanryo:'badge-kanryo',note:'badge-note'};
+  const badgeText={step:'STEP',prep:'PREP',kanryo:'完了',note:'NOTE'};
+
+  return(
+    <div className="tree">
+      {groups.map(g=>{
+        const steps=getSteps(db,g.id);
+        const open=exp.has(g.id);
+        const gEcn=steps.filter(s=>ecnChanges[s.id]).length;
+        return(<div key={g.id}>
+          <div className="group-hdr" onClick={()=>toggle(g.id)} style={{borderLeft:'3px solid '+g.color}}>
+            <span className={'arrow'+(open?' open':'')}>▶</span>
+            <span className="icon">{g.icon}</span>
+            <span className="label" style={{color:g.color}}>{g.label}</span>
+            <span className="cnt">{steps.length}</span>
+            {gEcn>0&&<span className="ecn-cnt">{gEcn}</span>}
+          </div>
+          {open&&steps.map(s=>{
+            const e=ecnChanges[s.id];
+            const sel=selected===s.id;
+            const vis=!matchIds||matchIds.has(s.id);
+            const pc=query(db,"SELECT COUNT(*) as c FROM parts WHERE step_id=?",[s.id])[0]?.c||0;
+            const fc=query(db,"SELECT COUNT(*) as c FROM fasteners WHERE step_id=?",[s.id])[0]?.c||0;
+            return(
+              <div key={s.id} className={'step-row'+(sel?' selected':'')} onClick={()=>click(s.id)}
+                style={{background:e?ecnBgs[e]:undefined,borderLeftColor:e?ecnColors[e]:undefined,opacity:vis?1:0.2}}>
+                <span className="sid">{s.id}</span>
+                <span className={'badge '+(badgeClass[s.type]||'badge-step')}>{badgeText[s.type]||'STEP'}</span>
+                <span className={'slabel'+(s.type==='kanryo'?' kanryo':'')}>{s.label}</span>
+                {pc>0&&<span className="tag tag-p">{pc}P</span>}
+                {fc>0&&<span className="tag tag-f">{fc}F</span>}
+                {e&&<span className="ecn-mark" style={{color:ecnColors[e]}}>{ecnIcons[e]}</span>}
+              </div>
+            );
+          })}
+        </div>);
+      })}
+    </div>
+  );
+}
+
+// ═══════════════════════════════════════════════════════
+// GRAPH VIEW
+// ═══════════════════════════════════════════════════════
+function GraphView({selected,setSelected,ecnOn,brush,ecnChanges,setEcnChanges}){
+  const db=useContext(DBContext);
+  const ref=useRef(null);
+  const [dim,setDim]=useState({w:900,h:700});
+  const [hov,setHov]=useState(null);
+
+  useEffect(()=>{if(ref.current){const r=ref.current.getBoundingClientRect();setDim({w:r.width||900,h:r.height||700});}},[]); 
+
+  if(!db)return null;
+  const steps=getAllSteps(db);
+  const allParts=query(db,"SELECT DISTINCT name FROM parts ORDER BY name");
+  const allFast=query(db,"SELECT DISTINCT name FROM fasteners ORDER BY name");
+  const partNames=allParts.map(p=>p.name);
+  const fastNames=allFast.map(f=>f.name);
+  const groups=getGroups(db);
+
+  const pX=5,sX=dim.w*0.3,fX=dim.w*0.66,gX=dim.w-70;
+  const pY=i=>22+i*((dim.h-44)/Math.max(partNames.length-1,1));
+  const sY=i=>22+i*((dim.h-44)/Math.max(steps.length-1,1));
+  const fY=i=>22+i*((dim.h-44)/Math.max(fastNames.length-1,1));
+
+  const active=hov||selected;
+  const activeParts=active?getParts(db,active).map(p=>p.name):[];
+  const activeFast=active?getFasteners(db,active).map(f=>f.name):[];
+
+  const ecnColors={remove:'#ef4444',replace:'#f59e0b',add:'#10b981',modify:'#3b82f6'};
+  const ecnBgs={remove:'rgba(239,68,68,0.08)',replace:'rgba(245,158,11,0.08)',add:'rgba(16,185,129,0.08)',modify:'rgba(59,130,246,0.08)'};
+  const ecnIcons={remove:'✕',replace:'↻',add:'+',modify:'~'};
+
+  const click=id=>{
+    if(ecnOn){setEcnChanges(p=>{const n={...p};n[id]===brush?delete n[id]:(n[id]=brush);return n;});}
+    else{setSelected(selected===id?null:id);}
+  };
+
+  return(
+    <div ref={ref} className="graph-container">
+      <svg width={dim.w} height={dim.h}>
+        <text x={pX} y={12} fontSize={9} fill="#334155" fontWeight={700}>PARTS ({partNames.length})</text>
+        <text x={sX} y={12} fontSize={9} fill="#334155" fontWeight={700}>STEPS ({steps.length})</text>
+        <text x={fX} y={12} fontSize={9} fill="#334155" fontWeight={700}>FASTENERS ({fastNames.length})</text>
+        <text x={gX} y={12} fontSize={9} fill="#334155" fontWeight={700}>GROUPS</text>
+
+        {/* Part→Step lines */}
+        {steps.map((s,si)=>{
+          const sp=getParts(db,s.id);
+          return sp.map((p,pi)=>{
+            const pIdx=partNames.indexOf(p.name);if(pIdx<0)return null;
+            const e=ecnChanges[s.id];const isA=active===s.id;
+            return <line key={`ps${si}-${pi}`} x1={pX+105} y1={pY(pIdx)} x2={sX} y2={sY(si)}
+              stroke={e?ecnColors[e]:isA?s.group_color:'#1e293b'} strokeWidth={isA?1.5:0.4} opacity={isA?0.7:e?0.5:0.15}/>;
+          });
+        })}
+
+        {/* Step→Fastener lines */}
+        {steps.map((s,si)=>{
+          const sf=getFasteners(db,s.id);
+          return sf.map((f,fi)=>{
+            const fIdx=fastNames.indexOf(f.name);if(fIdx<0)return null;
+            const e=ecnChanges[s.id];const isA=active===s.id;
+            return <line key={`sf${si}-${fi}`} x1={sX+155} y1={sY(si)} x2={fX} y2={fY(fIdx)}
+              stroke={e?ecnColors[e]:isA?'#f87171':'#1e293b'} strokeWidth={isA?1.5:0.4} opacity={isA?0.7:e?0.5:0.15}/>;
+          });
+        })}
+
+        {/* Part nodes */}
+        {partNames.map((p,i)=>{
+          const isA=activeParts.includes(p);
+          return <g key={`p${i}`}>
+            <rect x={pX} y={pY(i)-7} width={103} height={14} rx={3} fill={isA?'#0c4a6e':'#111827'} stroke={isA?'#38bdf8':'#1e293b33'} strokeWidth={isA?1:0.5}/>
+            <text x={pX+4} y={pY(i)+3} fontSize={6.5} fill={isA?'#7dd3fc':'#475569'} style={{fontFamily:'monospace'}}>{p.slice(0,18)}</text>
+          </g>;
+        })}
+
+        {/* Step nodes */}
+        {steps.map((s,i)=>{
+          const e=ecnChanges[s.id];const isA=active===s.id;
+          return <g key={`s${i}`} onMouseEnter={()=>setHov(s.id)} onMouseLeave={()=>setHov(null)} onClick={()=>click(s.id)} style={{cursor:'pointer'}}>
+            <rect x={sX} y={sY(i)-8} width={153} height={16} rx={4}
+              fill={e?ecnBgs[e]:isA?s.group_color+'22':'#111827'} stroke={e?ecnColors[e]:isA?s.group_color:'#1e293b44'} strokeWidth={isA||e?1.5:0.5}/>
+            <text x={sX+5} y={sY(i)+3} fontSize={7.5} fill={isA?'#f1f5f9':e?ecnColors[e]:'#94a3b8'} fontWeight={isA?700:400} style={{fontFamily:'system-ui'}}>{s.label.slice(0,24)}</text>
+            {e&&<text x={sX+145} y={sY(i)+4} fontSize={9} fill={ecnColors[e]} fontWeight={900} textAnchor="end">{ecnIcons[e]}</text>}
+          </g>;
+        })}
+
+        {/* Fastener nodes */}
+        {fastNames.map((f,i)=>{
+          const isA=activeFast.includes(f);
+          return <g key={`f${i}`}>
+            <rect x={fX} y={fY(i)-7} width={88} height={14} rx={3} fill={isA?'#450a0a':'#111827'} stroke={isA?'#f87171':'#1e293b33'} strokeWidth={isA?1:0.5}/>
+            <text x={fX+4} y={fY(i)+3} fontSize={6.5} fill={isA?'#fca5a5':'#475569'} style={{fontFamily:'monospace'}}>{f.slice(0,15)}</text>
+          </g>;
+        })}
+
+        {/* Group nodes */}
+        {groups.map((g,gi)=>{
+          const gY=30+gi*((dim.h-60)/Math.max(groups.length-1,1));
+          return <g key={`g${gi}`}>
+            <rect x={gX} y={gY-14} width={60} height={28} rx={6} fill={g.color+'15'} stroke={g.color} strokeWidth={0.5}/>
+            <text x={gX+30} y={gY+2} textAnchor="middle" fontSize={7} fill={g.color} fontWeight={700}>{g.label.replace('完了: ','').slice(0,10)}</text>
+          </g>;
+        })}
+      </svg>
+    </div>
+  );
+}
+
+// ═══════════════════════════════════════════════════════
+// KANBAN VIEW
+// ═══════════════════════════════════════════════════════
+function KanbanView({selected,setSelected,ecnOn,brush,ecnChanges,setEcnChanges}){
+  const db=useContext(DBContext);
+  if(!db)return null;
+  const groups=getGroups(db);
+  const ecnColors={remove:'#ef4444',replace:'#f59e0b',add:'#10b981',modify:'#3b82f6'};
+  const ecnIcons={remove:'✕',replace:'↻',add:'+',modify:'~'};
+  const ecnBgs={remove:'rgba(239,68,68,0.1)',replace:'rgba(245,158,11,0.1)',add:'rgba(16,185,129,0.1)',modify:'rgba(59,130,246,0.1)'};
+
+  const click=id=>{
+    if(ecnOn){setEcnChanges(p=>{const n={...p};n[id]===brush?delete n[id]:(n[id]=brush);return n;});}
+    else{setSelected(selected===id?null:id);}
+  };
+
+  return(
+    <div className="kanban">
+      {groups.map(g=>{
+        const steps=getSteps(db,g.id);
+        const gEcn=steps.filter(s=>ecnChanges[s.id]).length;
+        return(
+          <div key={g.id} className="kan-col">
+            <div className="kan-hdr" style={{background:g.color+'15',borderBottom:'2px solid '+g.color}}>
+              <div style={{display:'flex',alignItems:'center',gap:6}}>
+                <span style={{fontSize:12}}>{g.icon}</span>
+                <span style={{fontSize:11,fontWeight:800,color:g.color,flex:1}}>{g.label}</span>
+                {gEcn>0&&<span style={{fontSize:9,fontWeight:800,color:'var(--yellow)',background:'#451a03',padding:'1px 6px',borderRadius:3}}>{gEcn}</span>}
+              </div>
+              <div style={{fontSize:10,color:'var(--text4)',marginTop:2}}>{steps.length} steps</div>
+            </div>
+            <div className="kan-cards">
+              {steps.map(s=>{
+                const e=ecnChanges[s.id];const sel=selected===s.id;
+                const pc=query(db,"SELECT COUNT(*) as c FROM parts WHERE step_id=?",[s.id])[0]?.c||0;
+                const fc=query(db,"SELECT COUNT(*) as c FROM fasteners WHERE step_id=?",[s.id])[0]?.c||0;
+                const lts=query(db,"SELECT DISTINCT loctite FROM fasteners WHERE step_id=? AND loctite!='---'",[s.id]);
+                return(
+                  <div key={s.id} className={'kan-card'+(sel?' selected':'')} onClick={()=>click(s.id)}
+                    style={{background:e?ecnBgs[e]:undefined,borderColor:e?ecnColors[e]:sel?'var(--blue)':undefined}}>
+                    {e&&<div style={{position:'absolute',top:4,right:6,fontSize:12,fontWeight:900,color:ecnColors[e]}}>{ecnIcons[e]}</div>}
+                    <div className="kname" style={{color:s.type==='kanryo'?'var(--yellow)':'var(--text)',fontWeight:s.type==='kanryo'?800:400,paddingRight:e?16:0}}>{s.label}</div>
+                    <div className="ktags">
+                      {pc>0&&<span className="tag tag-p">{pc}P</span>}
+                      {fc>0&&<span className="tag tag-f">{fc}F</span>}
+                      {lts.map((l,i)=><span key={i} style={{fontSize:8,color:'var(--yellow)'}}>LT-{l.loctite}</span>)}
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        );
+      })}
+    </div>
+  );
+}
+
+// ═══════════════════════════════════════════════════════
+// ADD MODAL
+// ═══════════════════════════════════════════════════════
+function AddModal({type,stepId,onClose,onSave}){
+  const [pn,setPn]=useState('');
+  const [name,setName]=useState('');
+  const [qty,setQty]=useState(1);
+  const [lt,setLt]=useState('222');
+  const [tq,setTq]=useState('');
+
+  const save=()=>{
+    if(!pn)return;
+    if(type==='part')onSave({step_id:stepId,pn,name,qty:Number(qty)});
+    else onSave({step_id:stepId,pn,name,qty:Number(qty),loctite:lt,torque:tq});
+    onClose();
+  };
+
+  return(
+    <div className="modal-overlay" onClick={onClose}>
+      <div className="modal" onClick={e=>e.stopPropagation()}>
+        <h3>Add {type==='part'?'Part':'Fastener'} to Step #{stepId}</h3>
+        <div className="form-row"><label>P/N</label><input value={pn} onChange={e=>setPn(e.target.value)} placeholder="GPCP-0000000-0-0"/></div>
+        <div className="form-row"><label>Name</label><input value={name} onChange={e=>setName(e.target.value)} placeholder="Part name"/></div>
+        <div className="form-row"><label>Qty</label><input type="number" value={qty} onChange={e=>setQty(e.target.value)} min={1}/></div>
+        {type==='fastener'&&<>
+          <div className="form-row"><label>Loctite</label><select value={lt} onChange={e=>setLt(e.target.value)}><option value="222">222</option><option value="243">243</option><option value="425">425</option><option value="648">648</option><option value="---">---</option></select></div>
+          <div className="form-row"><label>Torque</label><input value={tq} onChange={e=>setTq(e.target.value)} placeholder="1.14 Nm"/></div>
+        </>}
+        <div className="form-actions">
+          <button className="btn-primary" onClick={save}>Add</button>
+          <button className="btn-ghost" onClick={onClose}>Cancel</button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ═══════════════════════════════════════════════════════
+// MAIN APP
+// ═══════════════════════════════════════════════════════
+function App(){
+  const [db,setDb]=useState(null);
+  const [loading,setLoading]=useState(true);
+  const [view,setView]=useState('list');
+  const [selected,setSelected]=useState(null);
+  const [ecnOn,setEcnOn]=useState(false);
+  const [brush,setBrush]=useState('remove');
+  const [ecnChanges,setEcnChanges]=useState({});
+  const [search,setSearch]=useState('');
+  const [modal,setModal]=useState(null);
+  const [tick,setTick]=useState(0);
+  const fileRef=useRef(null);
+
+  const refresh=()=>setTick(t=>t+1);
+
+  // Init DB
+  useEffect(()=>{
+    (async()=>{
+      const SQL=await initSqlJs({locateFile:f=>`https://cdnjs.cloudflare.com/ajax/libs/sql.js/1.10.3/${f}`});
+      const saved=await idbLoad();
+      let database;
+      if(saved){database=new SQL.Database(new Uint8Array(saved));}
+      else{database=new SQL.Database();database.exec(SEED_SQL);}
+      setDb(database);setLoading(false);
+    })();
+  },[]);
+
+  // Auto-save to IndexedDB
+  useEffect(()=>{if(db){const data=db.export();idbSave(data.buffer);}},[db,tick]);
+
+  const exportDB=()=>{
+    if(!db)return;
+    const data=db.export();
+    const blob=new Blob([data],{type:'application/x-sqlite3'});
+    const a=document.createElement('a');a.href=URL.createObjectURL(blob);
+    a.download='hb_assembly.db';a.click();
+  };
+
+  const importDB=async(e)=>{
+    const file=e.target.files[0];if(!file)return;
+    const buf=await file.arrayBuffer();
+    const SQL=await initSqlJs({locateFile:f=>`https://cdnjs.cloudflare.com/ajax/libs/sql.js/1.10.3/${f}`});
+    const database=new SQL.Database(new Uint8Array(buf));
+    setDb(database);setSelected(null);setEcnChanges({});refresh();
+  };
+
+  const resetDB=()=>{
+    if(!confirm('Reset to default data? This will erase all changes.'))return;
+    (async()=>{
+      const SQL=await initSqlJs({locateFile:f=>`https://cdnjs.cloudflare.com/ajax/libs/sql.js/1.10.3/${f}`});
+      const database=new SQL.Database();database.exec(SEED_SQL);
+      setDb(database);setSelected(null);setEcnChanges({});refresh();
+    })();
+  };
+
+  const handleAddSave=(data)=>{
+    if(!db)return;
+    if(data.loctite!==undefined){
+      const maxId=query(db,"SELECT MAX(id) as m FROM fasteners")[0]?.m||0;
+      const maxSort=query(db,"SELECT MAX(sort_order) as m FROM fasteners WHERE step_id=?",[data.step_id])[0]?.m||0;
+      run(db,"INSERT INTO fasteners VALUES (?,?,?,?,?,?,?,?)",[maxId+1,data.step_id,data.pn,data.name,data.qty,data.loctite,data.torque,maxSort+1]);
+    }else{
+      const maxId=query(db,"SELECT MAX(id) as m FROM parts")[0]?.m||0;
+      const maxSort=query(db,"SELECT MAX(sort_order) as m FROM parts WHERE step_id=?",[data.step_id])[0]?.m||0;
+      run(db,"INSERT INTO parts VALUES (?,?,?,?,?,?)",[maxId+1,data.step_id,data.pn,data.name,data.qty,maxSort+1]);
+    }
+    refresh();
+  };
+
+  const ecnCount=Object.keys(ecnChanges).length;
+  const ecnStepIds=Object.keys(ecnChanges).map(Number);
+  const impact=db&&ecnStepIds.length?getImpact(db,ecnStepIds):{parts:[],fasteners:[]};
+
+  if(loading)return <div style={{display:'flex',alignItems:'center',justifyContent:'center',height:'100vh',color:'var(--text3)'}}>Loading sql.js...</div>;
+
+  return(
+    <DBContext.Provider value={db}>
+      <div className="app" key={tick}>
+        {/* SIDEBAR */}
+        <div className="sidebar" style={{width:view==='list'?420:320}}>
+          <div className="hdr">
+            <div style={{width:8,height:8,borderRadius:'50%',background:'var(--green)'}}/>
+            <h1><span>H&B</span> Assembly</h1>
+            <span className="count">{db?query(db,"SELECT COUNT(*) as c FROM steps")[0]?.c:0} steps</span>
+          </div>
+
+          <div className="tabs">
+            {[{v:'list',l:'📋 List'},{v:'graph',l:'🔗 Graph'},{v:'kanban',l:'📊 Kanban'}].map(t=>(
+              <button key={t.v} className={'tab'+(view===t.v?' active':'')} onClick={()=>setView(t.v)}>{t.l}</button>
+            ))}
+          </div>
+
+          <div className="search-box">
+            <input value={search} onChange={e=>setSearch(e.target.value)} placeholder="Search P/N, name, step..."/>
+          </div>
+
+          <div className="ecn-bar">
+            <button className="ecn-btn" onClick={()=>setEcnOn(!ecnOn)}
+              style={{border:ecnOn?'1px solid var(--yellow)':'1px solid var(--text4)',background:ecnOn?'#451a03':'transparent',color:ecnOn?'var(--yellow)':'var(--text4)'}}>
+              {ecnOn?'⚡ ECN':'ECN'}
+            </button>
+            {ecnOn&&[{s:'remove',l:'Remove',c:'var(--red)'},{s:'replace',l:'Replace',c:'var(--yellow)'},{s:'add',l:'Add',c:'var(--green)'},{s:'modify',l:'Modify',c:'var(--blue)'}].map(b=>(
+              <button key={b.s} className="ecn-brush" onClick={()=>setBrush(b.s)}
+                style={{border:'1px solid '+(brush===b.s?b.c:'var(--border)'),background:brush===b.s?b.c+'18':'transparent',color:brush===b.s?b.c:'var(--text4)'}}>
+                {b.l}
+              </button>
+            ))}
+            {ecnCount>0&&<button className="ecn-brush" onClick={()=>setEcnChanges({})} style={{border:'1px solid var(--border)',background:'transparent',color:'var(--text4)',marginLeft:'auto'}}>Clear</button>}
+          </div>
+
+          {ecnCount>0&&<div className="ecn-summary">⚡ {ecnCount} steps · {impact.parts.length} parts · {impact.fasteners.length} fasteners affected</div>}
+
+          <div className="io-bar">
+            <button className="io-btn" onClick={exportDB}>💾 Export .db</button>
+            <button className="io-btn" onClick={()=>fileRef.current?.click()}>📂 Import .db</button>
+            <button className="io-btn" onClick={resetDB} style={{marginLeft:'auto',color:'var(--red)'}}>⟳ Reset</button>
+            <input ref={fileRef} type="file" accept=".db,.sqlite" style={{display:'none'}} onChange={importDB}/>
+          </div>
+
+          {view==='list'?(
+            <ListView selected={selected} setSelected={setSelected} ecnOn={ecnOn} brush={brush} ecnChanges={ecnChanges} setEcnChanges={setEcnChanges} search={search}/>
+          ):(
+            <DetailPanel stepId={selected} ecnChanges={ecnChanges} onEdit={(type,sid)=>setModal({type,stepId:sid})}/>
+          )}
+        </div>
+
+        {/* MAIN */}
+        <div className="main">
+          {view==='list'&&<DetailPanel stepId={selected} ecnChanges={ecnChanges} onEdit={(type,sid)=>setModal({type,stepId:sid})}/>}
+          {view==='graph'&&<GraphView selected={selected} setSelected={setSelected} ecnOn={ecnOn} brush={brush} ecnChanges={ecnChanges} setEcnChanges={setEcnChanges}/>}
+          {view==='kanban'&&<KanbanView selected={selected} setSelected={setSelected} ecnOn={ecnOn} brush={brush} ecnChanges={ecnChanges} setEcnChanges={setEcnChanges}/>}
+        </div>
+
+        {/* MODAL */}
+        {modal&&<AddModal type={modal.type} stepId={modal.stepId} onClose={()=>setModal(null)} onSave={handleAddSave}/>}
+      </div>
+    </DBContext.Provider>
+  );
+}
+
+ReactDOM.createRoot(document.getElementById('root')).render(<App/>);
+</script>
+</body>
+</html>

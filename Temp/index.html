@@ -5,7 +5,6 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Eagle Eye — Assembly Tree</title>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-<script src="https://d3js.org/d3.v7.min.js"></script>
 <script src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
 <script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
 <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
@@ -109,6 +108,7 @@ input,textarea,select{font-family:inherit;outline:none;}
 .kan-card{padding:8px 10px;background:var(--bg2);border:1px solid var(--border);border-radius:6px;cursor:pointer;transition:all .15s;position:relative;}
 .kan-card:hover{border-color:var(--text3);}.kan-card.selected{border-color:var(--blue);}
 
+.graph-container{flex:1;overflow:hidden;background:#060c18;position:relative;}
 .empty{display:flex;align-items:center;justify-content:center;height:100%;flex-direction:column;gap:10px;}
 .empty .big{font-size:48px;opacity:0.15;}.empty .msg{font-size:13px;color:#334155;text-align:center;line-height:1.8;}
 .step-actions{display:flex;gap:4px;margin-top:8px;margin-bottom:12px;flex-wrap:wrap;}
@@ -119,23 +119,6 @@ input,textarea,select{font-family:inherit;outline:none;}
 @keyframes slide{0%{transform:translateX(-100%)}100%{transform:translateX(100%)}}
 .toast{position:fixed;bottom:20px;right:20px;padding:8px 16px;border-radius:6px;font-size:11px;font-weight:600;z-index:300;animation:fadeIn .2s;}
 @keyframes fadeIn{from{opacity:0;transform:translateY(10px)}to{opacity:1;transform:translateY(0)}}
-
-.graph-container{flex:1;overflow:hidden;background:#fafbfc;position:relative;}
-.graph-container svg{width:100%;height:100%;}
-.graph-container .zoom-controls{position:absolute;bottom:14px;right:14px;display:flex;flex-direction:column;gap:3px;z-index:10;}
-.graph-container .zoom-controls button{width:32px;height:32px;border-radius:6px;background:#fff;border:1px solid #d1d5db;color:#374151;font-size:16px;cursor:pointer;display:flex;align-items:center;justify-content:center;box-shadow:0 1px 3px rgba(0,0,0,0.08);}
-.graph-container .zoom-controls button:hover{background:#f3f4f6;color:#111827;}
-.graph-container .graph-legend{position:absolute;top:10px;left:10px;display:flex;gap:10px;padding:6px 14px;background:rgba(255,255,255,0.92);border:1px solid #e5e7eb;border-radius:8px;box-shadow:0 1px 4px rgba(0,0,0,0.06);flex-wrap:wrap;}
-.graph-container .legend-item{display:flex;align-items:center;gap:4px;font-size:10px;color:#6b7280;font-weight:500;}
-.graph-container .legend-swatch{width:14px;height:10px;border-radius:3px;border:1px solid rgba(0,0,0,0.12);}
-.node-shape{transition:opacity .15s;cursor:pointer;}
-.node-label{font-family:'Segoe UI',system-ui,sans-serif;pointer-events:none;user-select:none;}
-.link-label{font-family:'Segoe UI',system-ui,sans-serif;pointer-events:none;user-select:none;}
-.link{fill:none;transition:stroke-width .15s;}
-.link:hover{stroke-width:3 !important;}
-.node-group:hover .node-shape{opacity:0.85;}
-.node-group.selected .node-shape{stroke-width:2.5 !important;filter:drop-shadow(0 0 4px rgba(59,130,246,0.4));}
-.graph-container .level-header{font-size:13px;font-weight:700;fill:#3b82f6;text-anchor:middle;letter-spacing:0.5px;}
 </style>
 </head>
 <body>
@@ -158,40 +141,6 @@ const T={
   ecn:'eagle_eye_app_ecn_log',
   master:'master_parts_list_all'
 };
-
-// ═══ LEVEL STYLING (Logi Assembly style) ═══
-const LEVEL_COLORS=['#b3e5fc','#e1bee7','#b3e5fc','#c8e6c9','#fff9c4','#ffe0b2','#ffcdd2','#e8e8e8'];
-const LEVEL_SHAPES=['hexagon','rounded_rectangle','hexagon','rounded_rectangle','octagon','stadium','rectangle','rounded_rectangle'];
-const STATUS_DOTS={DONE:'#27ae60',IN_PROGRESS:'#f39c12',BLOCKED:'#e74c3c',NOT_STARTED:'#95a5a6'};
-const FASTENER_LINK_COLORS={CBE:'#3498db',CBST:'#9b59b6',CSH:'#27ae60',MS:'#e67e22',BSB:'#e74c3c',default:'#555'};
-
-function darkenColor(hex,pct){
-  let r=parseInt(hex.slice(1,3),16),g=parseInt(hex.slice(3,5),16),b=parseInt(hex.slice(5,7),16);
-  r=Math.floor(r*(1-pct/100));g=Math.floor(g*(1-pct/100));b=Math.floor(b*(1-pct/100));
-  return '#'+[r,g,b].map(c=>c.toString(16).padStart(2,'0')).join('');
-}
-function lightenColor(hex,pct){
-  let r=parseInt(hex.slice(1,3),16),g=parseInt(hex.slice(3,5),16),b=parseInt(hex.slice(5,7),16);
-  r=Math.min(255,Math.floor(r+(255-r)*pct/100));g=Math.min(255,Math.floor(g+(255-g)*pct/100));b=Math.min(255,Math.floor(b+(255-b)*pct/100));
-  return '#'+[r,g,b].map(c=>c.toString(16).padStart(2,'0')).join('');
-}
-function getFastenerLinkColor(pn){
-  if(!pn)return FASTENER_LINK_COLORS.default;
-  const p=pn.toUpperCase();
-  for(const[k,v]of Object.entries(FASTENER_LINK_COLORS)){if(k!=='default'&&p.startsWith(k))return v;}
-  return FASTENER_LINK_COLORS.default;
-}
-function shapePath(type,w,h){
-  const hw=w/2,hh=h/2;
-  switch(type){
-    case 'stadium': return `M${-hw+hh},${-hh}L${hw-hh},${-hh}A${hh},${hh} 0 0,1 ${hw-hh},${hh}L${-hw+hh},${hh}A${hh},${hh} 0 0,1 ${-hw+hh},${-hh}Z`;
-    case 'hexagon':{const s=12;return `M${-hw+s},${-hh}L${hw-s},${-hh}L${hw},0L${hw-s},${hh}L${-hw+s},${hh}L${-hw},0Z`;}
-    case 'octagon':{const c=Math.min(hw,hh)*0.38;return `M${-hw+c},${-hh}L${hw-c},${-hh}L${hw},${-hh+c}L${hw},${hh-c}L${hw-c},${hh}L${-hw+c},${hh}L${-hw},${hh-c}L${-hw},${-hh+c}Z`;}
-    case 'diamond': return `M0,${-hh}L${hw},0L0,${hh}L${-hw},0Z`;
-    case 'pentagon':{const a=(2*Math.PI)/5,sa=-Math.PI/2,rx=hw*0.9,ry=hh*0.9;const pts=Array.from({length:5},(_,i)=>`${rx*Math.cos(sa+i*a)},${ry*Math.sin(sa+i*a)}`);return 'M'+pts.join('L')+'Z';}
-    default: return `M${-hw+6},${-hh}L${hw-6},${-hh}Q${hw},${-hh} ${hw},${-hh+6}L${hw},${hh-6}Q${hw},${hh} ${hw-6},${hh}L${-hw+6},${hh}Q${-hw},${hh} ${-hw},${hh-6}L${-hw},${-hh+6}Q${-hw},${-hh} ${-hw+6},${-hh}Z`;
-  }
-}
 
 // ═══ DATA CONTEXT ═══
 const DataCtx=createContext({});
@@ -550,250 +499,36 @@ function ListView({selected,setSelected,ecnOn,brush,ecnChanges,setEcnChanges,sea
 // ═══ GRAPH VIEW ═══
 function GraphView({selected,setSelected,ecnOn,brush,ecnChanges,setEcnChanges}){
   const {groups,steps,parts,fasts,lookup}=useData();
-  const containerRef=useRef(null);const svgRef=useRef(null);const zoomRef=useRef(null);
+  const ref=useRef(null);const [dim,setDim]=useState({w:900,h:700});const [hov,setHov]=useState(null);
+  useEffect(()=>{if(ref.current){const r=ref.current.getBoundingClientRect();setDim({w:r.width||900,h:r.height||700});}},[]);
 
-  const clickStep=useCallback(id=>{
-    if(ecnOn){setEcnChanges(p=>{const n={...p};n[id]===brush?delete n[id]:(n[id]=brush);return n;});}
-    else setSelected(selected===id?null:id);
-  },[ecnOn,brush,selected,setEcnChanges,setSelected]);
+  const sortedSteps=steps.slice().sort((a,b)=>{const ga=groups.findIndex(g=>g.id===a.group_id),gb=groups.findIndex(g=>g.id===b.group_id);return ga!==gb?ga-gb:(a.sort_order||0)-(b.sort_order||0);});
+  const pnList=[...new Set(parts.map(p=>p.pn))].sort();
+  const fnList=[...new Set(fasts.map(f=>f.pn))].sort();
 
-  useEffect(()=>{
-    if(!svgRef.current||!containerRef.current||groups.length===0||steps.length===0)return;
+  const pX=5,sX=dim.w*0.3,fX=dim.w*0.66;
+  const pYf=i=>22+i*((dim.h-44)/Math.max(pnList.length-1,1));
+  const sYf=i=>22+i*((dim.h-44)/Math.max(sortedSteps.length-1,1));
+  const fYf=i=>22+i*((dim.h-44)/Math.max(fnList.length-1,1));
 
-    const svg=d3.select(svgRef.current);svg.selectAll('*').remove();
-    const W=containerRef.current.clientWidth,H=containerRef.current.clientHeight;
-    svg.attr('width',W).attr('height',H);
+  const active=hov||selected;
+  const ap=active?parts.filter(p=>p.step_id===active).map(p=>p.pn):[];
+  const af=active?fasts.filter(f=>f.step_id===active).map(f=>f.pn):[];
 
-    // Defs
-    const defs=svg.append('defs');
-    defs.append('marker').attr('id','arrow').attr('viewBox','0 0 10 10')
-      .attr('refX',9).attr('refY',5).attr('orient','auto').attr('markerWidth',6).attr('markerHeight',6)
-      .append('path').attr('d','M 0,1 L 8,5 L 0,9 z').attr('fill','#888');
+  const click=id=>{if(ecnOn){setEcnChanges(p=>{const n={...p};n[id]===brush?delete n[id]:(n[id]=brush);return n;});}else setSelected(selected===id?null:id);};
 
-    // Zoom group
-    const g=svg.append('g').attr('class','zoom-group');
-    const zoom=d3.zoom().scaleExtent([0.08,4]).on('zoom',e=>g.attr('transform',e.transform));
-    svg.call(zoom);zoomRef.current={svg,zoom};
+  const gColor=gid=>groups.find(g=>g.id===gid)?.color||'#475569';
 
-    // ═══ LAYOUT CALCULATION ═══
-    const sortedGroups=groups.slice().sort((a,b)=>(a.sort_order||0)-(b.sort_order||0));
-    const colGap=300,partGap=180,nodeW=150,nodeH=36,partW=115,partH=26,rowGap=24,partRowGap=30;
-    const topPad=70,leftPad=180;
-
-    const nodes=[];const links=[];
-    let globalMaxY=topPad;
-
-    sortedGroups.forEach((grp,gi)=>{
-      const gSteps=steps.filter(s=>s.group_id===grp.id).sort((a,b)=>(a.sort_order||0)-(b.sort_order||0));
-      const levelX=leftPad+gi*colGap;
-      const levelColor=grp.color||LEVEL_COLORS[gi%LEVEL_COLORS.length];
-      const levelShape=LEVEL_SHAPES[gi%LEVEL_SHAPES.length];
-      let curY=topPad;
-
-      gSteps.forEach((step,si)=>{
-        const sp=parts.filter(p=>p.step_id===step.id).sort((a,b)=>(a.sort_order||0)-(b.sort_order||0));
-        const sf=fasts.filter(f=>f.step_id===step.id).sort((a,b)=>(a.sort_order||0)-(b.sort_order||0));
-        const nParts=sp.length;
-        const partsSpan=nParts>0?(nParts-1)*partRowGap:0;
-        const blockH=Math.max(nodeH,partsSpan+partH);
-        const stepY=curY+blockH/2;
-
-        nodes.push({id:step.id,x:levelX,y:stepY,w:nodeW,h:nodeH,type:'step',shape:levelShape,
-          color:levelColor,label:step.label,stepType:step.type,level:gi+1,
-          groupLabel:grp.label,ecn:ecnChanges[step.id]||null,
-          isSelected:selected===step.id,partCount:nParts,fastCount:sf.length});
-
-        // Parts as leaf nodes to the left
-        sp.forEach((p,pi)=>{
-          const pY=stepY-partsSpan/2+pi*partRowGap;
-          const pX=levelX-partGap;
-          const m=lookup(p.pn);const pColor=lightenColor(levelColor,30);
-          const pid='p_'+p.id;
-          nodes.push({id:pid,x:pX,y:pY,w:partW,h:partH,type:'part',shape:'hexagon',
-            color:pColor,label:m.name||p.pn,pn:p.pn,qty:p.qty,level:gi+1,isSelected:false});
-
-          // Find fasteners for this step to annotate the link
-          const matchFast=sf.length>0?sf[Math.min(pi,sf.length-1)]:null;
-          links.push({source:pid,target:step.id,
-            sx:pX+partW/2,sy:pY,tx:levelX-nodeW/2,ty:stepY,
-            fastener:matchFast?matchFast.pn:null,loctite:matchFast?matchFast.loctite:null,
-            torque:matchFast?matchFast.torque:null,qty:p.qty,
-            linkColor:matchFast?getFastenerLinkColor(matchFast.pn):'#9ca3af'});
-        });
-
-        // Fasteners not matched to parts → show as standalone right-side nodes
-        if(sf.length>sp.length){
-          sf.slice(sp.length).forEach((f,fi)=>{
-            const fY=stepY+nodeH/2+10+(fi*22);
-            const fid='f_'+f.id;
-            nodes.push({id:fid,x:levelX+nodeW/2+8,y:fY,w:0,h:0,type:'fastLabel',
-              label:`${f.pn} ×${f.qty}`,loctite:f.loctite,torque:f.torque,color:getFastenerLinkColor(f.pn)});
-          });
-        }
-
-        curY+=blockH+rowGap;
-      });
-      globalMaxY=Math.max(globalMaxY,curY);
-    });
-
-    // ═══ RENDER LEVEL HEADERS ═══
-    sortedGroups.forEach((grp,gi)=>{
-      const x=leftPad+gi*colGap;
-      g.append('rect').attr('x',x-58).attr('y',12).attr('width',116).attr('height',28)
-        .attr('rx',6).attr('fill','#3b82f6').attr('opacity',0.88);
-      g.append('text').attr('x',x).attr('y',31).attr('text-anchor','middle')
-        .attr('fill','white').attr('font-size','12px').attr('font-weight','700')
-        .text(`L${gi+1} ${grp.label.length>12?grp.label.slice(0,12)+'…':grp.label}`);
-    });
-
-    // ═══ RENDER LINKS ═══
-    links.forEach(lk=>{
-      const midX=(lk.sx+lk.tx)/2;
-      const pathD=`M${lk.sx},${lk.sy} C${midX},${lk.sy} ${midX},${lk.ty} ${lk.tx},${lk.ty}`;
-      g.append('path').attr('class','link').attr('d',pathD)
-        .attr('stroke',lk.linkColor).attr('stroke-width',1.5)
-        .attr('marker-end','url(#arrow)');
-
-      // Link labels (fastener, loctite, torque)
-      const hasLabel=lk.fastener||lk.loctite;
-      if(hasLabel){
-        const lx=(lk.sx+lk.tx)/2,ly=(lk.sy+lk.ty)/2;
-        const lines=[];
-        if(lk.fastener){const t=lk.fastener+(lk.qty>1?' ×'+lk.qty:'');lines.push({text:t,color:lk.linkColor,bold:true});}
-        if(lk.loctite&&lk.loctite!=='---')lines.push({text:'LT-'+lk.loctite,color:'#9b59b6',bold:false});
-        if(lk.torque&&lk.torque!=='---'&&lk.torque!=='—')lines.push({text:lk.torque,color:'#e67e22',bold:false});
-
-        const lH=lines.length*12+6;const lW=Math.max(60,...lines.map(l=>l.text.length*5.5+14));
-        g.append('rect').attr('x',lx-lW/2).attr('y',ly-lH/2).attr('width',lW).attr('height',lH)
-          .attr('rx',3).attr('fill','white').attr('opacity',0.92).attr('stroke','#e5e7eb').attr('stroke-width',0.5);
-        lines.forEach((ln,i)=>{
-          const tY=ly-lH/2+10+i*12;
-          g.append('text').attr('x',lx).attr('y',tY).attr('text-anchor','middle')
-            .attr('fill',ln.color).attr('font-size','8.5px').attr('font-weight',ln.bold?'700':'400')
-            .attr('class','link-label').text(ln.text);
-        });
-      }
-    });
-
-    // ═══ RENDER NODES ═══
-    const nodeGs=g.selectAll('.node-group').data(nodes.filter(n=>n.type==='step'||n.type==='part'),d=>d.id)
-      .enter().append('g').attr('class',d=>'node-group'+(d.isSelected?' selected':''))
-      .attr('transform',d=>`translate(${d.x},${d.y})`);
-
-    // Draw shape
-    nodeGs.append('path').attr('class','node-shape')
-      .attr('d',d=>shapePath(d.shape,d.w,d.h))
-      .attr('fill',d=>{
-        if(d.ecn)return({remove:'#fdedec',replace:'#ebf5fb',add:'#d5f5e3',modify:'#fef9e7'}[d.ecn]||d.color);
-        return d.color;
-      })
-      .attr('stroke',d=>{
-        if(d.ecn)return ecnC[d.ecn]||darkenColor(d.color,30);
-        if(d.isSelected)return '#3b82f6';
-        return darkenColor(d.color,30);
-      })
-      .attr('stroke-width',d=>d.isSelected?2.5:1.5);
-
-    // Status indicator dot
-    nodeGs.filter(d=>d.type==='step').append('circle')
-      .attr('cx',d=>-d.w/2+9).attr('cy',d=>-d.h/2+9).attr('r',4)
-      .attr('fill',d=>d.stepType==='kanryo'?'#27ae60':'#95a5a6')
-      .attr('stroke','white').attr('stroke-width',1.5);
-
-    // ECN indicator
-    nodeGs.filter(d=>d.ecn).append('text')
-      .attr('x',d=>d.w/2-6).attr('y',4).attr('text-anchor','end')
-      .attr('font-size','12px').attr('fill',d=>ecnC[d.ecn])
-      .attr('font-weight','900').text(d=>ecnI[d.ecn]);
-
-    // Node labels
-    nodeGs.append('text').attr('class','node-label')
-      .attr('text-anchor','middle').attr('y',d=>d.type==='part'?4:4)
-      .attr('font-size',d=>d.type==='part'?'9px':'11px')
-      .attr('font-weight',d=>d.type==='step'?'600':'400')
-      .attr('fill',d=>d.type==='part'?'#374151':'#1f2937')
-      .text(d=>{const max=d.type==='part'?16:20;return d.label.length>max?d.label.slice(0,max)+'…':d.label;});
-
-    // Part quantity badge
-    nodeGs.filter(d=>d.type==='part'&&d.qty>1).append('text')
-      .attr('x',d=>d.w/2-4).attr('y',-d.h/2+3)
-      .attr('text-anchor','end').attr('font-size','8px').attr('font-weight','700')
-      .attr('fill','#6b7280').text(d=>'×'+d.qty);
-
-    // Sequence numbers (step index within group)
-    const stepsByGroup={};
-    nodes.filter(n=>n.type==='step').forEach(n=>{
-      if(!stepsByGroup[n.level])stepsByGroup[n.level]=[];
-      stepsByGroup[n.level].push(n.id);
-    });
-    nodeGs.filter(d=>d.type==='step').append('text')
-      .attr('x',d=>d.w/2+8).attr('y',d=>-d.h/2+4)
-      .attr('text-anchor','start').attr('font-size','14px').attr('font-weight','900')
-      .attr('fill','#374151')
-      .text(d=>{const arr=stepsByGroup[d.level]||[];const idx=arr.indexOf(d.id);return idx>=0?String(idx+1):'';});
-
-    // Part/fast count badge on steps
-    nodeGs.filter(d=>d.type==='step').append('text')
-      .attr('x',0).attr('y',d=>d.h/2+12)
-      .attr('text-anchor','middle').attr('font-size','7.5px').attr('fill','#9ca3af')
-      .text(d=>{const tags=[];if(d.partCount)tags.push(d.partCount+'P');if(d.fastCount)tags.push(d.fastCount+'F');return tags.join(' · ');});
-
-    // Fastener label nodes (standalone, no shape)
-    const fastLabels=g.selectAll('.fast-label').data(nodes.filter(n=>n.type==='fastLabel'))
-      .enter().append('g').attr('transform',d=>`translate(${d.x},${d.y})`);
-    fastLabels.append('text').attr('font-size','8px').attr('fill',d=>d.color).attr('font-weight','600').text(d=>d.label);
-    fastLabels.filter(d=>d.loctite&&d.loctite!=='---').append('text')
-      .attr('y',10).attr('font-size','7.5px').attr('fill','#9b59b6').text(d=>'LT-'+d.loctite);
-    fastLabels.filter(d=>d.torque&&d.torque!=='---'&&d.torque!=='—').append('text')
-      .attr('y',d=>(d.loctite&&d.loctite!=='---')?20:10).attr('font-size','7.5px').attr('fill','#e67e22').text(d=>d.torque);
-
-    // Click handler for step nodes
-    nodeGs.filter(d=>d.type==='step').style('cursor','pointer')
-      .on('click',function(event,d){clickStep(d.id);});
-
-    // ═══ FIT TO SCREEN ═══
-    let minX=Infinity,maxX=-Infinity,minY=Infinity,maxY=-Infinity;
-    nodes.forEach(n=>{if(n.type==='fastLabel')return;minX=Math.min(minX,n.x-(n.w||60));maxX=Math.max(maxX,n.x+(n.w||60));minY=Math.min(minY,n.y-30);maxY=Math.max(maxY,n.y+30);});
-    const cw=maxX-minX+100,ch=maxY-minY+100;
-    const scale=Math.min(W/cw,H/ch,1.5)*0.88;
-    const cx=(minX+maxX)/2,cy=(minY+maxY)/2;
-    const tx=W/2-cx*scale,ty=H/2-cy*scale;
-    svg.call(zoom.transform,d3.zoomIdentity.translate(tx,ty).scale(scale));
-
-  },[groups,steps,parts,fasts,selected,ecnChanges,lookup,clickStep]);
-
-  const zoomIn=()=>{if(zoomRef.current)zoomRef.current.svg.transition().duration(200).call(zoomRef.current.zoom.scaleBy,1.4);};
-  const zoomOut=()=>{if(zoomRef.current)zoomRef.current.svg.transition().duration(200).call(zoomRef.current.zoom.scaleBy,0.7);};
-  const fitScreen=()=>{if(zoomRef.current){
-    const{svg:s,zoom:z}=zoomRef.current;const c=containerRef.current;
-    const W=c.clientWidth,H=c.clientHeight;
-    let minX=Infinity,maxX=-Infinity,minY=Infinity,maxY=-Infinity;
-    d3.select(svgRef.current).selectAll('.node-group').each(function(d){
-      minX=Math.min(minX,d.x-(d.w||60));maxX=Math.max(maxX,d.x+(d.w||60));
-      minY=Math.min(minY,d.y-30);maxY=Math.max(maxY,d.y+30);});
-    if(minX===Infinity)return;
-    const cw=maxX-minX+100,ch=maxY-minY+100;
-    const scale=Math.min(W/cw,H/ch,1.5)*0.88;
-    const cx=(minX+maxX)/2,cy=(minY+maxY)/2;
-    s.transition().duration(400).call(z.transform,d3.zoomIdentity.translate(W/2-cx*scale,H/2-cy*scale).scale(scale));
-  }};
-
-  return(<div ref={containerRef} className="graph-container">
-    <svg ref={svgRef}/>
-    <div className="zoom-controls">
-      <button onClick={zoomIn} title="Zoom In">+</button>
-      <button onClick={zoomOut} title="Zoom Out">−</button>
-      <button onClick={fitScreen} title="Fit to Screen">⊡</button>
-    </div>
-    {groups.length>0&&<div className="graph-legend">
-      {groups.slice().sort((a,b)=>(a.sort_order||0)-(b.sort_order||0)).map((g,i)=>
-        <div key={g.id} className="legend-item">
-          <div className="legend-swatch" style={{background:g.color||LEVEL_COLORS[i%LEVEL_COLORS.length]}}/>
-          <span>L{i+1}</span>
-        </div>
-      )}
-    </div>}
-  </div>);
+  return(<div ref={ref} className="graph-container"><svg width={dim.w} height={dim.h}>
+    <text x={pX} y={12} fontSize={9} fill="#334155" fontWeight={700}>PARTS ({pnList.length})</text>
+    <text x={sX} y={12} fontSize={9} fill="#334155" fontWeight={700}>STEPS ({sortedSteps.length})</text>
+    <text x={fX} y={12} fontSize={9} fill="#334155" fontWeight={700}>FASTENERS ({fnList.length})</text>
+    {sortedSteps.map((s,si)=>parts.filter(p=>p.step_id===s.id).map((p,pi)=>{const pi2=pnList.indexOf(p.pn);if(pi2<0)return null;const e=ecnChanges[s.id];const a=active===s.id;return <line key={`ps${si}-${pi}`} x1={pX+105} y1={pYf(pi2)} x2={sX} y2={sYf(si)} stroke={e?ecnC[e]:a?gColor(s.group_id):'#1e293b'} strokeWidth={a?1.5:0.4} opacity={a?0.7:e?0.5:0.15}/>;}))}
+    {sortedSteps.map((s,si)=>fasts.filter(f=>f.step_id===s.id).map((f,fi)=>{const fi2=fnList.indexOf(f.pn);if(fi2<0)return null;const e=ecnChanges[s.id];const a=active===s.id;return <line key={`sf${si}-${fi}`} x1={sX+155} y1={sYf(si)} x2={fX} y2={fYf(fi2)} stroke={e?ecnC[e]:a?'#f87171':'#1e293b'} strokeWidth={a?1.5:0.4} opacity={a?0.7:e?0.5:0.15}/>;}))}
+    {pnList.map((p,i)=>{const a=ap.includes(p);const nm=lookup(p).name;return <g key={`p${i}`}><rect x={pX} y={pYf(i)-7} width={103} height={14} rx={3} fill={a?'#0c4a6e':'#111827'} stroke={a?'#38bdf8':'#1e293b33'} strokeWidth={a?1:0.5}/><text x={pX+4} y={pYf(i)+3} fontSize={6.5} fill={a?'#7dd3fc':'#475569'} style={{fontFamily:'monospace'}}>{(nm||p).slice(0,18)}</text></g>;})}
+    {sortedSteps.map((s,i)=>{const e=ecnChanges[s.id];const a=active===s.id;const gc=gColor(s.group_id);return <g key={`s${i}`} onMouseEnter={()=>setHov(s.id)} onMouseLeave={()=>setHov(null)} onClick={()=>click(s.id)} style={{cursor:'pointer'}}><rect x={sX} y={sYf(i)-8} width={153} height={16} rx={4} fill={e?ecnBg[e]:a?gc+'22':'#111827'} stroke={e?ecnC[e]:a?gc:'#1e293b44'} strokeWidth={a||e?1.5:0.5}/><text x={sX+5} y={sYf(i)+3} fontSize={7.5} fill={a?'#f1f5f9':e?ecnC[e]:'#94a3b8'} fontWeight={a?700:400} style={{fontFamily:'system-ui'}}>{s.label.slice(0,24)}</text>{e&&<text x={sX+145} y={sYf(i)+4} fontSize={9} fill={ecnC[e]} fontWeight={900} textAnchor="end">{ecnI[e]}</text>}</g>;})}
+    {fnList.map((f,i)=>{const a=af.includes(f);const nm=lookup(f).name;return <g key={`f${i}`}><rect x={fX} y={fYf(i)-7} width={88} height={14} rx={3} fill={a?'#450a0a':'#111827'} stroke={a?'#f87171':'#1e293b33'} strokeWidth={a?1:0.5}/><text x={fX+4} y={fYf(i)+3} fontSize={6.5} fill={a?'#fca5a5':'#475569'} style={{fontFamily:'monospace'}}>{(nm||f).slice(0,15)}</text></g>;})}
+  </svg></div>);
 }
 
 // ═══ KANBAN VIEW ═══

@@ -60,10 +60,6 @@ input,textarea,select{font-family:inherit;outline:none;}
 .badge-note{background:#1e3a5f;color:#93c5fd;}
 .step-row .slabel{font-size:11px;flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
 .step-row .slabel.kanryo{color:var(--yellow);font-weight:800;}
-.step-row .step-row-actions{opacity:0;display:flex;gap:1px;transition:opacity .15s;margin-left:2px;}
-.step-row:hover .step-row-actions{opacity:1;}
-.step-row .step-row-actions button{font-size:8px;padding:1px 4px;border-radius:3px;background:transparent;border:1px solid transparent;color:var(--text4);line-height:1;}
-.step-row .step-row-actions button:hover{border-color:var(--text3);color:var(--text2);}
 .tag{font-size:8px;padding:1px 4px;border-radius:3px;font-weight:700;}
 .tag-p{background:#0c4a6e;color:#38bdf8;}
 .tag-f{background:#450a0a;color:#f87171;}
@@ -339,10 +335,6 @@ function ListView({selected,setSelected,ecnOn,brush,ecnChanges,setEcnChanges,sea
             <span className={'slabel'+(s.type==='kanryo'?' kanryo':'')} title={s.label}>{s.label}</span>
             {pc>0&&<span className="tag tag-p">{pc}P</span>}{fc>0&&<span className="tag tag-f">{fc}F</span>}
             {e&&<span className="ecn-mark" style={{color:ecnC[e]}}>{ecnI[e]}</span>}
-            <div className="step-row-actions">
-              <button onClick={ev=>{ev.stopPropagation();moveStep(s,-1);}} title="Move up">▲</button>
-              <button onClick={ev=>{ev.stopPropagation();moveStep(s,1);}} title="Move down">▼</button>
-            </div>
           </div>);
         })}
       </div>);

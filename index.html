@@ -3,8 +3,8 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Assembly Tree — H&B</title>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/sql.js/1.10.3/sql-wasm.js"></script>
+<title>Eagle Eye — Assembly Tree</title>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
 <script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
 <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
@@ -14,9 +14,7 @@
 body{font-family:'Segoe UI','Noto Sans JP',system-ui,sans-serif;background:var(--bg);color:var(--text);height:100vh;overflow:hidden;}
 button{cursor:pointer;font-family:inherit;border:none;outline:none;}
 input,textarea,select{font-family:inherit;outline:none;}
-::-webkit-scrollbar{width:6px;height:6px;}
-::-webkit-scrollbar-track{background:transparent;}
-::-webkit-scrollbar-thumb{background:var(--bg3);border-radius:3px;}
+::-webkit-scrollbar{width:6px;height:6px;}::-webkit-scrollbar-track{background:transparent;}::-webkit-scrollbar-thumb{background:var(--bg3);border-radius:3px;}
 
 .app{display:flex;height:100vh;}
 .sidebar{width:420px;border-right:1px solid var(--border);display:flex;flex-direction:column;flex-shrink:0;transition:width .2s;}
@@ -24,7 +22,9 @@ input,textarea,select{font-family:inherit;outline:none;}
 
 .hdr{padding:10px 14px;border-bottom:1px solid var(--border);display:flex;align-items:center;gap:8px;}
 .hdr h1{font-size:14px;font-weight:800;} .hdr h1 span{color:var(--blue);}
+.hdr .tag-badge{font-size:9px;padding:2px 8px;border-radius:4px;background:#1e3a5f;color:#93c5fd;font-weight:700;font-family:monospace;}
 .hdr .count{font-size:10px;color:var(--text4);margin-left:auto;}
+.hdr .status{width:8px;height:8px;border-radius:50%;}
 
 .tabs{padding:6px 14px;border-bottom:1px solid var(--border);display:flex;gap:3px;}
 .tab{font-size:10px;padding:4px 12px;border-radius:5px;border:1px solid var(--border);background:transparent;color:var(--text4);flex:1;font-weight:400;transition:all .15s;}
@@ -54,10 +54,7 @@ input,textarea,select{font-family:inherit;outline:none;}
 .step-row.selected{background:#172033;border-left-color:#3b82f6;}
 .step-row .sid{font-family:monospace;font-size:11px;color:var(--text4);min-width:22px;}
 .step-row .badge{font-size:8px;font-weight:800;padding:2px 5px;border-radius:3px;font-family:monospace;letter-spacing:0.5px;}
-.badge-step{background:#064e3b;color:#6ee7b7;}
-.badge-prep{background:#312e81;color:#a5b4fc;}
-.badge-kanryo{background:#7f1d1d;color:#fca5a5;}
-.badge-note{background:#1e3a5f;color:#93c5fd;}
+.badge-step{background:#064e3b;color:#6ee7b7;}.badge-prep{background:#312e81;color:#a5b4fc;}.badge-kanryo{background:#7f1d1d;color:#fca5a5;}.badge-note{background:#1e3a5f;color:#93c5fd;}
 .step-row .slabel{font-size:11px;flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
 .step-row .slabel.kanryo{color:var(--yellow);font-weight:800;}
 .step-row .step-row-actions{opacity:0;display:flex;gap:1px;transition:opacity .15s;margin-left:2px;}
@@ -65,51 +62,37 @@ input,textarea,select{font-family:inherit;outline:none;}
 .step-row .step-row-actions button{font-size:8px;padding:1px 4px;border-radius:3px;background:transparent;border:1px solid transparent;color:var(--text4);line-height:1;}
 .step-row .step-row-actions button:hover{border-color:var(--text3);color:var(--text2);}
 .tag{font-size:8px;padding:1px 4px;border-radius:3px;font-weight:700;}
-.tag-p{background:#0c4a6e;color:#38bdf8;}
-.tag-f{background:#450a0a;color:#f87171;}
+.tag-p{background:#0c4a6e;color:#38bdf8;}.tag-f{background:#450a0a;color:#f87171;}
 .ecn-mark{font-size:10px;font-weight:800;}
 
 .detail{padding:16px;overflow-y:auto;flex:1;}
 .detail-hdr{display:flex;align-items:flex-start;gap:10px;margin-bottom:12px;}
 .detail-hdr .did{font-size:22px;font-weight:900;color:#334155;font-family:monospace;line-height:1;}
-.detail-hdr .dinfo{flex:1;}
-.detail-hdr .dgrp{font-size:10px;font-weight:600;margin-bottom:2px;}
-.detail-hdr .dlabel{font-size:15px;font-weight:700;}
+.detail-hdr .dinfo{flex:1;}.detail-hdr .dgrp{font-size:10px;font-weight:600;margin-bottom:2px;}.detail-hdr .dlabel{font-size:15px;font-weight:700;}
 .section-title{font-size:10px;font-weight:800;letter-spacing:1px;margin-bottom:4px;display:flex;align-items:center;gap:6px;}
 
 .item-row{display:flex;align-items:center;gap:6px;padding:5px 8px;font-size:11px;position:relative;border-radius:4px;margin-bottom:1px;}
 .item-row:hover{background:rgba(255,255,255,0.03);}
 .item-row:hover .row-actions{opacity:1;}
 .item-row .dot{width:5px;height:5px;border-radius:50%;flex-shrink:0;}
-.item-row .mono{font-family:monospace;min-width:130px;font-size:10px;}
-.item-row .iname{flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+.item-row .mono{font-family:monospace;min-width:150px;font-size:10px;}
 .item-row .iqty{font-weight:600;min-width:24px;text-align:right;}
 .row-actions{opacity:0;display:flex;gap:2px;transition:opacity .15s;}
 .row-actions button{font-size:9px;padding:1px 5px;border-radius:3px;background:transparent;border:1px solid transparent;}
-.row-actions .edit-btn{color:var(--blue);}
-.row-actions .edit-btn:hover{border-color:var(--blue);}
-.row-actions .del-btn{color:var(--red);}
-.row-actions .del-btn:hover{border-color:var(--red);}
-.row-actions .up-btn,.row-actions .dn-btn{color:var(--text4);font-size:8px;}
-.row-actions .up-btn:hover,.row-actions .dn-btn:hover{color:var(--text2);}
-
+.row-actions .edit-btn{color:var(--blue);}.row-actions .edit-btn:hover{border-color:var(--blue);}
+.row-actions .del-btn{color:var(--red);}.row-actions .del-btn:hover{border-color:var(--red);}
+.row-actions .up-btn,.row-actions .dn-btn{color:var(--text4);font-size:8px;}.row-actions .up-btn:hover,.row-actions .dn-btn:hover{color:var(--text2);}
 .fast-meta{display:flex;gap:14px;padding-left:11px;font-size:10px;margin-top:1px;}
 .add-btn{font-size:9px;padding:2px 8px;border-radius:3px;border:1px dashed var(--border);background:transparent;color:var(--text4);cursor:pointer;margin-top:4px;}
 .add-btn:hover{border-color:var(--text3);color:var(--text3);}
 
-.io-bar{padding:6px 14px;border-bottom:1px solid var(--border);display:flex;gap:6px;align-items:center;}
-.io-btn{font-size:9px;padding:3px 10px;border-radius:4px;border:1px solid var(--border);background:transparent;color:var(--text3);font-weight:600;}
-.io-btn:hover{border-color:var(--text2);color:var(--text2);}
-
 .modal-overlay{position:fixed;inset:0;background:rgba(0,0,0,0.7);display:flex;align-items:center;justify-content:center;z-index:100;}
 .modal{background:var(--bg2);border:1px solid var(--border);border-radius:10px;padding:20px;width:460px;max-height:80vh;overflow-y:auto;}
 .modal h3{font-size:14px;font-weight:700;margin-bottom:14px;color:var(--blue);}
-.form-row{margin-bottom:10px;}
-.form-row label{display:block;font-size:10px;color:var(--text3);margin-bottom:3px;font-weight:600;letter-spacing:0.5px;}
+.form-row{margin-bottom:10px;}.form-row label{display:block;font-size:10px;color:var(--text3);margin-bottom:3px;font-weight:600;letter-spacing:0.5px;}
 .form-row input,.form-row select{width:100%;padding:6px 10px;background:var(--bg);border:1px solid #334155;border-radius:6px;color:var(--text);font-size:12px;}
 .form-actions{display:flex;gap:8px;margin-top:16px;}
 .btn-primary{padding:6px 16px;border-radius:6px;background:var(--blue);color:#fff;font-size:11px;font-weight:700;}
-.btn-danger{padding:6px 16px;border-radius:6px;background:var(--red);color:#fff;font-size:11px;font-weight:700;}
 .btn-ghost{padding:6px 16px;border-radius:6px;background:transparent;border:1px solid var(--border);color:var(--text3);font-size:11px;font-weight:600;}
 
 .ctx-menu{position:fixed;background:var(--bg2);border:1px solid var(--border);border-radius:8px;padding:4px;z-index:200;min-width:180px;box-shadow:0 8px 32px rgba(0,0,0,0.6);}
@@ -123,18 +106,19 @@ input,textarea,select{font-family:inherit;outline:none;}
 .kan-hdr{padding:8px 10px;border-radius:8px 8px 0 0;margin-bottom:6px;}
 .kan-cards{display:flex;flex-direction:column;gap:4px;flex:1;overflow-y:auto;}
 .kan-card{padding:8px 10px;background:var(--bg2);border:1px solid var(--border);border-radius:6px;cursor:pointer;transition:all .15s;position:relative;}
-.kan-card:hover{border-color:var(--text3);}
-.kan-card.selected{border-color:var(--blue);}
+.kan-card:hover{border-color:var(--text3);}.kan-card.selected{border-color:var(--blue);}
 
 .graph-container{flex:1;overflow:hidden;background:#060c18;position:relative;}
 .empty{display:flex;align-items:center;justify-content:center;height:100%;flex-direction:column;gap:10px;}
-.empty .big{font-size:48px;opacity:0.15;}
-.empty .msg{font-size:13px;color:#334155;text-align:center;line-height:1.8;}
-
+.empty .big{font-size:48px;opacity:0.15;}.empty .msg{font-size:13px;color:#334155;text-align:center;line-height:1.8;}
 .step-actions{display:flex;gap:4px;margin-top:8px;margin-bottom:12px;flex-wrap:wrap;}
 .step-actions button{font-size:9px;padding:3px 10px;border-radius:4px;border:1px solid var(--border);background:transparent;color:var(--text3);font-weight:600;}
 .step-actions button:hover{border-color:var(--text2);color:var(--text2);}
 .step-actions button.danger:hover{border-color:var(--red);color:var(--red);}
+.loading-bar{height:2px;background:linear-gradient(90deg,transparent,var(--blue),transparent);animation:slide 1s infinite;}
+@keyframes slide{0%{transform:translateX(-100%)}100%{transform:translateX(100%)}}
+.toast{position:fixed;bottom:20px;right:20px;padding:8px 16px;border-radius:6px;font-size:11px;font-weight:600;z-index:300;animation:fadeIn .2s;}
+@keyframes fadeIn{from{opacity:0;transform:translateY(10px)}to{opacity:1;transform:translateY(0)}}
 </style>
 </head>
 <body>
@@ -142,72 +126,209 @@ input,textarea,select{font-family:inherit;outline:none;}
 <script type="text/babel">
 const {useState,useEffect,useCallback,useRef,createContext,useContext} = React;
 
-const SEED_SQL = `
-CREATE TABLE IF NOT EXISTS assemblies (id INTEGER PRIMARY KEY, name TEXT NOT NULL, version TEXT DEFAULT '1.0', created_at TEXT DEFAULT (datetime('now')), updated_at TEXT DEFAULT (datetime('now')));
-CREATE TABLE IF NOT EXISTS groups (id INTEGER PRIMARY KEY, assembly_id INTEGER, label TEXT NOT NULL, color TEXT, icon TEXT, sort_order INTEGER);
-CREATE TABLE IF NOT EXISTS steps (id INTEGER PRIMARY KEY, group_id INTEGER, label TEXT NOT NULL, type TEXT DEFAULT 'step', sort_order INTEGER);
-CREATE TABLE IF NOT EXISTS parts (id INTEGER PRIMARY KEY, step_id INTEGER, pn TEXT, name TEXT, qty INTEGER DEFAULT 1, sort_order INTEGER);
-CREATE TABLE IF NOT EXISTS fasteners (id INTEGER PRIMARY KEY, step_id INTEGER, pn TEXT, name TEXT, qty INTEGER DEFAULT 1, loctite TEXT, torque TEXT, sort_order INTEGER);
-CREATE TABLE IF NOT EXISTS ecn_log (id INTEGER PRIMARY KEY, step_id INTEGER, change_type TEXT, description TEXT, created_at TEXT DEFAULT (datetime('now')));
+// ═══ SUPABASE ═══
+const SUPA_URL='https://ulgrfumbwjovbjzjiems.supabase.co';
+const SUPA_KEY='eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InVsZ3JmdW1id2pvdmJqemppZW1zIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjczNzIyNjcsImV4cCI6MjA4Mjk0ODI2N30.ix5Vh4Y3GXNbQbzVtTD_WSko0L3cr5q_eCnTuDEMh7M';
+const sb=supabase.createClient(SUPA_URL,SUPA_KEY);
 
-INSERT OR IGNORE INTO assemblies VALUES (1,'Head & Body','1.0',datetime('now'),datetime('now'));
-INSERT OR IGNORE INTO groups VALUES (1,1,'Prep (Loctite)','#8b5cf6','🧪',1),(2,1,'完了: Body','#10b981','🏗️',2),(3,1,'完了: Motor & Gear housing','#f59e0b','⚙️',3),(4,1,'完了: Head','#ef4444','🔩',4),(5,1,'完了: Camera','#06b6d4','📷',5),(6,1,'Final Assembly','#ec4899','✅',6);
-INSERT OR IGNORE INTO steps VALUES (1,1,'Motor assy','step',1),(2,1,'Loctite 648 parts','prep',2),(3,1,'Ball bearing in Dovel pin','step',3),(4,1,'Loctite 425 parts','prep',4),(5,2,'Frame galina plate 組立','step',1),(6,2,'Frame side plate 組立','step',2),(7,2,'Arm joint plate 組立','step',3),(8,2,'Middle frame 組立','step',4),(9,2,'Body 組立','step',5),(10,2,'Hook arm 組立','step',6),(11,2,'Galina bot cover','step',7),(12,2,'Galina 組立','step',8),(13,2,'Wifi plate 組立','step',9),(14,2,'Galina back cover','step',10),(15,2,'Body','kanryo',11),(16,3,'Encoder shaft 組立','step',1),(17,3,'White gears 組立','step',2),(18,3,'Hex and round pins 組立','step',3),(19,3,'Gearbox cover 組立','step',4),(20,3,'PCB holder 組立','step',5),(21,3,'PCB 組立','step',6),(22,3,'Motor & Gear housing','kanryo',7),(23,4,'Attach the base ring sheet metal','step',1),(24,4,'Attaching the ring holder','step',2),(25,4,'Mounting the CAM follower','step',3),(26,4,'Mount the head on body','step',4),(27,4,'Attach the motor to head','step',5),(28,4,'①Sandwich ring gear ②Mesh gears ③Test rotation ④Fix CAM follower','note',6),(29,4,'Attach the ring gear top spring clasp','step',7),(30,4,'Head','kanryo',8),(31,5,'Cable carrier bracket assy','step',1),(32,5,'Camera assy','step',2),(33,5,'LED mounting','step',3),(34,5,'Camera cable pusher plate mounting','step',4),(35,5,'Wire strap','step',5),(36,5,'Mount the wires on camera assy','step',6),(37,5,'Head camera harness sleeve 500mm','step',7),(38,5,'10 mm rubber and apply the Nitto tape','step',8),(39,5,'Camera','kanryo',9),(40,6,'Mounting the head cover','step',1),(41,6,'Cable guide bracket assy','step',2);
-INSERT OR IGNORE INTO parts VALUES (1,1,'GPMP-0800012-0-2','Gearbox Support',1,1),(2,1,'GPEP-0000006-0-0','2232U 024 SR + Connector',1,2),(3,2,'GPMP-0800019-0-0','MotorPinion',1,1),(4,2,'GPMP-0800014-0-1','Encoder Shaft',1,2),(5,2,'GPMP-0800022-0-0','Gear Stage-32',1,3),(6,2,'GPMP-0800018-0-1','MagnetSupport',1,4),(7,2,'GPCP-0000030-0-0','D42DIA',1,5),(8,2,'GPMP-0800005-0-1','Head Assy Arm Mount',1,6),(9,2,'GPCP-0000007-0-0','3020-H7',2,7),(10,3,'GPCP-0000006-0-0','4006-H7',9,1),(11,3,'GPCP-0000005-0-0','SMR74',9,2),(12,4,'GPMP-0800004-0-1','Ring Gear 387 Teeth',1,1),(13,5,'GPCP-0000066-0-0','FFW-0306-25N',1,1),(14,7,'GPMP-0500020-0-0','ARM-JOINT-PLATE',1,1),(15,8,'GPMP-0400001-0-1','Frame Middle',1,1),(16,10,'GPMP-0500021-0-0','HOOK-ARM',1,1),(17,11,'GPCP-0400015-0-0','Galina Bot cover',1,1),(18,13,'GPMP-0400011-0-0','Wifi Antenna Plate',1,1),(19,14,'GPCP-0400013-0-0','Galina Back Cover',1,1),(20,15,'GPHP-0000012-0-1','CAN_Cable_G200',1,1),(21,16,'GPCP-0000085-0-0','DDL940',2,1),(22,17,'GPCP-0000033-0-0','SSFMR3-19.5-LKC',4,1),(23,17,'GPMP-0800025-0-0','Gear Stage-40-15',2,2),(24,17,'GPMP-0800024-0-0','Gear Stage-35-17',2,3),(25,17,'GPMP-0800023-0-0','Gear Stage-33-15',1,4),(26,18,'GPCP-0000024-0-0','BFPSPA3-P2_00-L3-B3_0',1,1),(27,18,'GPCP-0000086-0-0','BFPBPD2-P3-L3-B3',1,2),(28,19,'GPMP-0800013-0-2','Gear Box Cover',1,1),(29,20,'GPMP-0800020-0-1','PCB_Holder',1,1),(30,21,'GPCP-0000080-0-0','SP-O2-3-12P',3,1),(31,23,'GPMP-0800011-0-2','Head Support',1,1),(32,23,'GPMP-0800009-0-2','Base Ring Sheet Metal',1,2),(33,24,'GPMP-0800021-0-1','RingHolder',1,1),(34,24,'GPCP-0000020-0-0','MR74ZZ',2,2),(35,24,'GPMP-0800015-0-0','Bearing Spacer',2,3),(36,24,'GPCP-0000057-0-0','SSFR4-15.5-LKC',2,4),(37,25,'GPCP-0000077-0-0','WSSS8-4-1.5',2,1),(38,25,'GPCP-0000088-0-0','NN1-M4-SUS',2,2),(39,29,'GPMP-0800026-0-0','Ring Gear Top Spring Clasp',2,1),(40,31,'GPMP-0400010-1-1','Cable Carrier Bracket Stock Side',1,1),(41,31,'GPMP-0400009-1-0','Cable Carrier Bracket Galina Side',1,2),(42,31,'GPCP-0000083-0-0','UPWH3-10',2,3),(43,31,'GPMP-0400004-0-1','Cable Carrier Level Plate',1,4),(44,32,'GPMP-0800008-0-1','Camera Bracket',1,1),(45,33,'GPEP-0000005-0-0','FSA00EM000030JPSL0',1,1),(46,34,'GPMP-0800016-0-1','MIPI LED Cable Bracket',1,1),(47,36,'GPHP-0000019-0-2','LED_EX_Cable_600',1,1),(48,36,'GPHP-0000001-0-1','81973-400B-002',2,2),(49,39,'GPCP-0000003-0-0','WSX-STN-M3X10-1.2',2,1),(50,40,'GPMP-0800002-0-1','Head Cover',1,1),(51,41,'GPMP-0400008-0-1','Cable Guide Bracket',1,1);
-INSERT OR IGNORE INTO fasteners VALUES (1,1,'GPCP-0000023-0-0','CBBTS2-5',3,'222','0.315 Nm',1),(2,5,'GPCP-0000002-0-0','RXMS-2V0',2,'---','---',1),(3,5,'GPCP-0000010-0-1','BSB-315CE',1,'222','0.65 Nm',2),(4,5,'GPCP-0000010-0-1','BSB-315CE',2,'222','0.65 Nm',3),(5,6,'GPCP-0000010-0-1','BSB-315CE',3,'222','0.65 Nm',1),(6,7,'GPCP-0000172-0-0','AFPBPA3-P4-L5-B3',4,'---','---',1),(7,8,'GPCP-0000011-0-0','CSH-SUS-M3-5',4,'222','1.14 Nm',1),(8,9,'GPCP-0000013-0-0','CSH-SUS-M4-8',6,'222','2.7 Nm',1),(9,10,'GPCP-0000127-0-0','CBE6-30',3,'243','5.2 Nm',1),(10,11,'GPCP-0000093-0-0','CBE3-6',2,'425','1.14 Nm',1),(11,12,'GPCP-0000011-0-0','CSH-SUS-M3-5',4,'222','1.14 Nm',1),(12,12,'GPCP-0000084-0-0','CSPPNSB-STNB-TPT3-8',1,'425','0.315 Nm',2),(13,13,'GPCP-0000011-0-0','CSH-SUS-M3-5',2,'425','1.14 Nm',1),(14,14,'GPCP-0000101-0-0','CBE2-6',1,'222','0.315 Nm',1),(15,16,'GPCP-0000021-0-0','MSW3',1,'---','0.315 Nm',1),(16,19,'GPCP-0000031-0-0','CSH-SUS-M3-6',2,'222','1.14 Nm',1),(17,19,'GPCP-0000094-0-0','GPCP-0000094',2,'425','0.65 Nm',2),(18,20,'GPCP-0000023-0-0','CBBTS2-5',2,'222','0.315 Nm',1),(19,21,'GPCP-0000101-0-0','CBE2-6',3,'---','0.315 Nm',1),(20,23,'GPCP-0000031-0-0','CSH-SUS-M3-6',2,'222','1.14 Nm',1),(21,23,'GPCP-0000016-0-0','CSH-SUS-M3-20',2,'243','1.14 Nm',2),(22,24,'GPCP-0000031-0-0','CSH-SUS-M3-6',1,'425','1.14 Nm',1),(23,25,'GPCP-0000076-0-0','CF4-A',2,'---','1.14 Nm',1),(24,26,'GPCP-0000017-0-0','CSH-SUS-M4-10',2,'222','2.7 Nm',1),(25,26,'GPCP-0000011-0-0','CSH-SUS-M3-5',2,'222','1.14 Nm',2),(26,27,'GPCP-0000014-0-0','CSH-SUS-M3-10',2,'222','1.14 Nm',1),(27,29,'GPCP-0000014-0-0','CSH-SUS-M3-10',4,'425','1.14 Nm',1),(28,31,'GPCP-0000084-0-0','CSPPNSB-STNB-TPT3-8',2,'---','0.65 Nm',1),(29,31,'GPCP-0000068-0-0','BCBFB3-6',4,'425','0.65 Nm',2),(30,31,'GPCP-0000140-0-0','SFB3-5',2,'425','0.65 Nm',3),(31,32,'GPEP-0000004-0-0','See3CAM AR0821 + Lens',2,'---','0.315 Nm',1),(32,33,'GPCP-0000018-0-0','CSH-SUS-M2-5',2,'222','0.315 Nm',1),(33,34,'GPCP-0000101-0-0','CBE2-6',2,'222','0.176 Nm',1),(34,39,'GPCP-0000084-0-0','CSPPNSB-STNB-TPT3-8',2,'---','0.65 Nm',1),(35,40,'GPCP-0000084-0-0','CSPPNSB-STNB-TPT3-8',6,'---','0.65 Nm',1),(36,40,'GPCP-0000034-0-0','CBSST3-5',1,'---','---',2),(37,41,'GPCP-0000010-0-1','BSB-315CE',2,'222','0.65 Nm',1);
-`;
+// Table names
+const T={
+  assy:'Eagle_eye_app_assemblies',
+  grp:'Eagle_eye_app_groups',
+  step:'Eagle_eye_app_steps',
+  part:'Eagle_eye_app_parts',
+  fast:'Eagle_eye_app_fasteners',
+  ecn:'Eagle_eye_app_ecn_log'
+};
 
-const IDB='assy_tree_db',STORE='db_store',DBKEY='main_db';
-function idbOpen(){return new Promise((r,j)=>{const q=indexedDB.open(IDB,1);q.onupgradeneeded=e=>e.target.result.createObjectStore(STORE);q.onsuccess=e=>r(e.target.result);q.onerror=j;});}
-async function idbSave(d){const db=await idbOpen();return new Promise((r,j)=>{const t=db.transaction(STORE,'readwrite');t.objectStore(STORE).put(d,DBKEY);t.oncomplete=r;t.onerror=j;});}
-async function idbLoad(){const db=await idbOpen();return new Promise((r,j)=>{const t=db.transaction(STORE,'readonly');const q=t.objectStore(STORE).get(DBKEY);q.onsuccess=()=>r(q.result||null);q.onerror=j;});}
+// ═══ DATA CONTEXT ═══
+const DataCtx=createContext({});
 
-const DBCtx=createContext(null);
-const RefreshCtx=createContext(()=>{});
+function useData(){return useContext(DataCtx);}
 
-function Q(db,sql,p=[]){const r=db.exec(sql,p);if(!r.length)return[];const c=r[0].columns;return r[0].values.map(v=>{const o={};c.forEach((k,i)=>o[k]=v[i]);return o;});}
-function R(db,sql,p=[]){db.run(sql,p);}
-function nid(db,t){return(Q(db,`SELECT MAX(id) as m FROM ${t}`)[0]?.m||0)+1;}
-function msort(db,t,w,p=[]){return(Q(db,`SELECT MAX(sort_order) as m FROM ${t} WHERE ${w}`,p)[0]?.m||0)+1;}
+function DataProvider({children}){
+  const [assy,setAssy]=useState(null);
+  const [groups,setGroups]=useState([]);
+  const [steps,setSteps]=useState([]);
+  const [parts,setParts]=useState([]);
+  const [fasts,setFasts]=useState([]);
+  const [loading,setLoading]=useState(true);
+  const [error,setError]=useState(null);
+  const [toast,setToast]=useState(null);
 
-// ═══ Context Menu ═══
-function ContextMenu({x,y,items,onClose}){
+  const showToast=(msg,type='ok')=>{setToast({msg,type});setTimeout(()=>setToast(null),2000);};
+
+  // Load all data for HBD_assy
+  const loadAll=useCallback(async()=>{
+    try{
+      const {data:a}=await sb.from(T.assy).select('*').eq('tag','HBD_assy').single();
+      if(!a){setError('Assembly HBD_assy not found. Run the SQL setup first.');setLoading(false);return;}
+      setAssy(a);
+      const {data:g}=await sb.from(T.grp).select('*').eq('assembly_id',a.id).order('sort_order');
+      setGroups(g||[]);
+      const gids=(g||[]).map(x=>x.id);
+      if(gids.length){
+        const {data:s}=await sb.from(T.step).select('*').in('group_id',gids).order('sort_order');
+        setSteps(s||[]);
+        const sids=(s||[]).map(x=>x.id);
+        if(sids.length){
+          const {data:p}=await sb.from(T.part).select('*').in('step_id',sids).order('sort_order');
+          setParts(p||[]);
+          const {data:f}=await sb.from(T.fast).select('*').in('step_id',sids).order('sort_order');
+          setFasts(f||[]);
+        }
+      }
+      setLoading(false);
+    }catch(e){setError(e.message);setLoading(false);}
+  },[]);
+
+  useEffect(()=>{loadAll();},[loadAll]);
+
+  // ═══ CRUD helpers ═══
+  const refresh=async()=>{await loadAll();};
+
+  const addStep=async(groupId,label,type)=>{
+    const maxSort=Math.max(0,...steps.filter(s=>s.group_id===groupId).map(s=>s.sort_order||0))+1;
+    const {error:e}=await sb.from(T.step).insert({group_id:groupId,label,type,sort_order:maxSort});
+    if(e){showToast(e.message,'err');return;}
+    showToast('Step added');await refresh();
+  };
+
+  const updateStep=async(id,fields)=>{
+    const {error:e}=await sb.from(T.step).update(fields).eq('id',id);
+    if(e){showToast(e.message,'err');return;}
+    showToast('Step updated');await refresh();
+  };
+
+  const deleteStep=async(id)=>{
+    await sb.from(T.part).delete().eq('step_id',id);
+    await sb.from(T.fast).delete().eq('step_id',id);
+    const {error:e}=await sb.from(T.step).delete().eq('id',id);
+    if(e){showToast(e.message,'err');return;}
+    showToast('Step deleted');await refresh();
+  };
+
+  const moveStep=async(step,newGroupId)=>{
+    const maxSort=Math.max(0,...steps.filter(s=>s.group_id===newGroupId).map(s=>s.sort_order||0))+1;
+    await sb.from(T.step).update({group_id:newGroupId,sort_order:maxSort}).eq('id',step.id);
+    showToast('Step moved');await refresh();
+  };
+
+  const swapSteps=async(step,dir)=>{
+    const sibs=steps.filter(s=>s.group_id===step.group_id).sort((a,b)=>(a.sort_order||0)-(b.sort_order||0));
+    const idx=sibs.findIndex(s=>s.id===step.id);
+    const si=idx+dir;
+    if(si<0||si>=sibs.length)return;
+    const a=sibs[idx],b=sibs[si];
+    await sb.from(T.step).update({sort_order:b.sort_order}).eq('id',a.id);
+    await sb.from(T.step).update({sort_order:a.sort_order}).eq('id',b.id);
+    await refresh();
+  };
+
+  const addPart=async(stepId,pn,qty)=>{
+    const maxSort=Math.max(0,...parts.filter(p=>p.step_id===stepId).map(p=>p.sort_order||0))+1;
+    const {error:e}=await sb.from(T.part).insert({step_id:stepId,pn,qty:Number(qty),sort_order:maxSort});
+    if(e){showToast(e.message,'err');return;}
+    showToast('Part added');await refresh();
+  };
+
+  const updatePart=async(id,fields)=>{
+    const {error:e}=await sb.from(T.part).update(fields).eq('id',id);
+    if(e){showToast(e.message,'err');return;}
+    showToast('Part updated');await refresh();
+  };
+
+  const deletePart=async(id)=>{
+    await sb.from(T.part).delete().eq('id',id);
+    showToast('Part deleted');await refresh();
+  };
+
+  const swapParts=async(stepId,partId,dir)=>{
+    const sibs=parts.filter(p=>p.step_id===stepId).sort((a,b)=>(a.sort_order||0)-(b.sort_order||0));
+    const idx=sibs.findIndex(p=>p.id===partId);const si=idx+dir;
+    if(si<0||si>=sibs.length)return;
+    await sb.from(T.part).update({sort_order:sibs[si].sort_order}).eq('id',sibs[idx].id);
+    await sb.from(T.part).update({sort_order:sibs[idx].sort_order}).eq('id',sibs[si].id);
+    await refresh();
+  };
+
+  const addFast=async(stepId,pn,qty,loctite,torque)=>{
+    const maxSort=Math.max(0,...fasts.filter(f=>f.step_id===stepId).map(f=>f.sort_order||0))+1;
+    const {error:e}=await sb.from(T.fast).insert({step_id:stepId,pn,qty:Number(qty),loctite,torque,sort_order:maxSort});
+    if(e){showToast(e.message,'err');return;}
+    showToast('Fastener added');await refresh();
+  };
+
+  const updateFast=async(id,fields)=>{
+    const {error:e}=await sb.from(T.fast).update(fields).eq('id',id);
+    if(e){showToast(e.message,'err');return;}
+    showToast('Fastener updated');await refresh();
+  };
+
+  const deleteFast=async(id)=>{
+    await sb.from(T.fast).delete().eq('id',id);
+    showToast('Fastener deleted');await refresh();
+  };
+
+  const swapFasts=async(stepId,fastId,dir)=>{
+    const sibs=fasts.filter(f=>f.step_id===stepId).sort((a,b)=>(a.sort_order||0)-(b.sort_order||0));
+    const idx=sibs.findIndex(f=>f.id===fastId);const si=idx+dir;
+    if(si<0||si>=sibs.length)return;
+    await sb.from(T.fast).update({sort_order:sibs[si].sort_order}).eq('id',sibs[idx].id);
+    await sb.from(T.fast).update({sort_order:sibs[idx].sort_order}).eq('id',sibs[si].id);
+    await refresh();
+  };
+
+  const val={assy,groups,steps,parts,fasts,loading,error,toast,
+    addStep,updateStep,deleteStep,moveStep,swapSteps,
+    addPart,updatePart,deletePart,swapParts,
+    addFast,updateFast,deleteFast,swapFasts,
+    refresh};
+
+  return <DataCtx.Provider value={val}>{children}</DataCtx.Provider>;
+}
+
+// ═══ HELPERS ═══
+const ecnC={remove:'#ef4444',replace:'#f59e0b',add:'#10b981',modify:'#3b82f6'};
+const ecnI={remove:'✕',replace:'↻',add:'+',modify:'~'};
+const ecnBg={remove:'rgba(239,68,68,0.08)',replace:'rgba(245,158,11,0.08)',add:'rgba(16,185,129,0.08)',modify:'rgba(59,130,246,0.08)'};
+const bC={step:'badge-step',prep:'badge-prep',kanryo:'badge-kanryo',note:'badge-note'};
+const bT={step:'STEP',prep:'PREP',kanryo:'完了',note:'NOTE'};
+
+// ═══ CONTEXT MENU ═══
+function CtxMenu({x,y,items,onClose}){
   const ref=useRef(null);
-  useEffect(()=>{const h=e=>{if(ref.current&&!ref.current.contains(e.target))onClose();};document.addEventListener('mousedown',h);return()=>document.removeEventListener('mousedown',h);},[onClose]);
-  // Adjust position to stay in viewport
   const [pos,setPos]=useState({x,y});
-  useEffect(()=>{if(ref.current){const r=ref.current.getBoundingClientRect();const nx=r.right>window.innerWidth?x-r.width:x;const ny=r.bottom>window.innerHeight?y-r.height:y;setPos({x:Math.max(0,nx),y:Math.max(0,ny)});}},[x,y]);
+  useEffect(()=>{const h=e=>{if(ref.current&&!ref.current.contains(e.target))onClose();};document.addEventListener('mousedown',h);return()=>document.removeEventListener('mousedown',h);},[onClose]);
+  useEffect(()=>{if(ref.current){const r=ref.current.getBoundingClientRect();setPos({x:Math.max(0,r.right>window.innerWidth?x-r.width:x),y:Math.max(0,r.bottom>window.innerHeight?y-r.height:y)});}},[x,y]);
   return(<div ref={ref} className="ctx-menu" style={{left:pos.x,top:pos.y}}>
     {items.map((it,i)=>it.sep?<div key={i} className="ctx-sep"/>:
       <div key={i} className={'ctx-item'+(it.danger?' danger':'')} onClick={()=>{it.action();onClose();}}>
         <span style={{width:16,textAlign:'center',fontSize:12}}>{it.icon||''}</span>{it.label}
-      </div>
-    )}
+      </div>)}
   </div>);
 }
 
-// ═══ Modals ═══
+// ═══ MODALS ═══
 function PartModal({mode,stepId,data,onClose}){
-  const db=useContext(DBCtx),refresh=useContext(RefreshCtx);
-  const [pn,setPn]=useState(data?.pn||'');const [name,setName]=useState(data?.name||'');const [qty,setQty]=useState(data?.qty||1);
-  const save=()=>{if(!pn)return;if(mode==='add'){R(db,"INSERT INTO parts VALUES(?,?,?,?,?,?)",[nid(db,'parts'),stepId,pn,name,Number(qty),msort(db,'parts','step_id=?',[stepId])]);}else{R(db,"UPDATE parts SET pn=?,name=?,qty=? WHERE id=?",[pn,name,Number(qty),data.id]);}refresh();onClose();};
+  const {addPart,updatePart}=useData();
+  const [pn,setPn]=useState(data?.pn||'');const [qty,setQty]=useState(data?.qty||1);
+  const save=async()=>{if(!pn)return;if(mode==='add')await addPart(stepId,pn,qty);else await updatePart(data.id,{pn,qty:Number(qty)});onClose();};
   return(<div className="modal-overlay" onClick={onClose}><div className="modal" onClick={e=>e.stopPropagation()}>
     <h3>{mode==='add'?'Add Part':'Edit Part'}</h3>
     <div className="form-row"><label>P/N</label><input value={pn} onChange={e=>setPn(e.target.value)} placeholder="GPCP-0000000-0-0" autoFocus/></div>
-    <div className="form-row"><label>Name</label><input value={name} onChange={e=>setName(e.target.value)} placeholder="Part name"/></div>
     <div className="form-row"><label>Qty</label><input type="number" value={qty} onChange={e=>setQty(e.target.value)} min={1}/></div>
     <div className="form-actions"><button className="btn-primary" onClick={save}>{mode==='add'?'Add':'Save'}</button><button className="btn-ghost" onClick={onClose}>Cancel</button></div>
   </div></div>);
 }
 
 function FastModal({mode,stepId,data,onClose}){
-  const db=useContext(DBCtx),refresh=useContext(RefreshCtx);
-  const [pn,setPn]=useState(data?.pn||'');const [name,setName]=useState(data?.name||'');const [qty,setQty]=useState(data?.qty||1);const [lt,setLt]=useState(data?.loctite||'222');const [tq,setTq]=useState(data?.torque||'');
-  const save=()=>{if(!pn)return;if(mode==='add'){R(db,"INSERT INTO fasteners VALUES(?,?,?,?,?,?,?,?)",[nid(db,'fasteners'),stepId,pn,name,Number(qty),lt,tq,msort(db,'fasteners','step_id=?',[stepId])]);}else{R(db,"UPDATE fasteners SET pn=?,name=?,qty=?,loctite=?,torque=? WHERE id=?",[pn,name,Number(qty),lt,tq,data.id]);}refresh();onClose();};
+  const {addFast,updateFast}=useData();
+  const [pn,setPn]=useState(data?.pn||'');const [qty,setQty]=useState(data?.qty||1);const [lt,setLt]=useState(data?.loctite||'222');const [tq,setTq]=useState(data?.torque||'');
+  const save=async()=>{if(!pn)return;if(mode==='add')await addFast(stepId,pn,qty,lt,tq);else await updateFast(data.id,{pn,qty:Number(qty),loctite:lt,torque:tq});onClose();};
   return(<div className="modal-overlay" onClick={onClose}><div className="modal" onClick={e=>e.stopPropagation()}>
     <h3>{mode==='add'?'Add Fastener':'Edit Fastener'}</h3>
     <div className="form-row"><label>P/N</label><input value={pn} onChange={e=>setPn(e.target.value)} placeholder="GPCP-0000000-0-0" autoFocus/></div>
-    <div className="form-row"><label>Name</label><input value={name} onChange={e=>setName(e.target.value)} placeholder="Fastener name"/></div>
     <div className="form-row"><label>Qty</label><input type="number" value={qty} onChange={e=>setQty(e.target.value)} min={1}/></div>
     <div className="form-row"><label>Loctite</label><select value={lt} onChange={e=>setLt(e.target.value)}><option value="222">222</option><option value="243">243</option><option value="425">425</option><option value="648">648</option><option value="---">---</option></select></div>
     <div className="form-row"><label>Torque</label><input value={tq} onChange={e=>setTq(e.target.value)} placeholder="1.14 Nm"/></div>
@@ -216,10 +337,9 @@ function FastModal({mode,stepId,data,onClose}){
 }
 
 function StepModal({mode,groupId,data,onClose}){
-  const db=useContext(DBCtx),refresh=useContext(RefreshCtx);
-  const groups=Q(db,"SELECT * FROM groups ORDER BY sort_order");
+  const {groups,addStep,updateStep,moveStep:mv}=useData();
   const [label,setLabel]=useState(data?.label||'');const [type,setType]=useState(data?.type||'step');const [gid,setGid]=useState(data?.group_id||groupId);
-  const save=()=>{if(!label)return;if(mode==='add'){R(db,"INSERT INTO steps VALUES(?,?,?,?,?)",[nid(db,'steps'),gid,label,type,msort(db,'steps','group_id=?',[gid])]);}else{R(db,"UPDATE steps SET label=?,type=?,group_id=? WHERE id=?",[label,type,gid,data.id]);if(data.group_id!==gid)R(db,"UPDATE steps SET sort_order=? WHERE id=?",[msort(db,'steps','group_id=?',[gid]),data.id]);}refresh();onClose();};
+  const save=async()=>{if(!label)return;if(mode==='add')await addStep(gid,label,type);else{await updateStep(data.id,{label,type});if(data.group_id!==gid)await mv(data,gid);}onClose();};
   return(<div className="modal-overlay" onClick={onClose}><div className="modal" onClick={e=>e.stopPropagation()}>
     <h3>{mode==='add'?'Add Step':'Edit Step'}</h3>
     <div className="form-row"><label>Label</label><input value={label} onChange={e=>setLabel(e.target.value)} placeholder="Step name" autoFocus/></div>
@@ -230,10 +350,9 @@ function StepModal({mode,groupId,data,onClose}){
 }
 
 function MoveModal({stepData,onClose}){
-  const db=useContext(DBCtx),refresh=useContext(RefreshCtx);
-  const groups=Q(db,"SELECT * FROM groups ORDER BY sort_order");
+  const {groups,moveStep}=useData();
   const [gid,setGid]=useState(stepData.group_id);
-  const move=()=>{if(gid===stepData.group_id){onClose();return;}R(db,"UPDATE steps SET group_id=?,sort_order=? WHERE id=?",[gid,msort(db,'steps','group_id=?',[gid]),stepData.id]);refresh();onClose();};
+  const move=async()=>{if(gid===stepData.group_id){onClose();return;}await moveStep(stepData,gid);onClose();};
   return(<div className="modal-overlay" onClick={onClose}><div className="modal" onClick={e=>e.stopPropagation()}>
     <h3>Move "{stepData.label}"</h3>
     <div className="form-row"><label>Move to group</label><select value={gid} onChange={e=>setGid(Number(e.target.value))}>{groups.map(g=><option key={g.id} value={g.id}>{g.icon} {g.label}</option>)}</select></div>
@@ -241,49 +360,44 @@ function MoveModal({stepData,onClose}){
   </div></div>);
 }
 
-// ═══ Detail Panel ═══
+// ═══ DETAIL PANEL ═══
 function DetailPanel({stepId,ecnChanges}){
-  const db=useContext(DBCtx),refresh=useContext(RefreshCtx);
+  const {groups,steps,parts,fasts,deleteStep,swapParts,deletePart,swapFasts,deleteFast}=useData();
   const [modal,setModal]=useState(null);
-
-  if(!db||!stepId) return <div className="empty"><div className="big">🔧</div><div className="msg">Select a step to view details<br/>Right-click steps for more actions</div></div>;
-  const s=Q(db,"SELECT s.*,g.label as gl,g.color as gc,g.icon as gi FROM steps s JOIN groups g ON s.group_id=g.id WHERE s.id=?",[stepId])[0];
-  if(!s) return <div className="empty"><div className="msg">Step not found</div></div>;
-  const parts=Q(db,"SELECT * FROM parts WHERE step_id=? ORDER BY sort_order",[stepId]);
-  const fast=Q(db,"SELECT * FROM fasteners WHERE step_id=? ORDER BY sort_order",[stepId]);
+  if(!stepId)return <div className="empty"><div className="big">🔧</div><div className="msg">Select a step to view details<br/>Right-click steps for more actions</div></div>;
+  const s=steps.find(x=>x.id===stepId);
+  if(!s)return <div className="empty"><div className="msg">Step not found</div></div>;
+  const g=groups.find(x=>x.id===s.group_id);
+  const sp=parts.filter(p=>p.step_id===stepId).sort((a,b)=>(a.sort_order||0)-(b.sort_order||0));
+  const sf=fasts.filter(f=>f.step_id===stepId).sort((a,b)=>(a.sort_order||0)-(b.sort_order||0));
   const ecn=ecnChanges[stepId]||'none';
-  const ecnC={remove:'#ef4444',replace:'#f59e0b',add:'#10b981',modify:'#3b82f6'};
-
-  const del=(table,id,label)=>{if(confirm(`Delete ${label}?`)){R(db,`DELETE FROM ${table} WHERE id=?`,[id]);refresh();}};
-  const swap=(table,items,id,dir)=>{const idx=items.findIndex(x=>x.id===id);const si=idx+dir;if(si<0||si>=items.length)return;const a=items[idx],b=items[si];R(db,`UPDATE ${table} SET sort_order=? WHERE id=?`,[b.sort_order,a.id]);R(db,`UPDATE ${table} SET sort_order=? WHERE id=?`,[a.sort_order,b.id]);refresh();};
-  const delStep=()=>{if(!confirm(`Delete "${s.label}" and all its parts/fasteners?`))return;R(db,"DELETE FROM parts WHERE step_id=?",[stepId]);R(db,"DELETE FROM fasteners WHERE step_id=?",[stepId]);R(db,"DELETE FROM steps WHERE id=?",[stepId]);refresh();};
 
   return(<div className="detail">
     <div className="detail-hdr">
       <div className="did">{s.id}</div>
       <div className="dinfo">
-        <div className="dgrp" style={{color:s.gc}}>↳ {s.gl}</div>
+        <div className="dgrp" style={{color:g?.color}}>↳ {g?.label}</div>
         <div className="dlabel" style={{color:s.type==='kanryo'?'var(--yellow)':'var(--text)'}}>{s.label}</div>
       </div>
       {ecn!=='none'&&<span style={{padding:'3px 10px',borderRadius:5,background:ecnC[ecn]+'18',border:'1px solid '+ecnC[ecn],color:ecnC[ecn],fontSize:10,fontWeight:800,textTransform:'uppercase'}}>{ecn}</span>}
     </div>
     <div className="step-actions">
-      <button onClick={()=>setModal({t:'editStep',d:{...s}})}>✏️ Edit</button>
-      <button onClick={()=>setModal({t:'moveStep',d:{...s}})}>📦 Move</button>
-      <button className="danger" onClick={delStep}>🗑 Delete</button>
+      <button onClick={()=>setModal({t:'editStep',d:s})}>✏️ Edit</button>
+      <button onClick={()=>setModal({t:'moveStep',d:s})}>📦 Move</button>
+      <button className="danger" onClick={()=>{if(confirm(`Delete "${s.label}"?`))deleteStep(s.id);}}>🗑 Delete</button>
     </div>
 
-    <div className="section-title" style={{color:'var(--green)'}}>PARTS ({parts.length})<button className="add-btn" onClick={()=>setModal({t:'addP',sid:stepId})}>+ Add</button></div>
-    {parts.map((p,i)=><div key={p.id} className="item-row" style={{background:i%2?'#071a12':'transparent'}}>
-      <div className="dot" style={{background:'var(--green)'}}/><span className="mono" style={{color:'#34d399'}}>{p.pn}</span><span className="iname" style={{color:'#d1fae5'}}>{p.name}</span><span className="iqty" style={{color:'#6ee7b7'}}>×{p.qty}</span>
-      <div className="row-actions"><button className="up-btn" onClick={()=>swap('parts',parts,p.id,-1)}>▲</button><button className="dn-btn" onClick={()=>swap('parts',parts,p.id,1)}>▼</button><button className="edit-btn" onClick={()=>setModal({t:'editP',sid:stepId,d:p})}>✏️</button><button className="del-btn" onClick={()=>del('parts',p.id,p.name)}>✕</button></div>
+    <div className="section-title" style={{color:'var(--green)'}}>PARTS ({sp.length})<button className="add-btn" onClick={()=>setModal({t:'addP',sid:stepId})}>+ Add</button></div>
+    {sp.map((p,i)=><div key={p.id} className="item-row" style={{background:i%2?'#071a12':'transparent'}}>
+      <div className="dot" style={{background:'var(--green)'}}/><span className="mono" style={{color:'#34d399'}}>{p.pn}</span><span className="iqty" style={{color:'#6ee7b7'}}>×{p.qty}</span>
+      <div className="row-actions"><button className="up-btn" onClick={()=>swapParts(stepId,p.id,-1)}>▲</button><button className="dn-btn" onClick={()=>swapParts(stepId,p.id,1)}>▼</button><button className="edit-btn" onClick={()=>setModal({t:'editP',sid:stepId,d:p})}>✏️</button><button className="del-btn" onClick={()=>{if(confirm('Delete?'))deletePart(p.id);}}>✕</button></div>
     </div>)}
 
-    <div style={{marginTop:16}} className="section-title" style={{color:'var(--red)',marginTop:16}}>FASTENERS ({fast.length})<button className="add-btn" onClick={()=>setModal({t:'addF',sid:stepId})}>+ Add</button></div>
-    {fast.map((f,i)=><div key={f.id}>
+    <div className="section-title" style={{color:'var(--red)',marginTop:16}}>FASTENERS ({sf.length})<button className="add-btn" onClick={()=>setModal({t:'addF',sid:stepId})}>+ Add</button></div>
+    {sf.map((f,i)=><div key={f.id}>
       <div className="item-row" style={{background:i%2?'#1a0505':'transparent'}}>
-        <div className="dot" style={{background:'var(--red)'}}/><span className="mono" style={{color:'#fca5a5'}}>{f.pn}</span><span className="iname" style={{color:'#fecaca'}}>{f.name}</span><span className="iqty" style={{color:'#f87171'}}>×{f.qty}</span>
-        <div className="row-actions"><button className="up-btn" onClick={()=>swap('fasteners',fast,f.id,-1)}>▲</button><button className="dn-btn" onClick={()=>swap('fasteners',fast,f.id,1)}>▼</button><button className="edit-btn" onClick={()=>setModal({t:'editF',sid:stepId,d:f})}>✏️</button><button className="del-btn" onClick={()=>del('fasteners',f.id,f.name)}>✕</button></div>
+        <div className="dot" style={{background:'var(--red)'}}/><span className="mono" style={{color:'#fca5a5'}}>{f.pn}</span><span className="iqty" style={{color:'#f87171'}}>×{f.qty}</span>
+        <div className="row-actions"><button className="up-btn" onClick={()=>swapFasts(stepId,f.id,-1)}>▲</button><button className="dn-btn" onClick={()=>swapFasts(stepId,f.id,1)}>▼</button><button className="edit-btn" onClick={()=>setModal({t:'editF',sid:stepId,d:f})}>✏️</button><button className="del-btn" onClick={()=>{if(confirm('Delete?'))deleteFast(f.id);}}>✕</button></div>
       </div>
       <div className="fast-meta"><span><span style={{color:'var(--text4)'}}>LT </span><span style={{color:f.loctite==='---'?'var(--text4)':'var(--yellow)',fontWeight:700}}>{f.loctite}</span></span><span><span style={{color:'var(--text4)'}}>TQ </span><span style={{color:!f.torque||f.torque==='---'?'var(--text4)':'var(--blue)',fontWeight:700}}>{f.torque||'—'}</span></span></div>
     </div>)}
@@ -297,42 +411,41 @@ function DetailPanel({stepId,ecnChanges}){
   </div>);
 }
 
-// ═══ List View ═══
+// ═══ LIST VIEW ═══
 function ListView({selected,setSelected,ecnOn,brush,ecnChanges,setEcnChanges,search}){
-  const db=useContext(DBCtx),refresh=useContext(RefreshCtx);
+  const {groups,steps,parts,fasts,swapSteps,deleteStep}=useData();
   const [exp,setExp]=useState(new Set());
   const [ctx,setCtx]=useState(null);
   const [modal,setModal]=useState(null);
-  useEffect(()=>{if(db)setExp(new Set(Q(db,"SELECT id FROM groups").map(g=>g.id)));},[db]);
-  if(!db)return null;
 
-  const groups=Q(db,"SELECT * FROM groups ORDER BY sort_order");
+  useEffect(()=>{setExp(new Set(groups.map(g=>g.id)));},[groups]);
+
   const toggle=id=>setExp(p=>{const n=new Set(p);n.has(id)?n.delete(id):n.add(id);return n;});
   const click=id=>{if(ecnOn){setEcnChanges(p=>{const n={...p};n[id]===brush?delete n[id]:(n[id]=brush);return n;});}else setSelected(selected===id?null:id);};
-  const moveStep=(s,dir)=>{const sibs=Q(db,"SELECT * FROM steps WHERE group_id=? ORDER BY sort_order",[s.group_id]);const idx=sibs.findIndex(x=>x.id===s.id);const si=idx+dir;if(si<0||si>=sibs.length)return;R(db,"UPDATE steps SET sort_order=? WHERE id=?",[sibs[si].sort_order,s.id]);R(db,"UPDATE steps SET sort_order=? WHERE id=?",[sibs[idx].sort_order,sibs[si].id]);refresh();};
-  const delStep=s=>{if(!confirm(`Delete "${s.label}"?`))return;R(db,"DELETE FROM parts WHERE step_id=?",[s.id]);R(db,"DELETE FROM fasteners WHERE step_id=?",[s.id]);R(db,"DELETE FROM steps WHERE id=?",[s.id]);if(selected===s.id)setSelected(null);refresh();};
 
-  const sids=search?new Set(Q(db,`SELECT DISTINCT s.id FROM steps s LEFT JOIN parts p ON p.step_id=s.id LEFT JOIN fasteners f ON f.step_id=s.id WHERE s.label LIKE ?1 OR p.pn LIKE ?1 OR p.name LIKE ?1 OR f.pn LIKE ?1 OR f.name LIKE ?1`,[`%${search}%`]).map(r=>r.id)):null;
-  const ecnC={remove:'#ef4444',replace:'#f59e0b',add:'#10b981',modify:'#3b82f6'};
-  const ecnI={remove:'✕',replace:'↻',add:'+',modify:'~'};
-  const ecnBg={remove:'rgba(239,68,68,0.08)',replace:'rgba(245,158,11,0.08)',add:'rgba(16,185,129,0.08)',modify:'rgba(59,130,246,0.08)'};
-  const bC={step:'badge-step',prep:'badge-prep',kanryo:'badge-kanryo',note:'badge-note'};
-  const bT={step:'STEP',prep:'PREP',kanryo:'完了',note:'NOTE'};
+  const searchLower=search?.toLowerCase()||'';
+  const matchStep=s=>{
+    if(!searchLower)return true;
+    if(s.label.toLowerCase().includes(searchLower))return true;
+    if(parts.some(p=>p.step_id===s.id&&p.pn.toLowerCase().includes(searchLower)))return true;
+    if(fasts.some(f=>f.step_id===s.id&&f.pn.toLowerCase().includes(searchLower)))return true;
+    return false;
+  };
 
   return(<div className="tree">
     {groups.map(g=>{
-      const steps=Q(db,"SELECT * FROM steps WHERE group_id=? ORDER BY sort_order",[g.id]);
-      const open=exp.has(g.id);const gEcn=steps.filter(s=>ecnChanges[s.id]).length;
+      const gSteps=steps.filter(s=>s.group_id===g.id).sort((a,b)=>(a.sort_order||0)-(b.sort_order||0));
+      const open=exp.has(g.id);const gEcn=gSteps.filter(s=>ecnChanges[s.id]).length;
       return(<div key={g.id}>
         <div className="group-hdr" onClick={()=>toggle(g.id)} style={{borderLeft:'3px solid '+g.color}}>
           <span className={'arrow'+(open?' open':'')}>▶</span><span style={{fontSize:12}}>{g.icon}</span><span className="label" style={{color:g.color}}>{g.label}</span>
           <button className="add-step-btn" onClick={e=>{e.stopPropagation();setModal({t:'addStep',gid:g.id});}}>+ step</button>
-          <span className="cnt">{steps.length}</span>{gEcn>0&&<span className="ecn-cnt">{gEcn}</span>}
+          <span className="cnt">{gSteps.length}</span>{gEcn>0&&<span className="ecn-cnt">{gEcn}</span>}
         </div>
-        {open&&steps.map(s=>{
-          const e=ecnChanges[s.id];const sel=selected===s.id;const vis=!sids||sids.has(s.id);
-          const pc=Q(db,"SELECT COUNT(*) as c FROM parts WHERE step_id=?",[s.id])[0]?.c||0;
-          const fc=Q(db,"SELECT COUNT(*) as c FROM fasteners WHERE step_id=?",[s.id])[0]?.c||0;
+        {open&&gSteps.map(s=>{
+          const e=ecnChanges[s.id];const sel=selected===s.id;const vis=matchStep(s);
+          const pc=parts.filter(p=>p.step_id===s.id).length;
+          const fc=fasts.filter(f=>f.step_id===s.id).length;
           return(<div key={s.id} className={'step-row'+(sel?' selected':'')} onClick={()=>click(s.id)} onContextMenu={ev=>{ev.preventDefault();setCtx({x:ev.clientX,y:ev.clientY,s});}}
             style={{background:e?ecnBg[e]:undefined,borderLeftColor:e?ecnC[e]:undefined,opacity:vis?1:0.2}}>
             <span className="sid">{s.id}</span><span className={'badge '+(bC[s.type]||'badge-step')}>{bT[s.type]||'STEP'}</span>
@@ -340,18 +453,18 @@ function ListView({selected,setSelected,ecnOn,brush,ecnChanges,setEcnChanges,sea
             {pc>0&&<span className="tag tag-p">{pc}P</span>}{fc>0&&<span className="tag tag-f">{fc}F</span>}
             {e&&<span className="ecn-mark" style={{color:ecnC[e]}}>{ecnI[e]}</span>}
             <div className="step-row-actions">
-              <button onClick={ev=>{ev.stopPropagation();moveStep(s,-1);}} title="Move up">▲</button>
-              <button onClick={ev=>{ev.stopPropagation();moveStep(s,1);}} title="Move down">▼</button>
+              <button onClick={ev=>{ev.stopPropagation();swapSteps(s,-1);}} title="Move up">▲</button>
+              <button onClick={ev=>{ev.stopPropagation();swapSteps(s,1);}} title="Move down">▼</button>
             </div>
           </div>);
         })}
       </div>);
     })}
-    {ctx&&<ContextMenu x={ctx.x} y={ctx.y} onClose={()=>setCtx(null)} items={[
+    {ctx&&<CtxMenu x={ctx.x} y={ctx.y} onClose={()=>setCtx(null)} items={[
       {icon:'✏️',label:'Edit step',action:()=>setModal({t:'editStep',d:ctx.s})},
       {icon:'📦',label:'Move to group...',action:()=>setModal({t:'moveStep',d:ctx.s})},
-      {sep:true},{icon:'▲',label:'Move up',action:()=>moveStep(ctx.s,-1)},{icon:'▼',label:'Move down',action:()=>moveStep(ctx.s,1)},
-      {sep:true},{icon:'🗑',label:'Delete step',action:()=>delStep(ctx.s),danger:true},
+      {sep:true},{icon:'▲',label:'Move up',action:()=>swapSteps(ctx.s,-1)},{icon:'▼',label:'Move down',action:()=>swapSteps(ctx.s,1)},
+      {sep:true},{icon:'🗑',label:'Delete step',action:()=>{if(confirm(`Delete "${ctx.s.label}"?`))deleteStep(ctx.s.id);},danger:true},
     ]}/>}
     {modal?.t==='addStep'&&<StepModal mode="add" groupId={modal.gid} onClose={()=>setModal(null)}/>}
     {modal?.t==='editStep'&&<StepModal mode="edit" data={modal.d} onClose={()=>setModal(null)}/>}
@@ -359,103 +472,104 @@ function ListView({selected,setSelected,ecnOn,brush,ecnChanges,setEcnChanges,sea
   </div>);
 }
 
-// ═══ Graph View ═══
+// ═══ GRAPH VIEW ═══
 function GraphView({selected,setSelected,ecnOn,brush,ecnChanges,setEcnChanges}){
-  const db=useContext(DBCtx);const ref=useRef(null);const [dim,setDim]=useState({w:900,h:700});const [hov,setHov]=useState(null);
+  const {groups,steps,parts,fasts}=useData();
+  const ref=useRef(null);const [dim,setDim]=useState({w:900,h:700});const [hov,setHov]=useState(null);
   useEffect(()=>{if(ref.current){const r=ref.current.getBoundingClientRect();setDim({w:r.width||900,h:r.height||700});}},[]);
-  if(!db)return null;
-  const steps=Q(db,"SELECT s.*,g.color as gc FROM steps s JOIN groups g ON s.group_id=g.id ORDER BY g.sort_order,s.sort_order");
-  const pn=[...new Set(Q(db,"SELECT DISTINCT name FROM parts ORDER BY name").map(p=>p.name))];
-  const fn=[...new Set(Q(db,"SELECT DISTINCT name FROM fasteners ORDER BY name").map(f=>f.name))];
-  const groups=Q(db,"SELECT * FROM groups ORDER BY sort_order");
+
+  const sortedSteps=steps.slice().sort((a,b)=>{const ga=groups.findIndex(g=>g.id===a.group_id),gb=groups.findIndex(g=>g.id===b.group_id);return ga!==gb?ga-gb:(a.sort_order||0)-(b.sort_order||0);});
+  const pnList=[...new Set(parts.map(p=>p.pn))].sort();
+  const fnList=[...new Set(fasts.map(f=>f.pn))].sort();
+
   const pX=5,sX=dim.w*0.3,fX=dim.w*0.66;
-  const pYf=i=>22+i*((dim.h-44)/Math.max(pn.length-1,1));
-  const sYf=i=>22+i*((dim.h-44)/Math.max(steps.length-1,1));
-  const fYf=i=>22+i*((dim.h-44)/Math.max(fn.length-1,1));
+  const pYf=i=>22+i*((dim.h-44)/Math.max(pnList.length-1,1));
+  const sYf=i=>22+i*((dim.h-44)/Math.max(sortedSteps.length-1,1));
+  const fYf=i=>22+i*((dim.h-44)/Math.max(fnList.length-1,1));
+
   const active=hov||selected;
-  const ap=active?Q(db,"SELECT name FROM parts WHERE step_id=?",[active]).map(p=>p.name):[];
-  const af=active?Q(db,"SELECT name FROM fasteners WHERE step_id=?",[active]).map(f=>f.name):[];
-  const ecnC={remove:'#ef4444',replace:'#f59e0b',add:'#10b981',modify:'#3b82f6'};
-  const ecnBg={remove:'rgba(239,68,68,0.08)',replace:'rgba(245,158,11,0.08)',add:'rgba(16,185,129,0.08)',modify:'rgba(59,130,246,0.08)'};
-  const ecnI={remove:'✕',replace:'↻',add:'+',modify:'~'};
+  const ap=active?parts.filter(p=>p.step_id===active).map(p=>p.pn):[];
+  const af=active?fasts.filter(f=>f.step_id===active).map(f=>f.pn):[];
+
   const click=id=>{if(ecnOn){setEcnChanges(p=>{const n={...p};n[id]===brush?delete n[id]:(n[id]=brush);return n;});}else setSelected(selected===id?null:id);};
 
+  const gColor=gid=>groups.find(g=>g.id===gid)?.color||'#475569';
+
   return(<div ref={ref} className="graph-container"><svg width={dim.w} height={dim.h}>
-    <text x={pX} y={12} fontSize={9} fill="#334155" fontWeight={700}>PARTS ({pn.length})</text>
-    <text x={sX} y={12} fontSize={9} fill="#334155" fontWeight={700}>STEPS ({steps.length})</text>
-    <text x={fX} y={12} fontSize={9} fill="#334155" fontWeight={700}>FASTENERS ({fn.length})</text>
-    {steps.map((s,si)=>Q(db,"SELECT name FROM parts WHERE step_id=?",[s.id]).map((p,pi)=>{const pi2=pn.indexOf(p.name);if(pi2<0)return null;const e=ecnChanges[s.id];const a=active===s.id;return <line key={`ps${si}-${pi}`} x1={pX+105} y1={pYf(pi2)} x2={sX} y2={sYf(si)} stroke={e?ecnC[e]:a?s.gc:'#1e293b'} strokeWidth={a?1.5:0.4} opacity={a?0.7:e?0.5:0.15}/>;}))}
-    {steps.map((s,si)=>Q(db,"SELECT name FROM fasteners WHERE step_id=?",[s.id]).map((f,fi)=>{const fi2=fn.indexOf(f.name);if(fi2<0)return null;const e=ecnChanges[s.id];const a=active===s.id;return <line key={`sf${si}-${fi}`} x1={sX+155} y1={sYf(si)} x2={fX} y2={fYf(fi2)} stroke={e?ecnC[e]:a?'#f87171':'#1e293b'} strokeWidth={a?1.5:0.4} opacity={a?0.7:e?0.5:0.15}/>;}))}
-    {pn.map((p,i)=>{const a=ap.includes(p);return <g key={`p${i}`}><rect x={pX} y={pYf(i)-7} width={103} height={14} rx={3} fill={a?'#0c4a6e':'#111827'} stroke={a?'#38bdf8':'#1e293b33'} strokeWidth={a?1:0.5}/><text x={pX+4} y={pYf(i)+3} fontSize={6.5} fill={a?'#7dd3fc':'#475569'} style={{fontFamily:'monospace'}}>{p.slice(0,18)}</text></g>;})}
-    {steps.map((s,i)=>{const e=ecnChanges[s.id];const a=active===s.id;return <g key={`s${i}`} onMouseEnter={()=>setHov(s.id)} onMouseLeave={()=>setHov(null)} onClick={()=>click(s.id)} style={{cursor:'pointer'}}><rect x={sX} y={sYf(i)-8} width={153} height={16} rx={4} fill={e?ecnBg[e]:a?s.gc+'22':'#111827'} stroke={e?ecnC[e]:a?s.gc:'#1e293b44'} strokeWidth={a||e?1.5:0.5}/><text x={sX+5} y={sYf(i)+3} fontSize={7.5} fill={a?'#f1f5f9':e?ecnC[e]:'#94a3b8'} fontWeight={a?700:400} style={{fontFamily:'system-ui'}}>{s.label.slice(0,24)}</text>{e&&<text x={sX+145} y={sYf(i)+4} fontSize={9} fill={ecnC[e]} fontWeight={900} textAnchor="end">{ecnI[e]}</text>}</g>;})}
-    {fn.map((f,i)=>{const a=af.includes(f);return <g key={`f${i}`}><rect x={fX} y={fYf(i)-7} width={88} height={14} rx={3} fill={a?'#450a0a':'#111827'} stroke={a?'#f87171':'#1e293b33'} strokeWidth={a?1:0.5}/><text x={fX+4} y={fYf(i)+3} fontSize={6.5} fill={a?'#fca5a5':'#475569'} style={{fontFamily:'monospace'}}>{f.slice(0,15)}</text></g>;})}
+    <text x={pX} y={12} fontSize={9} fill="#334155" fontWeight={700}>PARTS ({pnList.length})</text>
+    <text x={sX} y={12} fontSize={9} fill="#334155" fontWeight={700}>STEPS ({sortedSteps.length})</text>
+    <text x={fX} y={12} fontSize={9} fill="#334155" fontWeight={700}>FASTENERS ({fnList.length})</text>
+    {sortedSteps.map((s,si)=>parts.filter(p=>p.step_id===s.id).map((p,pi)=>{const pi2=pnList.indexOf(p.pn);if(pi2<0)return null;const e=ecnChanges[s.id];const a=active===s.id;return <line key={`ps${si}-${pi}`} x1={pX+105} y1={pYf(pi2)} x2={sX} y2={sYf(si)} stroke={e?ecnC[e]:a?gColor(s.group_id):'#1e293b'} strokeWidth={a?1.5:0.4} opacity={a?0.7:e?0.5:0.15}/>;}))}
+    {sortedSteps.map((s,si)=>fasts.filter(f=>f.step_id===s.id).map((f,fi)=>{const fi2=fnList.indexOf(f.pn);if(fi2<0)return null;const e=ecnChanges[s.id];const a=active===s.id;return <line key={`sf${si}-${fi}`} x1={sX+155} y1={sYf(si)} x2={fX} y2={fYf(fi2)} stroke={e?ecnC[e]:a?'#f87171':'#1e293b'} strokeWidth={a?1.5:0.4} opacity={a?0.7:e?0.5:0.15}/>;}))}
+    {pnList.map((p,i)=>{const a=ap.includes(p);return <g key={`p${i}`}><rect x={pX} y={pYf(i)-7} width={103} height={14} rx={3} fill={a?'#0c4a6e':'#111827'} stroke={a?'#38bdf8':'#1e293b33'} strokeWidth={a?1:0.5}/><text x={pX+4} y={pYf(i)+3} fontSize={6.5} fill={a?'#7dd3fc':'#475569'} style={{fontFamily:'monospace'}}>{p.slice(0,18)}</text></g>;})}
+    {sortedSteps.map((s,i)=>{const e=ecnChanges[s.id];const a=active===s.id;const gc=gColor(s.group_id);return <g key={`s${i}`} onMouseEnter={()=>setHov(s.id)} onMouseLeave={()=>setHov(null)} onClick={()=>click(s.id)} style={{cursor:'pointer'}}><rect x={sX} y={sYf(i)-8} width={153} height={16} rx={4} fill={e?ecnBg[e]:a?gc+'22':'#111827'} stroke={e?ecnC[e]:a?gc:'#1e293b44'} strokeWidth={a||e?1.5:0.5}/><text x={sX+5} y={sYf(i)+3} fontSize={7.5} fill={a?'#f1f5f9':e?ecnC[e]:'#94a3b8'} fontWeight={a?700:400} style={{fontFamily:'system-ui'}}>{s.label.slice(0,24)}</text>{e&&<text x={sX+145} y={sYf(i)+4} fontSize={9} fill={ecnC[e]} fontWeight={900} textAnchor="end">{ecnI[e]}</text>}</g>;})}
+    {fnList.map((f,i)=>{const a=af.includes(f);return <g key={`f${i}`}><rect x={fX} y={fYf(i)-7} width={88} height={14} rx={3} fill={a?'#450a0a':'#111827'} stroke={a?'#f87171':'#1e293b33'} strokeWidth={a?1:0.5}/><text x={fX+4} y={fYf(i)+3} fontSize={6.5} fill={a?'#fca5a5':'#475569'} style={{fontFamily:'monospace'}}>{f.slice(0,15)}</text></g>;})}
   </svg></div>);
 }
 
-// ═══ Kanban View ═══
+// ═══ KANBAN VIEW ═══
 function KanbanView({selected,setSelected,ecnOn,brush,ecnChanges,setEcnChanges}){
-  const db=useContext(DBCtx);if(!db)return null;
-  const groups=Q(db,"SELECT * FROM groups ORDER BY sort_order");
-  const ecnC={remove:'#ef4444',replace:'#f59e0b',add:'#10b981',modify:'#3b82f6'};
-  const ecnI={remove:'✕',replace:'↻',add:'+',modify:'~'};
-  const ecnBg={remove:'rgba(239,68,68,0.1)',replace:'rgba(245,158,11,0.1)',add:'rgba(16,185,129,0.1)',modify:'rgba(59,130,246,0.1)'};
+  const {groups,steps,parts,fasts}=useData();
   const click=id=>{if(ecnOn){setEcnChanges(p=>{const n={...p};n[id]===brush?delete n[id]:(n[id]=brush);return n;});}else setSelected(selected===id?null:id);};
   return(<div className="kanban">{groups.map(g=>{
-    const steps=Q(db,"SELECT * FROM steps WHERE group_id=? ORDER BY sort_order",[g.id]);const gE=steps.filter(s=>ecnChanges[s.id]).length;
+    const gSteps=steps.filter(s=>s.group_id===g.id).sort((a,b)=>(a.sort_order||0)-(b.sort_order||0));
+    const gE=gSteps.filter(s=>ecnChanges[s.id]).length;
     return(<div key={g.id} className="kan-col">
       <div className="kan-hdr" style={{background:g.color+'15',borderBottom:'2px solid '+g.color}}>
         <div style={{display:'flex',alignItems:'center',gap:6}}><span style={{fontSize:12}}>{g.icon}</span><span style={{fontSize:11,fontWeight:800,color:g.color,flex:1}}>{g.label}</span>{gE>0&&<span style={{fontSize:9,fontWeight:800,color:'var(--yellow)',background:'#451a03',padding:'1px 6px',borderRadius:3}}>{gE}</span>}</div>
-        <div style={{fontSize:10,color:'var(--text4)',marginTop:2}}>{steps.length} steps</div>
+        <div style={{fontSize:10,color:'var(--text4)',marginTop:2}}>{gSteps.length} steps</div>
       </div>
-      <div className="kan-cards">{steps.map(s=>{
+      <div className="kan-cards">{gSteps.map(s=>{
         const e=ecnChanges[s.id];const sel=selected===s.id;
-        const pc=Q(db,"SELECT COUNT(*) as c FROM parts WHERE step_id=?",[s.id])[0]?.c||0;
-        const fc=Q(db,"SELECT COUNT(*) as c FROM fasteners WHERE step_id=?",[s.id])[0]?.c||0;
-        const lts=Q(db,"SELECT DISTINCT loctite FROM fasteners WHERE step_id=? AND loctite!='---'",[s.id]);
+        const pc=parts.filter(p=>p.step_id===s.id).length;const fc=fasts.filter(f=>f.step_id===s.id).length;
+        const lts=[...new Set(fasts.filter(f=>f.step_id===s.id&&f.loctite&&f.loctite!=='---').map(f=>f.loctite))];
         return(<div key={s.id} className={'kan-card'+(sel?' selected':'')} onClick={()=>click(s.id)} style={{background:e?ecnBg[e]:undefined,borderColor:e?ecnC[e]:sel?'var(--blue)':undefined}}>
           {e&&<div style={{position:'absolute',top:4,right:6,fontSize:12,fontWeight:900,color:ecnC[e]}}>{ecnI[e]}</div>}
           <div style={{fontSize:11,color:s.type==='kanryo'?'var(--yellow)':'var(--text)',fontWeight:s.type==='kanryo'?800:400,paddingRight:e?16:0,marginBottom:4}}>{s.label}</div>
-          <div style={{display:'flex',gap:4,flexWrap:'wrap'}}>{pc>0&&<span className="tag tag-p">{pc}P</span>}{fc>0&&<span className="tag tag-f">{fc}F</span>}{lts.map((l,i)=><span key={i} style={{fontSize:8,color:'var(--yellow)'}}>LT-{l.loctite}</span>)}</div>
+          <div style={{display:'flex',gap:4,flexWrap:'wrap'}}>{pc>0&&<span className="tag tag-p">{pc}P</span>}{fc>0&&<span className="tag tag-f">{fc}F</span>}{lts.map((l,i)=><span key={i} style={{fontSize:8,color:'var(--yellow)'}}>LT-{l}</span>)}</div>
         </div>);
       })}</div>
     </div>);
   })}</div>);
 }
 
-// ═══ Main App ═══
-function App(){
-  const [db,setDb]=useState(null);const [loading,setLoading]=useState(true);const [view,setView]=useState('list');const [selected,setSelected]=useState(null);
-  const [ecnOn,setEcnOn]=useState(false);const [brush,setBrush]=useState('remove');const [ecnChanges,setEcnChanges]=useState({});const [search,setSearch]=useState('');
-  const [tick,setTick]=useState(0);const fileRef=useRef(null);
-  const refresh=useCallback(()=>setTick(t=>t+1),[]);
-
-  useEffect(()=>{(async()=>{const SQL=await initSqlJs({locateFile:f=>`https://cdnjs.cloudflare.com/ajax/libs/sql.js/1.10.3/${f}`});const saved=await idbLoad();let d;if(saved){d=new SQL.Database(new Uint8Array(saved));}else{d=new SQL.Database();d.exec(SEED_SQL);}setDb(d);setLoading(false);})();},[]);
-  useEffect(()=>{if(db){idbSave(db.export().buffer);}},[db,tick]);
-
-  const exportDB=()=>{if(!db)return;const d=db.export();const b=new Blob([d],{type:'application/x-sqlite3'});const a=document.createElement('a');a.href=URL.createObjectURL(b);a.download='hb_assembly.db';a.click();};
-  const importDB=async e=>{const f=e.target.files[0];if(!f)return;const buf=await f.arrayBuffer();const SQL=await initSqlJs({locateFile:f=>`https://cdnjs.cloudflare.com/ajax/libs/sql.js/1.10.3/${f}`});setDb(new SQL.Database(new Uint8Array(buf)));setSelected(null);setEcnChanges({});refresh();e.target.value='';};
-  const resetDB=()=>{if(!confirm('Reset all data?'))return;(async()=>{const SQL=await initSqlJs({locateFile:f=>`https://cdnjs.cloudflare.com/ajax/libs/sql.js/1.10.3/${f}`});const d=new SQL.Database();d.exec(SEED_SQL);setDb(d);setSelected(null);setEcnChanges({});refresh();})();};
+// ═══ MAIN APP ═══
+function AppInner(){
+  const {assy,loading,error,toast,steps}=useData();
+  const [view,setView]=useState('list');const [selected,setSelected]=useState(null);
+  const [ecnOn,setEcnOn]=useState(false);const [brush,setBrush]=useState('remove');
+  const [ecnChanges,setEcnChanges]=useState({});const [search,setSearch]=useState('');
 
   const ecnCount=Object.keys(ecnChanges).length;
-  if(loading)return <div style={{display:'flex',alignItems:'center',justifyContent:'center',height:'100vh',color:'var(--text3)'}}>Loading sql.js...</div>;
 
-  return(<DBCtx.Provider value={db}><RefreshCtx.Provider value={refresh}>
-    <div className="app" key={tick}>
+  if(loading)return <div style={{display:'flex',alignItems:'center',justifyContent:'center',height:'100vh',flexDirection:'column',gap:12}}>
+    <div style={{width:200}}><div className="loading-bar" style={{overflow:'hidden',borderRadius:2}}></div></div>
+    <div style={{color:'var(--text3)',fontSize:12}}>Connecting to Eagle_eye_...</div>
+  </div>;
+
+  if(error)return <div style={{display:'flex',alignItems:'center',justifyContent:'center',height:'100vh',flexDirection:'column',gap:12,padding:40,textAlign:'center'}}>
+    <div style={{fontSize:48,opacity:0.3}}>⚠️</div>
+    <div style={{color:'var(--red)',fontSize:14,fontWeight:700}}>Connection Error</div>
+    <div style={{color:'var(--text3)',fontSize:12,maxWidth:400}}>{error}</div>
+  </div>;
+
+  return(<>
+    <div className="app">
       <div className="sidebar" style={{width:view==='list'?420:320}}>
-        <div className="hdr"><div style={{width:8,height:8,borderRadius:'50%',background:'var(--green)'}}/><h1><span>H&B</span> Assembly</h1><span className="count">{db?Q(db,"SELECT COUNT(*) as c FROM steps")[0]?.c:0} steps</span></div>
+        <div className="hdr">
+          <div className="status" style={{background:'var(--green)'}}/>
+          <h1><span>Eagle Eye</span></h1>
+          <span className="tag-badge">{assy?.tag}</span>
+          <span className="count">{steps.length} steps</span>
+        </div>
         <div className="tabs">{[{v:'list',l:'📋 List'},{v:'graph',l:'🔗 Graph'},{v:'kanban',l:'📊 Kanban'}].map(t=><button key={t.v} className={'tab'+(view===t.v?' active':'')} onClick={()=>setView(t.v)}>{t.l}</button>)}</div>
-        <div className="search-box"><input value={search} onChange={e=>setSearch(e.target.value)} placeholder="Search P/N, name, step..."/></div>
+        <div className="search-box"><input value={search} onChange={e=>setSearch(e.target.value)} placeholder="Search P/N, step..."/></div>
         <div className="ecn-bar">
           <button className="ecn-btn" onClick={()=>setEcnOn(!ecnOn)} style={{border:ecnOn?'1px solid var(--yellow)':'1px solid var(--text4)',background:ecnOn?'#451a03':'transparent',color:ecnOn?'var(--yellow)':'var(--text4)'}}>{ecnOn?'⚡ ECN':'ECN'}</button>
           {ecnOn&&[{s:'remove',l:'Remove',c:'var(--red)'},{s:'replace',l:'Replace',c:'var(--yellow)'},{s:'add',l:'Add',c:'var(--green)'},{s:'modify',l:'Modify',c:'var(--blue)'}].map(b=><button key={b.s} className="ecn-brush" onClick={()=>setBrush(b.s)} style={{border:'1px solid '+(brush===b.s?b.c:'var(--border)'),background:brush===b.s?b.c+'18':'transparent',color:brush===b.s?b.c:'var(--text4)'}}>{b.l}</button>)}
           {ecnCount>0&&<button className="ecn-brush" onClick={()=>setEcnChanges({})} style={{border:'1px solid var(--border)',background:'transparent',color:'var(--text4)',marginLeft:'auto'}}>Clear</button>}
         </div>
         {ecnCount>0&&<div className="ecn-summary">⚡ {ecnCount} steps affected</div>}
-        <div className="io-bar">
-          <button className="io-btn" onClick={exportDB}>💾 Export</button><button className="io-btn" onClick={()=>fileRef.current?.click()}>📂 Import</button>
-          <button className="io-btn" onClick={resetDB} style={{marginLeft:'auto',color:'var(--red)'}}>⟳ Reset</button>
-          <input ref={fileRef} type="file" accept=".db,.sqlite" style={{display:'none'}} onChange={importDB}/>
-        </div>
         {view==='list'?<ListView selected={selected} setSelected={setSelected} ecnOn={ecnOn} brush={brush} ecnChanges={ecnChanges} setEcnChanges={setEcnChanges} search={search}/>:<DetailPanel stepId={selected} ecnChanges={ecnChanges}/>}
       </div>
       <div className="main">
@@ -464,7 +578,12 @@ function App(){
         {view==='kanban'&&<KanbanView selected={selected} setSelected={setSelected} ecnOn={ecnOn} brush={brush} ecnChanges={ecnChanges} setEcnChanges={setEcnChanges}/>}
       </div>
     </div>
-  </RefreshCtx.Provider></DBCtx.Provider>);
+    {toast&&<div className="toast" style={{background:toast.type==='err'?'var(--red)':'var(--green)',color:'#fff'}}>{toast.msg}</div>}
+  </>);
+}
+
+function App(){
+  return <DataProvider><AppInner/></DataProvider>;
 }
 
 ReactDOM.createRoot(document.getElementById('root')).render(<App/>);

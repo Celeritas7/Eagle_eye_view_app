@@ -7,8 +7,7 @@ import * as state from './state.js';
 import { ECN_COLORS, ECN_ICONS } from './config.js';
 import {
   reorderStep, reorderPart, updateSeqTag,
-  updatePart, updateFastener, deletePart, deleteFastener,
-  updateStepPN, updateStepLabel, updateStepEcnStatus
+  updatePart, updateFastener, updateStepPN, updateStepLabel, updateStepEcnStatus
 } from './database.js';
 import { showToast } from './ui.js';
 
@@ -330,7 +329,6 @@ export function renderDetail(containerId) {
     html += '</div>';
     html += '<span class="iqty" style="color:#6ee7b7;">×' + p.qty + '</span>';
     html += '<span class="edit-btn" data-edit="part" data-id="' + p.id + '" title="Edit part">✏️</span>';
-    html += '<span class="edit-btn del-btn" data-del="part" data-id="' + p.id + '" data-name="' + displayName.replace(/"/g, '&quot;') + '" title="Delete part" style="color:#ef4444;">🗑️</span>';
     html += '</div>';
     // Edit form
     html += '<div class="edit-form" id="edit-part-' + p.id + '" style="display:none;">';
@@ -357,7 +355,6 @@ export function renderDetail(containerId) {
     html += '</div>';
     html += '<span class="iqty" style="color:#f87171;">×' + f.qty + '</span>';
     html += '<span class="edit-btn" data-edit="fast" data-id="' + f.id + '" title="Edit fastener">✏️</span>';
-    html += '<span class="edit-btn del-btn" data-del="fast" data-id="' + f.id + '" data-name="' + (m.name || f.pn).replace(/"/g, '&quot;') + '" title="Delete fastener" style="color:#ef4444;">🗑️</span>';
     html += '</div>';
     html += '<div style="display:flex;gap:14px;padding-left:11px;font-size:10px;margin-top:1px;margin-bottom:4px;">';
     html += '<span><span style="color:#475569;">LT </span><span style="color:' + (f.loctite === '---' || !f.loctite ? '#475569' : '#f59e0b') + ';font-weight:700;">' + (f.loctite || '—') + '</span></span>';
@@ -459,34 +456,6 @@ export function renderDetail(containerId) {
         form.style.display = '';
         var firstInput = form.querySelector('input[type="text"]');
         if (firstInput) firstInput.focus();
-      }
-    });
-  });
-
-  // 🗑️ Delete buttons
-  contentEl.querySelectorAll('.del-btn[data-del]').forEach(function(el) {
-    el.addEventListener('click', async function(e) {
-      e.stopPropagation();
-      var type = el.dataset.del;
-      var id = parseInt(el.dataset.id);
-      var name = el.dataset.name || '';
-      if (!confirm('Delete "' + name + '"?')) return;
-      if (type === 'part') {
-        var ok = await deletePart(id);
-        if (ok) {
-          state.parts = state.parts.filter(function(p) { return p.id !== id; });
-          showToast('Part deleted');
-          renderDetail(containerId);
-          if (typeof window._eagleEyeRefreshView === 'function') window._eagleEyeRefreshView();
-        }
-      } else if (type === 'fast') {
-        var ok2 = await deleteFastener(id);
-        if (ok2) {
-          state.fasts = state.fasts.filter(function(f) { return f.id !== id; });
-          showToast('Fastener deleted');
-          renderDetail(containerId);
-          if (typeof window._eagleEyeRefreshView === 'function') window._eagleEyeRefreshView();
-        }
       }
     });
   });

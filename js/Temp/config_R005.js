@@ -63,7 +63,7 @@ export const ECN_ICONS = { remove: '✕', replace: '↻', add: '+', modify: '~',
 export const NODE_WIDTH = 150;
 export const NODE_HEIGHT = 38;
 export const PART_NODE_WIDTH = 120;
-export const PART_NODE_HEIGHT = 24;
+export const PART_NODE_HEIGHT = 32;
 export const VERTICAL_GAP = 80;  // increased from 65 for better spacing
 export const GROUP_GAP = 50;
 

@@ -104,12 +104,6 @@ export async function updatePart(partId, updates) {
   return !error;
 }
 
-export async function deletePart(partId) {
-  const { error } = await db.from(T.part).delete().eq('id', partId);
-  if (error) console.error('deletePart error:', error.message);
-  return !error;
-}
-
 // ============================================================
 // UPDATE FASTENER
 // ============================================================
@@ -117,12 +111,6 @@ export async function deletePart(partId) {
 export async function updateFastener(fastId, updates) {
   const { error } = await db.from(T.fast).update(updates).eq('id', fastId);
   if (error) console.error('updateFastener error:', error.message);
-  return !error;
-}
-
-export async function deleteFastener(fastId) {
-  const { error } = await db.from(T.fast).delete().eq('id', fastId);
-  if (error) console.error('deleteFastener error:', error.message);
   return !error;
 }
 

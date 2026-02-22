@@ -337,7 +337,7 @@ export function renderGraph() {
     }
   });
 
-  // ── PART LEAF NODES (P/N only, no connection lines, draggable) ──
+  // ── PART LEAF NODES ──
   var partLayer = g.append('g').attr('class', 'part-layer');
   if (state.showPartNodes) {
     nodes.filter(function(n) { return n.isStep; }).forEach(function(nd) {
@@ -345,42 +345,37 @@ export function renderGraph() {
         .sort(function(a, b) { return (a.sort_order || 0) - (b.sort_order || 0); });
       if (!sp.length) return;
       var partColor = lightenColor(nd.color, 35);
-      var partSpacing = 28;
+      var partSpacing = 34;
       var totalH = (sp.length - 1) * partSpacing;
       sp.forEach(function(p, pi) {
         var px = nd.x - nd.w / 2 - PART_NODE_WIDTH / 2 - 30;
         var py = nd.y - totalH / 2 + pi * partSpacing;
+        var m = state.lookup(p.pn);
+        var nameLabel = m.name || p.pn;
+        var truncName = nameLabel.length > 16 ? nameLabel.slice(0, 16) + '..' : nameLabel;
         var truncPN = p.pn.length > 18 ? p.pn.slice(0, 18) + '..' : p.pn;
+
+        partLayer.append('path').attr('class', 'part-link').attr('data-stepid', String(nd.dbId))
+          .attr('d', 'M' + (px + PART_NODE_WIDTH / 2) + ',' + py + ' C' + (px + PART_NODE_WIDTH / 2 + 15) + ',' + py + ' ' + (nd.x - nd.w / 2 - 15) + ',' + nd.y + ' ' + (nd.x - nd.w / 2) + ',' + nd.y)
+          .attr('stroke', '#ccc').attr('stroke-width', 0.7).attr('fill', 'none');
 
         var pg = partLayer.append('g').attr('class', 'part-hex')
           .attr('data-stepid', String(nd.dbId))
           .attr('data-partid', String(p.id))
           .attr('data-offsety', String(py - nd.y))
-          .attr('data-basex', String(px))
           .attr('transform', 'translate(' + px + ',' + py + ')')
-          .style('cursor', 'grab');
+          .style('cursor', 'pointer');
         pg.append('path').attr('d', shapePath('hexagon', PART_NODE_WIDTH, PART_NODE_HEIGHT))
           .attr('fill', partColor).attr('stroke', darkenColor(partColor, 25)).attr('stroke-width', 0.7);
-        // Single line: P/N only (centered)
-        pg.append('text').attr('text-anchor', 'middle').attr('y', 3)
-          .attr('font-size', '6.5px').attr('fill', '#1f2937').attr('font-family', 'monospace').attr('font-weight', '600')
-          .text(truncPN);
+        // Line 1: Name
+        pg.append('text').attr('text-anchor', 'middle').attr('y', -2)
+          .attr('font-size', '7px').attr('font-weight', '600').attr('fill', '#1f2937').text(truncName);
+        // Line 2: P/N
+        pg.append('text').attr('text-anchor', 'middle').attr('y', 8)
+          .attr('font-size', '5.5px').attr('fill', '#6b7280').attr('font-family', 'monospace').text(truncPN);
         if (p.qty > 1)
           pg.append('text').attr('x', PART_NODE_WIDTH / 2 - 2).attr('y', -PART_NODE_HEIGHT / 2 + 3)
             .attr('text-anchor', 'end').attr('font-size', '6.5px').attr('fill', '#6b7280').attr('font-weight', '700').text('x' + p.qty);
-
-        // Independent vertical drag for part hexagon
-        var partDrag = d3.drag()
-          .on('start', function(event) { event.sourceEvent.stopPropagation(); d3.select(this).style('cursor', 'grabbing').raise(); })
-          .on('drag', function(event) {
-            var el = d3.select(this);
-            var bx = parseFloat(el.attr('data-basex'));
-            el.attr('transform', 'translate(' + bx + ',' + event.y + ')');
-            // Update stored offset relative to parent step
-            el.attr('data-offsety', String(event.y - nd.y));
-          })
-          .on('end', function() { d3.select(this).style('cursor', 'grab'); });
-        pg.call(partDrag);
 
         // Click to edit part
         pg.on('click', function(event) {
@@ -541,13 +536,27 @@ export function renderGraph() {
       // === MOVE PART HEXAGONS ===
       if (state.showPartNodes) {
         var sid = String(d.dbId);
+        var sp = state.parts.filter(function(p) { return p.step_id === d.dbId; })
+          .sort(function(a, b) { return (a.sort_order || 0) - (b.sort_order || 0); });
+        var totalH = (sp.length - 1) * 34;
+
         d3.select('.zoom-group').select('.part-layer').selectAll('.part-hex').each(function() {
           var el = d3.select(this);
           if (el.attr('data-stepid') !== sid) return;
           var offsetY = parseFloat(el.attr('data-offsety'));
           var px = d.x - d.w / 2 - PART_NODE_WIDTH / 2 - 30;
           el.attr('transform', 'translate(' + px + ',' + (d.y + offsetY) + ')');
-          el.attr('data-basex', String(px));
+        });
+
+        var pi2 = 0;
+        d3.select('.zoom-group').select('.part-layer').selectAll('.part-link').each(function() {
+          var el = d3.select(this);
+          if (el.attr('data-stepid') !== sid) return;
+          var px = d.x - d.w / 2 - PART_NODE_WIDTH / 2 - 30;
+          var py = d.y - totalH / 2 + pi2 * 34;
+          var ex = d.x - d.w / 2;
+          el.attr('d', 'M' + (px + PART_NODE_WIDTH / 2) + ',' + py + ' C' + (px + PART_NODE_WIDTH / 2 + 15) + ',' + py + ' ' + (ex - 15) + ',' + d.y + ' ' + ex + ',' + d.y);
+          pi2++;
         });
       }
     });

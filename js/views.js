@@ -7,7 +7,7 @@ import * as state from './state.js';
 import { ECN_COLORS, ECN_ICONS } from './config.js';
 import {
   reorderStep, reorderPart, updateSeqTag,
-  updatePart, updateFastener, updateStepPN, updateStepEcnStatus
+  updatePart, updateFastener, updateStepPN, updateStepLabel, updateStepEcnStatus
 } from './database.js';
 import { showToast } from './ui.js';
 
@@ -77,10 +77,6 @@ export function renderListView() {
           : isAffected ? 'background:#f9731608;border-left-color:#f97316;' : '';
 
         html += '<div class="step-row' + (sel ? ' selected' : '') + '" data-sid="' + s.id + '" data-gid="' + g.id + '" style="' + bgStyle + 'opacity:' + (vis ? 1 : 0.2) + ';">';
-        html += '<div class="reorder-arrows">';
-        html += '<span class="arr-btn ' + (si === 0 ? 'dim' : '') + '" data-dir="up" data-sid="' + s.id + '" data-gid="' + g.id + '">▲</span>';
-        html += '<span class="arr-btn ' + (si === gSteps.length - 1 ? 'dim' : '') + '" data-dir="down" data-sid="' + s.id + '" data-gid="' + g.id + '">▼</span>';
-        html += '</div>';
         html += '<span class="sid-edit' + (s.seq_tag ? ' has-tag' : '') + '" data-sid="' + s.id + '" data-tag="' + (s.seq_tag || '') + '" title="Click to set tag">' + seqDisplay + '</span>';
         html += '<span class="badge badge-' + s.type + '">' + ({ step: 'STEP', prep: 'PREP', kanryo: '完了', note: 'NOTE' }[s.type] || 'STEP') + '</span>';
         // Show ⚠️ for auto-affected steps
@@ -91,6 +87,11 @@ export function renderListView() {
         if (ecn) html += '<span class="ecn-mark" style="color:' + ECN_COLORS[ecn] + ';">' + ECN_ICONS[ecn] + '</span>';
         if (sp.length > 0) html += '<span class="tag tag-p">' + sp.length + 'P</span>';
         if (sf.length > 0) html += '<span class="tag tag-f">' + sf.length + 'F</span>';
+        // Reorder arrows — far right
+        html += '<div class="reorder-arrows">';
+        html += '<span class="arr-btn ' + (si === 0 ? 'dim' : '') + '" data-dir="up" data-sid="' + s.id + '" data-gid="' + g.id + '">▲</span>';
+        html += '<span class="arr-btn ' + (si === gSteps.length - 1 ? 'dim' : '') + '" data-dir="down" data-sid="' + s.id + '" data-gid="' + g.id + '">▼</span>';
+        html += '</div>';
         html += '</div>';
       });
     }
@@ -282,7 +283,10 @@ export function renderDetail(containerId) {
   var html = '<div class="detail-hdr">';
   html += '<div style="flex:1;">';
   html += '<div style="font-size:10px;color:' + (grp?.color || '#888') + ';font-weight:600;">↳ ' + (grp?.label || 'Unknown') + '</div>';
-  html += '<div style="font-size:15px;font-weight:700;color:' + (step.type === 'kanryo' ? '#f59e0b' : '#e2e8f0') + '">' + step.label + '</div>';
+  html += '<div style="display:flex;align-items:center;gap:6px;">';
+  html += '<span style="font-size:15px;font-weight:700;color:' + (step.type === 'kanryo' ? '#f59e0b' : '#e2e8f0') + '">' + step.label + '</span>';
+  html += '<span class="edit-btn" id="editStepLabel" title="Edit step name" style="font-size:10px;">✏️</span>';
+  html += '</div>';
   // Step P/N (editable)
   html += '<div style="display:flex;align-items:center;gap:6px;margin-top:3px;">';
   html += '<span style="font-size:9px;color:#64748b;font-family:monospace;">ID: ' + step.id + '</span>';
@@ -388,6 +392,26 @@ export function renderDetail(containerId) {
   // ══════════════════════════════════════════
   // WIRE EVENT HANDLERS
   // ══════════════════════════════════════════
+
+  // Edit step name
+  var editLabelBtn = contentEl.querySelector('#editStepLabel');
+  if (editLabelBtn) {
+    editLabelBtn.addEventListener('click', async function(e) {
+      e.stopPropagation();
+      var newLabel = prompt('Step name:', step.label);
+      if (newLabel === null) return;
+      newLabel = newLabel.trim();
+      if (!newLabel) { showToast('Name cannot be empty'); return; }
+      var ok = await updateStepLabel(step.id, newLabel);
+      if (ok) {
+        step.label = newLabel;
+        showToast('Renamed: ' + newLabel);
+        renderDetail(containerId);
+        // Refresh list/graph if visible
+        if (typeof window._eagleEyeRefreshView === 'function') window._eagleEyeRefreshView();
+      }
+    });
+  }
 
   // Edit step P/N
   var editPNBtn = contentEl.querySelector('#editStepPN');

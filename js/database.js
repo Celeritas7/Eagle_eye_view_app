@@ -134,6 +134,12 @@ export async function updateStepPN(stepId, pn) {
   return !error;
 }
 
+export async function updateStepLabel(stepId, label) {
+  const { error } = await db.from(T.step).update({ label: label }).eq('id', stepId);
+  if (error) console.error('updateStepLabel error:', error.message);
+  return !error;
+}
+
 // ============================================================
 // ECN STATUS — persist per-step ECN markings
 // ============================================================

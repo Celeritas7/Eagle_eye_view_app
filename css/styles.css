@@ -72,7 +72,7 @@ body { font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif; backg
 .tag-f { background:#ef444418; color:#fca5a5; }
 
 /* ═══ REORDER ARROWS ═══ */
-.reorder-arrows { display:flex; flex-direction:column; gap:0; margin-right:2px; }
+.reorder-arrows { display:flex; flex-direction:column; gap:0; margin-left:auto; flex-shrink:0; }
 .arr-btn {
   font-size:8px; line-height:1; color:var(--text4); cursor:pointer;
   padding:2px 4px; border-radius:2px; user-select:none; transition:all .1s;

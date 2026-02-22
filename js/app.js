@@ -55,6 +55,11 @@ function updateDetailPanel() {
   else renderDetail('sidebarDetailContent');
 }
 window._eagleEyeUpdateDetail = updateDetailPanel;
+window._eagleEyeRefreshView = function() {
+  if (currentView === 'list') renderListView();
+  else if (currentView === 'graph') renderGraph();
+  else if (currentView === 'kanban') renderKanbanView();
+};
 
 // ============================================================
 // GROUP FILTER CHIPS

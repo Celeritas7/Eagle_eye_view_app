@@ -11,7 +11,7 @@ import {
   getFastenerColor, darkenColor, lightenColor,
   ECN_COLORS, ECN_ICONS, STATUS_COLORS, PART_NODE_WIDTH, PART_NODE_HEIGHT
 } from './config.js';
-import { savePositions, updateSeqTag, updatePart, updateFastener, updateLabelPosition, updateStepEcnStatus, updateStepPN } from './database.js';
+import { savePositions, updateSeqTag, updatePart, updateFastener, updateLabelPosition, updateStepEcnStatus, updateStepPN, updateStepLabel } from './database.js';
 import { showToast } from './ui.js';
 
 var zoomBehavior = null;
@@ -581,6 +581,7 @@ export function renderGraph() {
       event.preventDefault(); event.stopPropagation();
       var menuItems = [
         { label: '📌 Select', action: function() { state.setSelectedStep(d.dbId); renderGraph(); window._eagleEyeUpdateDetail?.(); }},
+        { label: '✏️ Rename...', action: function() { promptStepRename(d.dbId, d.label); } },
         { label: '🏷 Set seq tag...', action: function() { promptSeqTag(d.dbId, d.seqTag); } },
         { label: '📋 Set P/N...', action: function() { promptStepPN(d.dbId, d.stepPN); } },
         { sep: true },
@@ -723,6 +724,20 @@ async function promptStepPN(stepId, current) {
     var step = state.steps.find(function(s) { return s.id === stepId; });
     if (step) step.pn = pn || null;
     renderGraph(); showToast(pn ? 'P/N set: ' + pn : 'P/N cleared');
+    window._eagleEyeUpdateDetail?.();
+  }
+}
+
+async function promptStepRename(stepId, current) {
+  var name = prompt('Step name:', current || '');
+  if (name === null) return;
+  name = name.trim();
+  if (!name) { showToast('Name cannot be empty'); return; }
+  var ok = await updateStepLabel(stepId, name);
+  if (ok) {
+    var step = state.steps.find(function(s) { return s.id === stepId; });
+    if (step) step.label = name;
+    renderGraph(); showToast('Renamed: ' + name);
     window._eagleEyeUpdateDetail?.();
   }
 }

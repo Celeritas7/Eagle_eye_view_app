@@ -20,8 +20,6 @@ async function reload() {
   const data = await loadAssemblyData(tag);
   state.setData(data);
   updateStats();
-  buildGroupFilterChips();
-  updateFilterChipStates();
   switchView(currentView);
 }
 window._eagleEyeReload = reload;
@@ -41,7 +39,6 @@ function switchView(view) {
   document.getElementById('sidebarDetail').style.display = view !== 'list' ? '' : 'none';
   document.getElementById('mainDetail').style.display = view === 'list' ? '' : 'none';
   document.getElementById('graphToolbar').style.display = view === 'graph' ? '' : 'none';
-  document.getElementById('groupFilterBar').style.display = view === 'graph' ? 'flex' : 'none';
   document.getElementById('treeContainer').style.display = view === 'graph' ? '' : 'none';
   document.getElementById('kanbanView').style.display = view === 'kanban' ? '' : 'none';
 
@@ -55,75 +52,6 @@ function updateDetailPanel() {
   else renderDetail('sidebarDetailContent');
 }
 window._eagleEyeUpdateDetail = updateDetailPanel;
-
-// ============================================================
-// GROUP FILTER CHIPS
-// ============================================================
-
-function buildGroupFilterChips() {
-  const container = document.getElementById('filterChips');
-  if (!container) return;
-  container.innerHTML = '';
-
-  const sortedGroups = state.groups.slice().sort((a, b) => (a.sort_order || 0) - (b.sort_order || 0));
-  sortedGroups.forEach(g => {
-    const chip = document.createElement('button');
-    chip.className = 'filter-chip active';
-    chip.dataset.gid = g.id;
-    chip.innerHTML = `<span class="chip-dot" style="background:${g.color}"></span>${g.icon || ''} ${g.label}`;
-    chip.addEventListener('click', () => toggleGroupFilter(g.id));
-    container.appendChild(chip);
-  });
-}
-
-function toggleGroupFilter(gid) {
-  // If currently showing all, switch to showing only this one
-  if (!state.visibleGroupIds) {
-    state.setVisibleGroupIds(new Set([gid]));
-  } else if (state.visibleGroupIds.has(gid)) {
-    // Remove this group
-    const next = new Set(state.visibleGroupIds);
-    next.delete(gid);
-    state.setVisibleGroupIds(next.size === 0 ? null : next);  // if none selected, show all
-  } else {
-    // Add this group
-    const next = new Set(state.visibleGroupIds);
-    next.add(gid);
-    // If all groups selected, reset to null (all)
-    if (next.size === state.groups.length) state.setVisibleGroupIds(null);
-    else state.setVisibleGroupIds(next);
-  }
-  updateFilterChipStates();
-  if (currentView === 'graph') { renderGraph(); fitToScreen(false); }
-}
-
-function updateFilterChipStates() {
-  const allBtn = document.getElementById('filterAll');
-  const ecnBtn = document.getElementById('filterEcnOnly');
-  const isAll = !state.visibleGroupIds;
-
-  if (allBtn) allBtn.classList.toggle('active', isAll);
-  if (ecnBtn) ecnBtn.classList.toggle('active', false);  // reset
-
-  document.querySelectorAll('#filterChips .filter-chip').forEach(chip => {
-    const gid = parseInt(chip.dataset.gid);
-    chip.classList.toggle('active', isAll || (state.visibleGroupIds && state.visibleGroupIds.has(gid)));
-  });
-
-  // Check if ECN filter is active
-  if (!isAll && state.visibleGroupIds) {
-    const ecnGroupIds = new Set();
-    Object.keys(state.ecnChanges).forEach(stepId => {
-      const step = state.steps.find(s => s.id === parseInt(stepId));
-      if (step) ecnGroupIds.add(step.group_id);
-    });
-    if (ecnGroupIds.size > 0 && state.visibleGroupIds.size === ecnGroupIds.size) {
-      let match = true;
-      ecnGroupIds.forEach(id => { if (!state.visibleGroupIds.has(id)) match = false; });
-      if (ecnBtn && match) ecnBtn.classList.add('active');
-    }
-  }
-}
 
 // ============================================================
 // INIT
@@ -155,7 +83,6 @@ async function init() {
 
     setStatus(`Connected ${APP_VERSION}`);
     document.getElementById('statusDot').style.background = '#10b981';
-    buildGroupFilterChips();
     switchView('list');
     console.log(`Eagle Eye Tree ${APP_VERSION} ready — ${state.steps.length} steps`);
   } catch (e) {
@@ -218,37 +145,6 @@ function setupEventListeners() {
     state.setShowFastenerLabels(!state.showFastenerLabels);
     document.getElementById('fastToggle').classList.toggle('active', state.showFastenerLabels);
     if (currentView === 'graph') renderGraph();
-  });
-
-  // Column spacing slider
-  document.getElementById('colSpacingSlider')?.addEventListener('input', (e) => {
-    const val = parseInt(e.target.value);
-    state.setColSpacing(val);
-    document.getElementById('colSpacingVal').textContent = val;
-    if (currentView === 'graph') renderGraph();
-  });
-
-  // Group filter: All button
-  document.getElementById('filterAll')?.addEventListener('click', () => {
-    state.setVisibleGroupIds(null);
-    updateFilterChipStates();
-    if (currentView === 'graph') { renderGraph(); fitToScreen(false); }
-  });
-
-  // Group filter: ECN only
-  document.getElementById('filterEcnOnly')?.addEventListener('click', () => {
-    const ecnGroupIds = new Set();
-    Object.keys(state.ecnChanges).forEach(stepId => {
-      const step = state.steps.find(s => s.id === parseInt(stepId));
-      if (step) ecnGroupIds.add(step.group_id);
-    });
-    if (ecnGroupIds.size === 0) {
-      showToast('No ECN changes to filter by', 'error');
-      return;
-    }
-    state.setVisibleGroupIds(ecnGroupIds);
-    updateFilterChipStates();
-    if (currentView === 'graph') { renderGraph(); fitToScreen(false); }
   });
 
   // ECN

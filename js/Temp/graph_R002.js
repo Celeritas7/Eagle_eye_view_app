@@ -39,13 +39,6 @@ function calculateTreeLayout() {
 
   const sortedGroups = groups.slice().sort((a, b) => (a.sort_order || 0) - (b.sort_order || 0));
 
-  // Filter to visible groups only
-  const filteredGroups = state.visibleGroupIds
-    ? sortedGroups.filter(g => state.visibleGroupIds.has(g.id))
-    : sortedGroups;
-
-  if (!filteredGroups.length) return null;
-
   const topPad = 80;
   const headerH = 40;
   const swimPadY = 30;
@@ -53,17 +46,16 @@ function calculateTreeLayout() {
   const stepGapY = VERTICAL_GAP;  // 80px from config (was 65)
   const partZone = 170;
 
-  const colGap = state.colSpacing;  // dynamic from slider
   const stepColX = partZone + 50;
-  const groupColX = stepColX + colGap;
-  const rootColX = groupColX + Math.max(colGap * 0.8, 180);
+  const groupColX = stepColX + 300;
+  const rootColX = groupColX + 280;
 
   const allNodes = [];
   const allLinks = [];
   const swimlanes = [];
   let curY = topPad + headerH;
 
-  filteredGroups.forEach((grp, gi) => {
+  sortedGroups.forEach((grp, gi) => {
     const gSteps = steps.filter(s => s.group_id === grp.id)
       .sort((a, b) => (a.sort_order || 0) - (b.sort_order || 0));
 
@@ -105,7 +97,7 @@ function calculateTreeLayout() {
       id: 'g_' + grp.id, dbId: null,
       x: groupColX, y: groupY,
       w: NODE_WIDTH + 20, h: NODE_HEIGHT + 8,
-      label: grp.label, type: 'group', level: filteredGroups.length,
+      label: grp.label, type: 'group', level: sortedGroups.length,
       shape: 'stadium', color: grp.color || getLevelColor(gi),
       groupId: grp.id, groupLabel: grp.label,
       seq: gi + 1, seqTag: null,
@@ -148,7 +140,7 @@ function calculateTreeLayout() {
     id: 'root', dbId: null,
     x: rootColX, y: rootY,
     w: NODE_WIDTH + 40, h: NODE_HEIGHT + 16,
-    label: assy.tag || 'HBD_assy', type: 'root', level: filteredGroups.length + 1,
+    label: assy.tag || 'HBD_assy', type: 'root', level: sortedGroups.length + 1,
     shape: 'stadium', color: '#f59e0b',
     groupId: null, groupLabel: '', seq: 0, seqTag: null,
     isStep: false, isGroup: false, isRoot: true,
@@ -157,7 +149,7 @@ function calculateTreeLayout() {
 
   return {
     nodes: allNodes, links: allLinks, swimlanes,
-    sortedGroups: filteredGroups, stepColX, groupColX, rootColX,
+    sortedGroups, stepColX, groupColX, rootColX,
     dimensions: { width: rootColX + 250, height: curY + 50 },
     settings: { topPad, headerH, partZone }
   };

@@ -120,20 +120,22 @@ input,textarea,select{font-family:inherit;outline:none;}
 .toast{position:fixed;bottom:20px;right:20px;padding:8px 16px;border-radius:6px;font-size:11px;font-weight:600;z-index:300;animation:fadeIn .2s;}
 @keyframes fadeIn{from{opacity:0;transform:translateY(10px)}to{opacity:1;transform:translateY(0)}}
 
-/* ═══ D3 GRAPH ═══ */
 .graph-container{flex:1;overflow:hidden;background:#fafbfc;position:relative;}
-.graph-container svg{width:100%;height:100%;cursor:grab;}
-.graph-container svg:active{cursor:grabbing;}
-.graph-toolbar{position:absolute;top:10px;left:10px;display:flex;gap:4px;z-index:10;}
-.graph-toolbar button{padding:4px 10px;border-radius:5px;background:rgba(255,255,255,0.9);border:1px solid #d1d5db;color:#374151;font-size:11px;font-weight:600;box-shadow:0 1px 3px rgba(0,0,0,0.08);cursor:pointer;}
-.graph-toolbar button:hover{background:#fff;border-color:#9ca3af;}
-.graph-toolbar button.active{background:#3b82f6;color:#fff;border-color:#3b82f6;}
-.graph-zoom{position:absolute;bottom:14px;right:14px;display:flex;flex-direction:column;gap:3px;z-index:10;}
-.graph-zoom button{width:32px;height:32px;border-radius:6px;background:rgba(255,255,255,0.92);border:1px solid #d1d5db;color:#374151;font-size:16px;cursor:pointer;display:flex;align-items:center;justify-content:center;box-shadow:0 1px 3px rgba(0,0,0,0.08);}
-.graph-zoom button:hover{background:#fff;color:#111;}
-.graph-legend{position:absolute;bottom:14px;left:10px;display:flex;gap:8px;padding:5px 12px;background:rgba(255,255,255,0.9);border:1px solid #e5e7eb;border-radius:6px;box-shadow:0 1px 4px rgba(0,0,0,0.06);}
-.graph-legend .lgi{display:flex;align-items:center;gap:3px;font-size:9px;color:#6b7280;font-weight:500;}
-.graph-legend .lgs{width:12px;height:8px;border-radius:2px;border:1px solid rgba(0,0,0,0.1);}
+.graph-container svg{width:100%;height:100%;}
+.graph-container .zoom-controls{position:absolute;bottom:14px;right:14px;display:flex;flex-direction:column;gap:3px;z-index:10;}
+.graph-container .zoom-controls button{width:32px;height:32px;border-radius:6px;background:#fff;border:1px solid #d1d5db;color:#374151;font-size:16px;cursor:pointer;display:flex;align-items:center;justify-content:center;box-shadow:0 1px 3px rgba(0,0,0,0.08);}
+.graph-container .zoom-controls button:hover{background:#f3f4f6;color:#111827;}
+.graph-container .graph-legend{position:absolute;top:10px;left:10px;display:flex;gap:10px;padding:6px 14px;background:rgba(255,255,255,0.92);border:1px solid #e5e7eb;border-radius:8px;box-shadow:0 1px 4px rgba(0,0,0,0.06);flex-wrap:wrap;}
+.graph-container .legend-item{display:flex;align-items:center;gap:4px;font-size:10px;color:#6b7280;font-weight:500;}
+.graph-container .legend-swatch{width:14px;height:10px;border-radius:3px;border:1px solid rgba(0,0,0,0.12);}
+.node-shape{transition:opacity .15s;cursor:pointer;}
+.node-label{font-family:'Segoe UI',system-ui,sans-serif;pointer-events:none;user-select:none;}
+.link-label{font-family:'Segoe UI',system-ui,sans-serif;pointer-events:none;user-select:none;}
+.link{fill:none;transition:stroke-width .15s;}
+.link:hover{stroke-width:3 !important;}
+.node-group:hover .node-shape{opacity:0.85;}
+.node-group.selected .node-shape{stroke-width:2.5 !important;filter:drop-shadow(0 0 4px rgba(59,130,246,0.4));}
+.graph-container .level-header{font-size:13px;font-weight:700;fill:#3b82f6;text-anchor:middle;letter-spacing:0.5px;}
 </style>
 </head>
 <body>
@@ -154,18 +156,19 @@ const T={
   part:'eagle_eye_app_parts',
   fast:'eagle_eye_app_fasteners',
   ecn:'eagle_eye_app_ecn_log',
-  master:'master_parts_list_all',
-  slink:'eagle_eye_app_step_links'
+  master:'master_parts_list_all'
 };
 
 // ═══ LEVEL STYLING (Logi Assembly style) ═══
-const LEVEL_COLORS=['#66bb6a','#42a5f5','#ab47bc','#ef5350','#ffa726','#26c6da','#ec407a','#78909c'];
-const LEVEL_SHAPES=['stadium','hexagon','rounded_rectangle','diamond','octagon','hexagon','rounded_rectangle','stadium'];
+const LEVEL_COLORS=['#b3e5fc','#e1bee7','#b3e5fc','#c8e6c9','#fff9c4','#ffe0b2','#ffcdd2','#e8e8e8'];
+const LEVEL_SHAPES=['hexagon','rounded_rectangle','hexagon','rounded_rectangle','octagon','stadium','rectangle','rounded_rectangle'];
+const STATUS_DOTS={DONE:'#27ae60',IN_PROGRESS:'#f39c12',BLOCKED:'#e74c3c',NOT_STARTED:'#95a5a6'};
+const FASTENER_LINK_COLORS={CBE:'#3498db',CBST:'#9b59b6',CSH:'#27ae60',MS:'#e67e22',BSB:'#e74c3c',default:'#555'};
 
 function darkenColor(hex,pct){
   let r=parseInt(hex.slice(1,3),16),g=parseInt(hex.slice(3,5),16),b=parseInt(hex.slice(5,7),16);
   r=Math.floor(r*(1-pct/100));g=Math.floor(g*(1-pct/100));b=Math.floor(b*(1-pct/100));
-  return '#'+[r,g,b].map(c=>Math.max(0,c).toString(16).padStart(2,'0')).join('');
+  return '#'+[r,g,b].map(c=>c.toString(16).padStart(2,'0')).join('');
 }
 function lightenColor(hex,pct){
   let r=parseInt(hex.slice(1,3),16),g=parseInt(hex.slice(3,5),16),b=parseInt(hex.slice(5,7),16);
@@ -173,24 +176,26 @@ function lightenColor(hex,pct){
   return '#'+[r,g,b].map(c=>c.toString(16).padStart(2,'0')).join('');
 }
 function getFastenerLinkColor(pn){
-  if(!pn)return '#888';const p=pn.toUpperCase();
-  if(p.startsWith('CBE'))return '#3498db';if(p.startsWith('CBST'))return '#9b59b6';if(p.startsWith('CSH'))return '#27ae60';
-  if(p.startsWith('MS'))return '#e67e22';if(p.startsWith('BSB'))return '#e74c3c';if(p.includes('ORIGINAL'))return '#95a5a6';
-  return '#555';
+  if(!pn)return FASTENER_LINK_COLORS.default;
+  const p=pn.toUpperCase();
+  for(const[k,v]of Object.entries(FASTENER_LINK_COLORS)){if(k!=='default'&&p.startsWith(k))return v;}
+  return FASTENER_LINK_COLORS.default;
 }
 function shapePath(type,w,h){
   const hw=w/2,hh=h/2;
   switch(type){
-    case 'stadium':return `M${-hw+hh},${-hh}L${hw-hh},${-hh}A${hh},${hh} 0 0,1 ${hw-hh},${hh}L${-hw+hh},${hh}A${hh},${hh} 0 0,1 ${-hw+hh},${-hh}Z`;
-    case 'hexagon':{const s=14;return `M${-hw+s},${-hh}L${hw-s},${-hh}L${hw},0L${hw-s},${hh}L${-hw+s},${hh}L${-hw},0Z`;}
+    case 'stadium': return `M${-hw+hh},${-hh}L${hw-hh},${-hh}A${hh},${hh} 0 0,1 ${hw-hh},${hh}L${-hw+hh},${hh}A${hh},${hh} 0 0,1 ${-hw+hh},${-hh}Z`;
+    case 'hexagon':{const s=12;return `M${-hw+s},${-hh}L${hw-s},${-hh}L${hw},0L${hw-s},${hh}L${-hw+s},${hh}L${-hw},0Z`;}
     case 'octagon':{const c=Math.min(hw,hh)*0.38;return `M${-hw+c},${-hh}L${hw-c},${-hh}L${hw},${-hh+c}L${hw},${hh-c}L${hw-c},${hh}L${-hw+c},${hh}L${-hw},${hh-c}L${-hw},${-hh+c}Z`;}
-    case 'diamond':return `M0,${-hh}L${hw},0L0,${hh}L${-hw},0Z`;
-    default:return `M${-hw+6},${-hh}L${hw-6},${-hh}Q${hw},${-hh} ${hw},${-hh+6}L${hw},${hh-6}Q${hw},${hh} ${hw-6},${hh}L${-hw+6},${hh}Q${-hw},${hh} ${-hw},${hh-6}L${-hw},${-hh+6}Q${-hw},${-hh} ${-hw+6},${-hh}Z`;
+    case 'diamond': return `M0,${-hh}L${hw},0L0,${hh}L${-hw},0Z`;
+    case 'pentagon':{const a=(2*Math.PI)/5,sa=-Math.PI/2,rx=hw*0.9,ry=hh*0.9;const pts=Array.from({length:5},(_,i)=>`${rx*Math.cos(sa+i*a)},${ry*Math.sin(sa+i*a)}`);return 'M'+pts.join('L')+'Z';}
+    default: return `M${-hw+6},${-hh}L${hw-6},${-hh}Q${hw},${-hh} ${hw},${-hh+6}L${hw},${hh-6}Q${hw},${hh} ${hw-6},${hh}L${-hw+6},${hh}Q${-hw},${hh} ${-hw},${hh-6}L${-hw},${-hh+6}Q${-hw},${-hh} ${-hw+6},${-hh}Z`;
   }
 }
 
 // ═══ DATA CONTEXT ═══
 const DataCtx=createContext({});
+
 function useData(){return useContext(DataCtx);}
 
 function DataProvider({children}){
@@ -199,7 +204,6 @@ function DataProvider({children}){
   const [steps,setSteps]=useState([]);
   const [parts,setParts]=useState([]);
   const [fasts,setFasts]=useState([]);
-  const [stepLinks,setStepLinks]=useState([]);
   const [masterMap,setMasterMap]=useState({});
   const [loading,setLoading]=useState(true);
   const [error,setError]=useState(null);
@@ -207,15 +211,18 @@ function DataProvider({children}){
 
   const showToast=(msg,type='ok')=>{setToast({msg,type});setTimeout(()=>setToast(null),2000);};
 
+  // Load all data for HBD_assy
   const loadAll=useCallback(async()=>{
     try{
+      // Load master parts (shared table)
       const {data:mp}=await sb.from(T.master).select('pn,name,location');
-      const mm={};(mp||[]).forEach(p=>{mm[p.pn]={name:p.name,location:p.location};});
+      const mm={};
+      (mp||[]).forEach(p=>{mm[p.pn]={name:p.name,location:p.location};});
       setMasterMap(mm);
 
       const {data:a,error:ae}=await sb.from(T.assy).select('*').eq('tag','HBD_assy').single();
-      if(ae){setError('Assembly query failed: '+ae.message);setLoading(false);return;}
-      if(!a){setError('Assembly HBD_assy not found. Run SQL setup first.');setLoading(false);return;}
+      if(ae){setError('Assemblies query failed: '+ae.message+' (code: '+ae.code+', details: '+ae.details+')');setLoading(false);return;}
+      if(!a){setError('Assembly HBD_assy not found. Run the SQL setup first.');setLoading(false);return;}
       setAssy(a);
       const {data:g}=await sb.from(T.grp).select('*').eq('assembly_id',a.id).order('sort_order');
       setGroups(g||[]);
@@ -230,9 +237,6 @@ function DataProvider({children}){
           const {data:f}=await sb.from(T.fast).select('*').in('step_id',sids).order('sort_order');
           setFasts(f||[]);
         }
-        // Load step links
-        const {data:sl}=await sb.from(T.slink).select('*').eq('assembly_id',a.id).order('sort_order');
-        setStepLinks(sl||[]);
       }
       setLoading(false);
     }catch(e){setError(e.message);setLoading(false);}
@@ -240,61 +244,108 @@ function DataProvider({children}){
 
   useEffect(()=>{loadAll();},[loadAll]);
 
+  // ═══ CRUD helpers ═══
   const refresh=async()=>{await loadAll();};
 
-  // ═══ Step CRUD ═══
   const addStep=async(groupId,label,type)=>{
     const maxSort=Math.max(0,...steps.filter(s=>s.group_id===groupId).map(s=>s.sort_order||0))+1;
     const {error:e}=await sb.from(T.step).insert({group_id:groupId,label,type,sort_order:maxSort});
-    if(e){showToast(e.message,'err');return;}showToast('Step added');await refresh();
+    if(e){showToast(e.message,'err');return;}
+    showToast('Step added');await refresh();
   };
-  const updateStep=async(id,fields)=>{const {error:e}=await sb.from(T.step).update(fields).eq('id',id);if(e){showToast(e.message,'err');return;}showToast('Step updated');await refresh();};
+
+  const updateStep=async(id,fields)=>{
+    const {error:e}=await sb.from(T.step).update(fields).eq('id',id);
+    if(e){showToast(e.message,'err');return;}
+    showToast('Step updated');await refresh();
+  };
+
   const deleteStep=async(id)=>{
-    await sb.from(T.part).delete().eq('step_id',id);await sb.from(T.fast).delete().eq('step_id',id);
-    await sb.from(T.slink).delete().or(`parent_step_id.eq.${id},child_step_id.eq.${id}`);
-    const {error:e}=await sb.from(T.step).delete().eq('id',id);if(e){showToast(e.message,'err');return;}showToast('Step deleted');await refresh();
-  };
-  const moveStep=async(step,newGroupId)=>{const maxSort=Math.max(0,...steps.filter(s=>s.group_id===newGroupId).map(s=>s.sort_order||0))+1;await sb.from(T.step).update({group_id:newGroupId,sort_order:maxSort}).eq('id',step.id);showToast('Step moved');await refresh();};
-  const swapSteps=async(step,dir)=>{const sibs=steps.filter(s=>s.group_id===step.group_id).sort((a,b)=>(a.sort_order||0)-(b.sort_order||0));const idx=sibs.findIndex(s=>s.id===step.id);const si=idx+dir;if(si<0||si>=sibs.length)return;await sb.from(T.step).update({sort_order:sibs[si].sort_order}).eq('id',sibs[idx].id);await sb.from(T.step).update({sort_order:sibs[idx].sort_order}).eq('id',sibs[si].id);await refresh();};
-
-  // ═══ Part CRUD ═══
-  const addPart=async(stepId,pn,qty)=>{const maxSort=Math.max(0,...parts.filter(p=>p.step_id===stepId).map(p=>p.sort_order||0))+1;const {error:e}=await sb.from(T.part).insert({step_id:stepId,pn,qty:Number(qty),sort_order:maxSort});if(e){showToast(e.message,'err');return;}showToast('Part added');await refresh();};
-  const updatePart=async(id,fields)=>{const {error:e}=await sb.from(T.part).update(fields).eq('id',id);if(e){showToast(e.message,'err');return;}showToast('Part updated');await refresh();};
-  const deletePart=async(id)=>{await sb.from(T.part).delete().eq('id',id);showToast('Part deleted');await refresh();};
-  const swapParts=async(stepId,partId,dir)=>{const sibs=parts.filter(p=>p.step_id===stepId).sort((a,b)=>(a.sort_order||0)-(b.sort_order||0));const idx=sibs.findIndex(p=>p.id===partId);const si=idx+dir;if(si<0||si>=sibs.length)return;await sb.from(T.part).update({sort_order:sibs[si].sort_order}).eq('id',sibs[idx].id);await sb.from(T.part).update({sort_order:sibs[idx].sort_order}).eq('id',sibs[si].id);await refresh();};
-
-  // ═══ Fastener CRUD ═══
-  const addFast=async(stepId,pn,qty,loctite,torque)=>{const maxSort=Math.max(0,...fasts.filter(f=>f.step_id===stepId).map(f=>f.sort_order||0))+1;const {error:e}=await sb.from(T.fast).insert({step_id:stepId,pn,qty:Number(qty),loctite,torque,sort_order:maxSort});if(e){showToast(e.message,'err');return;}showToast('Fastener added');await refresh();};
-  const updateFast=async(id,fields)=>{const {error:e}=await sb.from(T.fast).update(fields).eq('id',id);if(e){showToast(e.message,'err');return;}showToast('Fastener updated');await refresh();};
-  const deleteFast=async(id)=>{await sb.from(T.fast).delete().eq('id',id);showToast('Fastener deleted');await refresh();};
-  const swapFasts=async(stepId,fastId,dir)=>{const sibs=fasts.filter(f=>f.step_id===stepId).sort((a,b)=>(a.sort_order||0)-(b.sort_order||0));const idx=sibs.findIndex(f=>f.id===fastId);const si=idx+dir;if(si<0||si>=sibs.length)return;await sb.from(T.fast).update({sort_order:sibs[si].sort_order}).eq('id',sibs[idx].id);await sb.from(T.fast).update({sort_order:sibs[idx].sort_order}).eq('id',sibs[si].id);await refresh();};
-
-  // ═══ Step Link CRUD ═══
-  const addStepLink=async(parentStepId,childStepId,fastenerPn,qty,loctite,torque)=>{
-    if(!assy)return;
-    const {error:e}=await sb.from(T.slink).insert({assembly_id:assy.id,parent_step_id:parentStepId,child_step_id:childStepId,fastener_pn:fastenerPn||null,qty:qty||1,loctite:loctite||null,torque:torque||null,sort_order:0});
-    if(e){showToast(e.message,'err');return;}showToast('Link created');await refresh();
-  };
-  const updateStepLink=async(id,fields)=>{const {error:e}=await sb.from(T.slink).update(fields).eq('id',id);if(e){showToast(e.message,'err');return;}showToast('Link updated');await refresh();};
-  const deleteStepLink=async(id)=>{const {error:e}=await sb.from(T.slink).delete().eq('id',id);if(e){showToast(e.message,'err');return;}showToast('Link deleted');await refresh();};
-
-  // ═══ Save positions ═══
-  const saveStepPositions=async(posMap)=>{
-    let cnt=0;
-    for(const[id,{x,y}]of Object.entries(posMap)){
-      const {error:e}=await sb.from(T.step).update({x,y}).eq('id',id);
-      if(!e)cnt++;
-    }
-    showToast(`Saved ${cnt} positions`);
+    await sb.from(T.part).delete().eq('step_id',id);
+    await sb.from(T.fast).delete().eq('step_id',id);
+    const {error:e}=await sb.from(T.step).delete().eq('id',id);
+    if(e){showToast(e.message,'err');return;}
+    showToast('Step deleted');await refresh();
   };
 
+  const moveStep=async(step,newGroupId)=>{
+    const maxSort=Math.max(0,...steps.filter(s=>s.group_id===newGroupId).map(s=>s.sort_order||0))+1;
+    await sb.from(T.step).update({group_id:newGroupId,sort_order:maxSort}).eq('id',step.id);
+    showToast('Step moved');await refresh();
+  };
+
+  const swapSteps=async(step,dir)=>{
+    const sibs=steps.filter(s=>s.group_id===step.group_id).sort((a,b)=>(a.sort_order||0)-(b.sort_order||0));
+    const idx=sibs.findIndex(s=>s.id===step.id);
+    const si=idx+dir;
+    if(si<0||si>=sibs.length)return;
+    const a=sibs[idx],b=sibs[si];
+    await sb.from(T.step).update({sort_order:b.sort_order}).eq('id',a.id);
+    await sb.from(T.step).update({sort_order:a.sort_order}).eq('id',b.id);
+    await refresh();
+  };
+
+  const addPart=async(stepId,pn,qty)=>{
+    const maxSort=Math.max(0,...parts.filter(p=>p.step_id===stepId).map(p=>p.sort_order||0))+1;
+    const {error:e}=await sb.from(T.part).insert({step_id:stepId,pn,qty:Number(qty),sort_order:maxSort});
+    if(e){showToast(e.message,'err');return;}
+    showToast('Part added');await refresh();
+  };
+
+  const updatePart=async(id,fields)=>{
+    const {error:e}=await sb.from(T.part).update(fields).eq('id',id);
+    if(e){showToast(e.message,'err');return;}
+    showToast('Part updated');await refresh();
+  };
+
+  const deletePart=async(id)=>{
+    await sb.from(T.part).delete().eq('id',id);
+    showToast('Part deleted');await refresh();
+  };
+
+  const swapParts=async(stepId,partId,dir)=>{
+    const sibs=parts.filter(p=>p.step_id===stepId).sort((a,b)=>(a.sort_order||0)-(b.sort_order||0));
+    const idx=sibs.findIndex(p=>p.id===partId);const si=idx+dir;
+    if(si<0||si>=sibs.length)return;
+    await sb.from(T.part).update({sort_order:sibs[si].sort_order}).eq('id',sibs[idx].id);
+    await sb.from(T.part).update({sort_order:sibs[idx].sort_order}).eq('id',sibs[si].id);
+    await refresh();
+  };
+
+  const addFast=async(stepId,pn,qty,loctite,torque)=>{
+    const maxSort=Math.max(0,...fasts.filter(f=>f.step_id===stepId).map(f=>f.sort_order||0))+1;
+    const {error:e}=await sb.from(T.fast).insert({step_id:stepId,pn,qty:Number(qty),loctite,torque,sort_order:maxSort});
+    if(e){showToast(e.message,'err');return;}
+    showToast('Fastener added');await refresh();
+  };
+
+  const updateFast=async(id,fields)=>{
+    const {error:e}=await sb.from(T.fast).update(fields).eq('id',id);
+    if(e){showToast(e.message,'err');return;}
+    showToast('Fastener updated');await refresh();
+  };
+
+  const deleteFast=async(id)=>{
+    await sb.from(T.fast).delete().eq('id',id);
+    showToast('Fastener deleted');await refresh();
+  };
+
+  const swapFasts=async(stepId,fastId,dir)=>{
+    const sibs=fasts.filter(f=>f.step_id===stepId).sort((a,b)=>(a.sort_order||0)-(b.sort_order||0));
+    const idx=sibs.findIndex(f=>f.id===fastId);const si=idx+dir;
+    if(si<0||si>=sibs.length)return;
+    await sb.from(T.fast).update({sort_order:sibs[si].sort_order}).eq('id',sibs[idx].id);
+    await sb.from(T.fast).update({sort_order:sibs[idx].sort_order}).eq('id',sibs[si].id);
+    await refresh();
+  };
+
+  // Lookup helper: pn → {name, location}
   const lookup=useCallback((pn)=>masterMap[pn]||{name:null,location:null},[masterMap]);
 
-  const val={assy,groups,steps,parts,fasts,stepLinks,loading,error,toast,masterMap,lookup,
+  const val={assy,groups,steps,parts,fasts,loading,error,toast,masterMap,lookup,
     addStep,updateStep,deleteStep,moveStep,swapSteps,
     addPart,updatePart,deletePart,swapParts,
     addFast,updateFast,deleteFast,swapFasts,
-    addStepLink,updateStepLink,deleteStepLink,saveStepPositions,
     refresh};
 
   return <DataCtx.Provider value={val}>{children}</DataCtx.Provider>;
@@ -333,6 +384,7 @@ function PartModal({mode,stepId,data,onClose}){
     <div className="form-actions"><button className="btn-primary" onClick={save}>{mode==='add'?'Add':'Save'}</button><button className="btn-ghost" onClick={onClose}>Cancel</button></div>
   </div></div>);
 }
+
 function FastModal({mode,stepId,data,onClose}){
   const {addFast,updateFast}=useData();
   const [pn,setPn]=useState(data?.pn||'');const [qty,setQty]=useState(data?.qty||1);const [lt,setLt]=useState(data?.loctite||'222');const [tq,setTq]=useState(data?.torque||'');
@@ -346,6 +398,7 @@ function FastModal({mode,stepId,data,onClose}){
     <div className="form-actions"><button className="btn-primary" onClick={save}>{mode==='add'?'Add':'Save'}</button><button className="btn-ghost" onClick={onClose}>Cancel</button></div>
   </div></div>);
 }
+
 function StepModal({mode,groupId,data,onClose}){
   const {groups,addStep,updateStep,moveStep:mv}=useData();
   const [label,setLabel]=useState(data?.label||'');const [type,setType]=useState(data?.type||'step');const [gid,setGid]=useState(data?.group_id||groupId);
@@ -358,45 +411,15 @@ function StepModal({mode,groupId,data,onClose}){
     <div className="form-actions"><button className="btn-primary" onClick={save}>{mode==='add'?'Add':'Save'}</button><button className="btn-ghost" onClick={onClose}>Cancel</button></div>
   </div></div>);
 }
+
 function MoveModal({stepData,onClose}){
-  const {groups,moveStep}=useData();const [gid,setGid]=useState(stepData.group_id);
+  const {groups,moveStep}=useData();
+  const [gid,setGid]=useState(stepData.group_id);
   const move=async()=>{if(gid===stepData.group_id){onClose();return;}await moveStep(stepData,gid);onClose();};
   return(<div className="modal-overlay" onClick={onClose}><div className="modal" onClick={e=>e.stopPropagation()}>
     <h3>Move "{stepData.label}"</h3>
     <div className="form-row"><label>Move to group</label><select value={gid} onChange={e=>setGid(Number(e.target.value))}>{groups.map(g=><option key={g.id} value={g.id}>{g.icon} {g.label}</option>)}</select></div>
     <div className="form-actions"><button className="btn-primary" onClick={move}>Move</button><button className="btn-ghost" onClick={onClose}>Cancel</button></div>
-  </div></div>);
-}
-
-// ═══ STEP LINK MODAL ═══
-function StepLinkModal({sourceId,onClose}){
-  const {steps,groups,addStepLink,stepLinks}=useData();
-  const [targetId,setTargetId]=useState('');const [fpn,setFpn]=useState('');const [qty,setQty]=useState(1);const [lt,setLt]=useState('');const [tq,setTq]=useState('');
-  const existing=new Set(stepLinks.filter(l=>l.child_step_id===sourceId).map(l=>l.parent_step_id));
-  const available=steps.filter(s=>s.id!==sourceId&&!existing.has(s.id));
-  const sortedGroups=groups.slice().sort((a,b)=>(a.sort_order||0)-(b.sort_order||0));
-  const save=async()=>{if(!targetId)return;await addStepLink(targetId,sourceId,fpn,qty,lt,tq);onClose();};
-  return(<div className="modal-overlay" onClick={onClose}><div className="modal" onClick={e=>e.stopPropagation()}>
-    <h3>Connect to Parent Step</h3>
-    <div className="form-row"><label>Target (parent) step</label>
-      <select value={targetId} onChange={e=>setTargetId(e.target.value)}>
-        <option value="">Select…</option>
-        {sortedGroups.map(g=>{
-          const gSteps=available.filter(s=>s.group_id===g.id);
-          if(!gSteps.length)return null;
-          return <optgroup key={g.id} label={`${g.icon} ${g.label}`}>
-            {gSteps.map(s=><option key={s.id} value={s.id}>{s.label}</option>)}
-          </optgroup>;
-        })}
-      </select>
-    </div>
-    <div className="form-row"><label>Fastener P/N (on link)</label><input value={fpn} onChange={e=>setFpn(e.target.value)} placeholder="Optional"/></div>
-    <div style={{display:'flex',gap:8}}>
-      <div className="form-row" style={{flex:1}}><label>Qty</label><input type="number" value={qty} onChange={e=>setQty(e.target.value)} min={1}/></div>
-      <div className="form-row" style={{flex:1}}><label>Loctite</label><input value={lt} onChange={e=>setLt(e.target.value)} placeholder="222"/></div>
-      <div className="form-row" style={{flex:1}}><label>Torque</label><input value={tq} onChange={e=>setTq(e.target.value)} placeholder="1.5Nm"/></div>
-    </div>
-    <div className="form-actions"><button className="btn-primary" onClick={save}>Connect</button><button className="btn-ghost" onClick={onClose}>Cancel</button></div>
   </div></div>);
 }
 
@@ -465,65 +488,69 @@ function DetailPanel({stepId,ecnChanges}){
 
 // ═══ LIST VIEW ═══
 function ListView({selected,setSelected,ecnOn,brush,ecnChanges,setEcnChanges,search}){
-  const {groups,steps,parts,fasts,addStep,swapSteps}=useData();
-  const [exp,setExp]=useState(new Set(groups.map(g=>g.id)));
-  const [modal,setModal]=useState(null);const [ctx,setCtx]=useState(null);
+  const {groups,steps,parts,fasts,swapSteps,deleteStep,lookup}=useData();
+  const [exp,setExp]=useState(new Set());
+  const [ctx,setCtx]=useState(null);
+  const [modal,setModal]=useState(null);
 
   useEffect(()=>{setExp(new Set(groups.map(g=>g.id)));},[groups]);
 
-  const toggle=gid=>setExp(s=>{const n=new Set(s);n.has(gid)?n.delete(gid):n.add(gid);return n;});
+  const toggle=id=>setExp(p=>{const n=new Set(p);n.has(id)?n.delete(id):n.add(id);return n;});
   const click=id=>{if(ecnOn){setEcnChanges(p=>{const n={...p};n[id]===brush?delete n[id]:(n[id]=brush);return n;});}else setSelected(selected===id?null:id);};
-  const matchStep=s=>{if(!search)return true;const q=search.toLowerCase();return s.label.toLowerCase().includes(q)||parts.some(p=>p.step_id===s.id&&p.pn.toLowerCase().includes(q))||fasts.some(f=>f.step_id===s.id&&f.pn.toLowerCase().includes(q));};
+
+  const searchLower=search?.toLowerCase()||'';
+  const matchStep=s=>{
+    if(!searchLower)return true;
+    if(s.label.toLowerCase().includes(searchLower))return true;
+    if(parts.some(p=>p.step_id===s.id&&(p.pn.toLowerCase().includes(searchLower)||(lookup(p.pn).name||'').toLowerCase().includes(searchLower))))return true;
+    if(fasts.some(f=>f.step_id===s.id&&(f.pn.toLowerCase().includes(searchLower)||(lookup(f.pn).name||'').toLowerCase().includes(searchLower))))return true;
+    return false;
+  };
 
   return(<div className="tree">
-    {groups.slice().sort((a,b)=>(a.sort_order||0)-(b.sort_order||0)).map(g=>{
+    {groups.map(g=>{
       const gSteps=steps.filter(s=>s.group_id===g.id).sort((a,b)=>(a.sort_order||0)-(b.sort_order||0));
       const open=exp.has(g.id);const gEcn=gSteps.filter(s=>ecnChanges[s.id]).length;
       return(<div key={g.id}>
-        <div className="group-hdr" style={{borderBottom:'2px solid '+g.color}} onClick={()=>toggle(g.id)}>
-          <span className={'arrow'+(open?' open':'')}>▶</span>
-          <span className="label" style={{color:g.color}}>{g.icon} {g.label}</span>
-          {gEcn>0&&<span className="ecn-cnt">{gEcn}</span>}
-          <span className="cnt">{gSteps.length}</span>
-          <button className="add-step-btn" onClick={e=>{e.stopPropagation();setModal({t:'addStep',gid:g.id});}}>+ Step</button>
+        <div className="group-hdr" onClick={()=>toggle(g.id)} style={{borderLeft:'3px solid '+g.color}}>
+          <span className={'arrow'+(open?' open':'')}>▶</span><span style={{fontSize:12}}>{g.icon}</span><span className="label" style={{color:g.color}}>{g.label}</span>
+          <button className="add-step-btn" onClick={e=>{e.stopPropagation();setModal({t:'addStep',gid:g.id});}}>+ step</button>
+          <span className="cnt">{gSteps.length}</span>{gEcn>0&&<span className="ecn-cnt">{gEcn}</span>}
         </div>
-        {open&&gSteps.map((s,si)=>{
+        {open&&gSteps.map(s=>{
           const e=ecnChanges[s.id];const sel=selected===s.id;const vis=matchStep(s);
-          const sp=parts.filter(p=>p.step_id===s.id);const sf=fasts.filter(f=>f.step_id===s.id);
-          return(<div key={s.id} className={'step-row'+(sel?' selected':'')}
-            style={{background:e?ecnBg[e]:undefined,borderLeftColor:e?ecnC[e]:undefined,opacity:vis?1:0.2}}
-            onClick={()=>click(s.id)}
-            onContextMenu={ev=>{ev.preventDefault();setCtx({x:ev.clientX,y:ev.clientY,step:s});}}>
-            <span className="sid">{si+1}</span>
-            <span className={'badge '+bC[s.type]}>{bT[s.type]}</span>
-            <span className={'slabel'+(s.type==='kanryo'?' kanryo':'')}>{s.label}</span>
+          const pc=parts.filter(p=>p.step_id===s.id).length;
+          const fc=fasts.filter(f=>f.step_id===s.id).length;
+          return(<div key={s.id} className={'step-row'+(sel?' selected':'')} onClick={()=>click(s.id)} onContextMenu={ev=>{ev.preventDefault();setCtx({x:ev.clientX,y:ev.clientY,s});}}
+            style={{background:e?ecnBg[e]:undefined,borderLeftColor:e?ecnC[e]:undefined,opacity:vis?1:0.2}}>
+            <span className="sid">{s.id}</span><span className={'badge '+(bC[s.type]||'badge-step')}>{bT[s.type]||'STEP'}</span>
+            <span className={'slabel'+(s.type==='kanryo'?' kanryo':'')} title={s.label}>{s.label}</span>
+            {pc>0&&<span className="tag tag-p">{pc}P</span>}{fc>0&&<span className="tag tag-f">{fc}F</span>}
             {e&&<span className="ecn-mark" style={{color:ecnC[e]}}>{ecnI[e]}</span>}
-            {sp.length>0&&<span className="tag tag-p">{sp.length}P</span>}
-            {sf.length>0&&<span className="tag tag-f">{sf.length}F</span>}
             <div className="step-row-actions">
-              <button onClick={ev=>{ev.stopPropagation();swapSteps(s,-1);}}>▲</button>
-              <button onClick={ev=>{ev.stopPropagation();swapSteps(s,1);}}>▼</button>
+              <button onClick={ev=>{ev.stopPropagation();swapSteps(s,-1);}} title="Move up">▲</button>
+              <button onClick={ev=>{ev.stopPropagation();swapSteps(s,1);}} title="Move down">▼</button>
             </div>
           </div>);
         })}
       </div>);
     })}
-    {modal?.t==='addStep'&&<StepModal mode="add" groupId={modal.gid} onClose={()=>setModal(null)}/>}
     {ctx&&<CtxMenu x={ctx.x} y={ctx.y} onClose={()=>setCtx(null)} items={[
-      {icon:'✏️',label:'Edit Step',action:()=>setModal({t:'editStep',d:ctx.step})},
-      {icon:'📦',label:'Move to Group',action:()=>setModal({t:'moveStep',d:ctx.step})},
-      {sep:true},
-      {icon:'🗑',label:'Delete Step',danger:true,action:()=>{if(confirm(`Delete "${ctx.step.label}"?`))useData.deleteStep?.(ctx.step.id);}}
+      {icon:'✏️',label:'Edit step',action:()=>setModal({t:'editStep',d:ctx.s})},
+      {icon:'📦',label:'Move to group...',action:()=>setModal({t:'moveStep',d:ctx.s})},
+      {sep:true},{icon:'▲',label:'Move up',action:()=>swapSteps(ctx.s,-1)},{icon:'▼',label:'Move down',action:()=>swapSteps(ctx.s,1)},
+      {sep:true},{icon:'🗑',label:'Delete step',action:()=>{if(confirm(`Delete "${ctx.s.label}"?`))deleteStep(ctx.s.id);},danger:true},
     ]}/>}
+    {modal?.t==='addStep'&&<StepModal mode="add" groupId={modal.gid} onClose={()=>setModal(null)}/>}
+    {modal?.t==='editStep'&&<StepModal mode="edit" data={modal.d} onClose={()=>setModal(null)}/>}
+    {modal?.t==='moveStep'&&<MoveModal stepData={modal.d} onClose={()=>setModal(null)}/>}
   </div>);
 }
 
-// ═══ GRAPH VIEW (D3 Free-Form Tree — Logi Assembly style) ═══
+// ═══ GRAPH VIEW ═══
 function GraphView({selected,setSelected,ecnOn,brush,ecnChanges,setEcnChanges}){
-  const {groups,steps,parts,fasts,stepLinks,lookup,saveStepPositions,addStepLink,deleteStepLink}=useData();
+  const {groups,steps,parts,fasts,lookup}=useData();
   const containerRef=useRef(null);const svgRef=useRef(null);const zoomRef=useRef(null);
-  const posRef=useRef({});const [dirty,setDirty]=useState(false);const [linkModal,setLinkModal]=useState(null);
-  const [ctx,setCtx]=useState(null);
 
   const clickStep=useCallback(id=>{
     if(ecnOn){setEcnChanges(p=>{const n={...p};n[id]===brush?delete n[id]:(n[id]=brush);return n;});}
@@ -531,266 +558,241 @@ function GraphView({selected,setSelected,ecnOn,brush,ecnChanges,setEcnChanges}){
   },[ecnOn,brush,selected,setEcnChanges,setSelected]);
 
   useEffect(()=>{
-    if(!svgRef.current||!containerRef.current||steps.length===0)return;
+    if(!svgRef.current||!containerRef.current||groups.length===0||steps.length===0)return;
+
     const svg=d3.select(svgRef.current);svg.selectAll('*').remove();
     const W=containerRef.current.clientWidth,H=containerRef.current.clientHeight;
     svg.attr('width',W).attr('height',H);
 
     // Defs
     const defs=svg.append('defs');
-    ['#555','#3498db','#9b59b6','#27ae60','#e67e22','#e74c3c','#95a5a6','#888'].forEach(c=>{
-      defs.append('marker').attr('id','arrow'+c.replace('#','')).attr('viewBox','0 0 10 10')
-        .attr('refX',9).attr('refY',5).attr('orient','auto').attr('markerWidth',6).attr('markerHeight',6)
-        .append('path').attr('d','M 0,1 L 8,5 L 0,9 z').attr('fill',c);
-    });
+    defs.append('marker').attr('id','arrow').attr('viewBox','0 0 10 10')
+      .attr('refX',9).attr('refY',5).attr('orient','auto').attr('markerWidth',6).attr('markerHeight',6)
+      .append('path').attr('d','M 0,1 L 8,5 L 0,9 z').attr('fill','#888');
 
+    // Zoom group
     const g=svg.append('g').attr('class','zoom-group');
-    const zoom=d3.zoom().scaleExtent([0.05,4]).on('zoom',e=>g.attr('transform',e.transform));
+    const zoom=d3.zoom().scaleExtent([0.08,4]).on('zoom',e=>g.attr('transform',e.transform));
     svg.call(zoom);zoomRef.current={svg,zoom};
 
-    // ═══ BUILD NODE DATA (auto-layout from groups if no saved positions) ═══
+    // ═══ LAYOUT CALCULATION ═══
     const sortedGroups=groups.slice().sort((a,b)=>(a.sort_order||0)-(b.sort_order||0));
-    const groupIndex={};sortedGroups.forEach((gr,i)=>{groupIndex[gr.id]=i;});
-    const colGap=280,rowGap=70,nodeW=160,nodeH=36,topPad=70,leftPad=120;
+    const colGap=300,partGap=180,nodeW=150,nodeH=36,partW=115,partH=26,rowGap=24,partRowGap=30;
+    const topPad=70,leftPad=180;
 
-    // Build child→parent map from step_links
-    const childToParents={};const parentToChildren={};
-    stepLinks.forEach(sl=>{
-      if(!childToParents[sl.child_step_id])childToParents[sl.child_step_id]=[];
-      childToParents[sl.child_step_id].push(sl.parent_step_id);
-      if(!parentToChildren[sl.parent_step_id])parentToChildren[sl.parent_step_id]=[];
-      parentToChildren[sl.parent_step_id].push(sl.child_step_id);
-    });
+    const nodes=[];const links=[];
+    let globalMaxY=topPad;
 
-    const nodeData=[];
     sortedGroups.forEach((grp,gi)=>{
       const gSteps=steps.filter(s=>s.group_id===grp.id).sort((a,b)=>(a.sort_order||0)-(b.sort_order||0));
+      const levelX=leftPad+gi*colGap;
       const levelColor=grp.color||LEVEL_COLORS[gi%LEVEL_COLORS.length];
       const levelShape=LEVEL_SHAPES[gi%LEVEL_SHAPES.length];
-      gSteps.forEach((step,si)=>{
-        const hasPos=step.x!=null&&step.y!=null;
-        const nx=hasPos?step.x:(leftPad+gi*colGap);
-        const ny=hasPos?step.y:(topPad+si*rowGap);
-        nodeData.push({id:step.id,x:nx,y:ny,w:nodeW,h:nodeH,
-          label:step.label,type:step.type,shape:levelShape,color:levelColor,
-          groupLabel:grp.label,groupColor:grp.color||levelColor,level:gi+1,
-          stepSeq:si+1,ecn:ecnChanges[step.id]||null,isSelected:selected===step.id,
-          partCount:parts.filter(p=>p.step_id===step.id).length,
-          fastCount:fasts.filter(f=>f.step_id===step.id).length});
-      });
-    });
-    const nodeMap={};nodeData.forEach(n=>{nodeMap[n.id]=n;});
-    posRef.current={};nodeData.forEach(n=>{posRef.current[n.id]={x:n.x,y:n.y};});
+      let curY=topPad;
 
-    // ═══ LEVEL HEADERS ═══
+      gSteps.forEach((step,si)=>{
+        const sp=parts.filter(p=>p.step_id===step.id).sort((a,b)=>(a.sort_order||0)-(b.sort_order||0));
+        const sf=fasts.filter(f=>f.step_id===step.id).sort((a,b)=>(a.sort_order||0)-(b.sort_order||0));
+        const nParts=sp.length;
+        const partsSpan=nParts>0?(nParts-1)*partRowGap:0;
+        const blockH=Math.max(nodeH,partsSpan+partH);
+        const stepY=curY+blockH/2;
+
+        nodes.push({id:step.id,x:levelX,y:stepY,w:nodeW,h:nodeH,type:'step',shape:levelShape,
+          color:levelColor,label:step.label,stepType:step.type,level:gi+1,
+          groupLabel:grp.label,ecn:ecnChanges[step.id]||null,
+          isSelected:selected===step.id,partCount:nParts,fastCount:sf.length});
+
+        // Parts as leaf nodes to the left
+        sp.forEach((p,pi)=>{
+          const pY=stepY-partsSpan/2+pi*partRowGap;
+          const pX=levelX-partGap;
+          const m=lookup(p.pn);const pColor=lightenColor(levelColor,30);
+          const pid='p_'+p.id;
+          nodes.push({id:pid,x:pX,y:pY,w:partW,h:partH,type:'part',shape:'hexagon',
+            color:pColor,label:m.name||p.pn,pn:p.pn,qty:p.qty,level:gi+1,isSelected:false});
+
+          // Find fasteners for this step to annotate the link
+          const matchFast=sf.length>0?sf[Math.min(pi,sf.length-1)]:null;
+          links.push({source:pid,target:step.id,
+            sx:pX+partW/2,sy:pY,tx:levelX-nodeW/2,ty:stepY,
+            fastener:matchFast?matchFast.pn:null,loctite:matchFast?matchFast.loctite:null,
+            torque:matchFast?matchFast.torque:null,qty:p.qty,
+            linkColor:matchFast?getFastenerLinkColor(matchFast.pn):'#9ca3af'});
+        });
+
+        // Fasteners not matched to parts → show as standalone right-side nodes
+        if(sf.length>sp.length){
+          sf.slice(sp.length).forEach((f,fi)=>{
+            const fY=stepY+nodeH/2+10+(fi*22);
+            const fid='f_'+f.id;
+            nodes.push({id:fid,x:levelX+nodeW/2+8,y:fY,w:0,h:0,type:'fastLabel',
+              label:`${f.pn} ×${f.qty}`,loctite:f.loctite,torque:f.torque,color:getFastenerLinkColor(f.pn)});
+          });
+        }
+
+        curY+=blockH+rowGap;
+      });
+      globalMaxY=Math.max(globalMaxY,curY);
+    });
+
+    // ═══ RENDER LEVEL HEADERS ═══
     sortedGroups.forEach((grp,gi)=>{
       const x=leftPad+gi*colGap;
-      g.append('rect').attr('x',x-65).attr('y',10).attr('width',130).attr('height',30)
-        .attr('rx',6).attr('fill',grp.color||LEVEL_COLORS[gi%LEVEL_COLORS.length]).attr('opacity',0.9);
-      g.append('text').attr('x',x).attr('y',30).attr('text-anchor','middle')
+      g.append('rect').attr('x',x-58).attr('y',12).attr('width',116).attr('height',28)
+        .attr('rx',6).attr('fill','#3b82f6').attr('opacity',0.88);
+      g.append('text').attr('x',x).attr('y',31).attr('text-anchor','middle')
         .attr('fill','white').attr('font-size','12px').attr('font-weight','700')
-        .text(`L${gi+1} ${grp.label.length>14?grp.label.slice(0,14)+'…':grp.label}`);
+        .text(`L${gi+1} ${grp.label.length>12?grp.label.slice(0,12)+'…':grp.label}`);
     });
 
-    // ═══ RENDER STEP LINKS ═══
-    stepLinks.forEach(sl=>{
-      const src=nodeMap[sl.child_step_id];const tgt=nodeMap[sl.parent_step_id];
-      if(!src||!tgt)return;
-      const sx=src.x+src.w/2,sy=src.y,tx=tgt.x-tgt.w/2,ty=tgt.y;
-      const midX=(sx+tx)/2;
-      const pathD=`M${sx},${sy} C${midX},${sy} ${midX},${ty} ${tx},${ty}`;
-      const linkColor=getFastenerLinkColor(sl.fastener_pn);
+    // ═══ RENDER LINKS ═══
+    links.forEach(lk=>{
+      const midX=(lk.sx+lk.tx)/2;
+      const pathD=`M${lk.sx},${lk.sy} C${midX},${lk.sy} ${midX},${lk.ty} ${lk.tx},${lk.ty}`;
+      g.append('path').attr('class','link').attr('d',pathD)
+        .attr('stroke',lk.linkColor).attr('stroke-width',1.5)
+        .attr('marker-end','url(#arrow)');
 
-      const linkG=g.append('g').attr('class','step-link').attr('data-link-id',sl.id);
-      linkG.append('path').attr('class','link').attr('d',pathD)
-        .attr('stroke',linkColor).attr('stroke-width',1.8)
-        .attr('marker-end','url(#arrow'+linkColor.replace('#','')+')')
-        .style('cursor','pointer')
-        .on('contextmenu',(ev)=>{ev.preventDefault();ev.stopPropagation();
-          setCtx({x:ev.clientX,y:ev.clientY,type:'link',linkId:sl.id,link:sl});});
-
-      // Link label
-      const hasLabel=sl.fastener_pn||sl.loctite;
+      // Link labels (fastener, loctite, torque)
+      const hasLabel=lk.fastener||lk.loctite;
       if(hasLabel){
-        const lx=(sx+tx)/2,ly=(sy+ty)/2;
+        const lx=(lk.sx+lk.tx)/2,ly=(lk.sy+lk.ty)/2;
         const lines=[];
-        if(sl.fastener_pn){const t=sl.fastener_pn+(sl.qty>1?' ×'+sl.qty:'');lines.push({text:t,color:linkColor,bold:true});}
-        if(sl.loctite)lines.push({text:'LT-'+sl.loctite,color:'#9b59b6',bold:false});
-        if(sl.torque)lines.push({text:sl.torque,color:'#e67e22',bold:false});
-        const lH=lines.length*13+8;const lW=Math.max(65,...lines.map(l=>l.text.length*5.8+16));
-        linkG.append('rect').attr('x',lx-lW/2).attr('y',ly-lH/2).attr('width',lW).attr('height',lH)
-          .attr('rx',4).attr('fill','white').attr('stroke','#e5e7eb').attr('stroke-width',0.5).attr('opacity',0.95);
+        if(lk.fastener){const t=lk.fastener+(lk.qty>1?' ×'+lk.qty:'');lines.push({text:t,color:lk.linkColor,bold:true});}
+        if(lk.loctite&&lk.loctite!=='---')lines.push({text:'LT-'+lk.loctite,color:'#9b59b6',bold:false});
+        if(lk.torque&&lk.torque!=='---'&&lk.torque!=='—')lines.push({text:lk.torque,color:'#e67e22',bold:false});
+
+        const lH=lines.length*12+6;const lW=Math.max(60,...lines.map(l=>l.text.length*5.5+14));
+        g.append('rect').attr('x',lx-lW/2).attr('y',ly-lH/2).attr('width',lW).attr('height',lH)
+          .attr('rx',3).attr('fill','white').attr('opacity',0.92).attr('stroke','#e5e7eb').attr('stroke-width',0.5);
         lines.forEach((ln,i)=>{
-          linkG.append('text').attr('x',lx).attr('y',ly-lH/2+12+i*13).attr('text-anchor','middle')
-            .attr('fill',ln.color).attr('font-size','9px').attr('font-weight',ln.bold?'700':'400')
+          const tY=ly-lH/2+10+i*12;
+          g.append('text').attr('x',lx).attr('y',tY).attr('text-anchor','middle')
+            .attr('fill',ln.color).attr('font-size','8.5px').attr('font-weight',ln.bold?'700':'400')
             .attr('class','link-label').text(ln.text);
         });
       }
     });
 
-    // ═══ RENDER STEP NODES ═══
-    const nodeGs=g.selectAll('.step-node').data(nodeData,d=>d.id)
-      .enter().append('g').attr('class','step-node')
+    // ═══ RENDER NODES ═══
+    const nodeGs=g.selectAll('.node-group').data(nodes.filter(n=>n.type==='step'||n.type==='part'),d=>d.id)
+      .enter().append('g').attr('class',d=>'node-group'+(d.isSelected?' selected':''))
       .attr('transform',d=>`translate(${d.x},${d.y})`);
 
-    // Shape
+    // Draw shape
     nodeGs.append('path').attr('class','node-shape')
       .attr('d',d=>shapePath(d.shape,d.w,d.h))
-      .attr('fill',d=>{if(d.ecn)return({remove:'#fdedec',replace:'#ebf5fb',add:'#d5f5e3',modify:'#fef9e7'}[d.ecn]||d.color);return d.color;})
-      .attr('stroke',d=>{if(d.ecn)return ecnC[d.ecn]||darkenColor(d.color,30);if(d.isSelected)return '#1d4ed8';return darkenColor(d.color,30);})
+      .attr('fill',d=>{
+        if(d.ecn)return({remove:'#fdedec',replace:'#ebf5fb',add:'#d5f5e3',modify:'#fef9e7'}[d.ecn]||d.color);
+        return d.color;
+      })
+      .attr('stroke',d=>{
+        if(d.ecn)return ecnC[d.ecn]||darkenColor(d.color,30);
+        if(d.isSelected)return '#3b82f6';
+        return darkenColor(d.color,30);
+      })
       .attr('stroke-width',d=>d.isSelected?2.5:1.5);
 
-    // Status dot
-    nodeGs.append('circle')
-      .attr('cx',d=>-d.w/2+10).attr('cy',d=>-d.h/2+10).attr('r',4)
-      .attr('fill',d=>d.type==='kanryo'?'#27ae60':d.type==='prep'?'#f39c12':'#95a5a6')
+    // Status indicator dot
+    nodeGs.filter(d=>d.type==='step').append('circle')
+      .attr('cx',d=>-d.w/2+9).attr('cy',d=>-d.h/2+9).attr('r',4)
+      .attr('fill',d=>d.stepType==='kanryo'?'#27ae60':'#95a5a6')
       .attr('stroke','white').attr('stroke-width',1.5);
 
-    // ECN mark
+    // ECN indicator
     nodeGs.filter(d=>d.ecn).append('text')
-      .attr('x',d=>d.w/2-8).attr('y',5).attr('text-anchor','end')
-      .attr('font-size','13px').attr('fill',d=>ecnC[d.ecn]).attr('font-weight','900').text(d=>ecnI[d.ecn]);
+      .attr('x',d=>d.w/2-6).attr('y',4).attr('text-anchor','end')
+      .attr('font-size','12px').attr('fill',d=>ecnC[d.ecn])
+      .attr('font-weight','900').text(d=>ecnI[d.ecn]);
 
-    // Label
-    nodeGs.append('text').attr('class','node-label').attr('text-anchor','middle').attr('y',5)
-      .attr('font-size','11px').attr('font-weight','600').attr('fill','#1f2937')
-      .text(d=>{const mx=22;return d.label.length>mx?d.label.slice(0,mx)+'…':d.label;});
+    // Node labels
+    nodeGs.append('text').attr('class','node-label')
+      .attr('text-anchor','middle').attr('y',d=>d.type==='part'?4:4)
+      .attr('font-size',d=>d.type==='part'?'9px':'11px')
+      .attr('font-weight',d=>d.type==='step'?'600':'400')
+      .attr('fill',d=>d.type==='part'?'#374151':'#1f2937')
+      .text(d=>{const max=d.type==='part'?16:20;return d.label.length>max?d.label.slice(0,max)+'…':d.label;});
 
-    // Sequence badge
-    nodeGs.append('text').attr('x',d=>d.w/2+8).attr('y',d=>-d.h/2+5)
-      .attr('text-anchor','start').attr('font-size','15px').attr('font-weight','900').attr('fill','#374151')
-      .text(d=>d.stepSeq);
+    // Part quantity badge
+    nodeGs.filter(d=>d.type==='part'&&d.qty>1).append('text')
+      .attr('x',d=>d.w/2-4).attr('y',d=>-d.h/2+3)
+      .attr('text-anchor','end').attr('font-size','8px').attr('font-weight','700')
+      .attr('fill','#6b7280').text(d=>'×'+d.qty);
 
-    // Part/fast count below
-    nodeGs.filter(d=>d.partCount>0||d.fastCount>0).append('text')
-      .attr('x',0).attr('y',d=>d.h/2+13).attr('text-anchor','middle')
-      .attr('font-size','8px').attr('fill','#9ca3af')
-      .text(d=>{const t=[];if(d.partCount)t.push(d.partCount+'P');if(d.fastCount)t.push(d.fastCount+'F');return t.join(' · ');});
-
-    // ═══ RENDER PART LEAF NODES ═══
-    nodeData.forEach(nd=>{
-      const sp=parts.filter(p=>p.step_id===nd.id).sort((a,b)=>(a.sort_order||0)-(b.sort_order||0));
-      if(!sp.length)return;
-      const partW=120,partH=22,partGap=26;
-      const totalH=(sp.length-1)*partGap;
-      sp.forEach((p,pi)=>{
-        const px=nd.x-nd.w/2-partW/2-40;
-        const py=nd.y-totalH/2+pi*partGap;
-        const m=lookup(p.pn);const nm=(m.name||p.pn);const display=nm.length>16?nm.slice(0,16)+'…':nm;
-        const pColor=lightenColor(nd.color,35);
-
-        // Link line
-        const sx=px+partW/2,sy=py,tx=nd.x-nd.w/2,ty=nd.y;
-        const mid=(sx+tx)/2;
-        g.append('path').attr('d',`M${sx},${sy} C${mid},${sy} ${mid},${ty} ${tx},${ty}`)
-          .attr('stroke','#bbb').attr('stroke-width',1).attr('fill','none');
-
-        // Part node
-        const pg=g.append('g').attr('transform',`translate(${px},${py})`);
-        pg.append('path').attr('d',shapePath('hexagon',partW,partH))
-          .attr('fill',pColor).attr('stroke',darkenColor(pColor,25)).attr('stroke-width',1);
-        pg.append('text').attr('text-anchor','middle').attr('y',4)
-          .attr('font-size','8.5px').attr('fill','#374151').text(display);
-        if(p.qty>1)pg.append('text').attr('x',partW/2-6).attr('y',d=>-partH/2+2)
-          .attr('text-anchor','end').attr('font-size','7px').attr('fill','#6b7280').attr('font-weight','700').text('×'+p.qty);
-      });
+    // Sequence numbers (step index within group)
+    const stepsByGroup={};
+    nodes.filter(n=>n.type==='step').forEach(n=>{
+      if(!stepsByGroup[n.level])stepsByGroup[n.level]=[];
+      stepsByGroup[n.level].push(n.id);
     });
+    nodeGs.filter(d=>d.type==='step').append('text')
+      .attr('x',d=>d.w/2+8).attr('y',d=>-d.h/2+4)
+      .attr('text-anchor','start').attr('font-size','14px').attr('font-weight','900')
+      .attr('fill','#374151')
+      .text(d=>{const arr=stepsByGroup[d.level]||[];const idx=arr.indexOf(d.id);return idx>=0?String(idx+1):'';});
 
-    // ═══ DRAG BEHAVIOR ═══
-    const drag=d3.drag()
-      .on('start',function(event,d){d3.select(this).raise();})
-      .on('drag',function(event,d){
-        d.x=event.x;d.y=event.y;
-        d3.select(this).attr('transform',`translate(${d.x},${d.y})`);
-        posRef.current[d.id]={x:d.x,y:d.y};
-        setDirty(true);
-        // Update connected links live
-        g.selectAll('.step-link').each(function(){
-          const linkG=d3.select(this);const lid=linkG.attr('data-link-id');
-          const sl=stepLinks.find(l=>l.id===lid);if(!sl)return;
-          const src=posRef.current[sl.child_step_id]||nodeMap[sl.child_step_id];
-          const tgt=posRef.current[sl.parent_step_id]||nodeMap[sl.parent_step_id];
-          if(!src||!tgt)return;
-          const sx2=src.x+nodeW/2,sy2=src.y,tx2=tgt.x-nodeW/2,ty2=tgt.y;
-          const midX2=(sx2+tx2)/2;
-          linkG.select('.link').attr('d',`M${sx2},${sy2} C${midX2},${sy2} ${midX2},${ty2} ${tx2},${ty2}`);
-          // Update label positions
-          const labels=linkG.selectAll('.link-label,.link-label-bg,rect');
-          const lx=(sx2+tx2)/2,ly=(sy2+ty2)/2;
-          linkG.selectAll('rect').attr('x',function(){return lx-parseFloat(d3.select(this).attr('width'))/2;}).attr('y',function(){return ly-parseFloat(d3.select(this).attr('height'))/2;});
-          let idx=0;linkG.selectAll('.link-label').each(function(){d3.select(this).attr('x',lx);idx++;});
-        });
-      })
-      .on('end',function(){});
-    nodeGs.call(drag);
+    // Part/fast count badge on steps
+    nodeGs.filter(d=>d.type==='step').append('text')
+      .attr('x',0).attr('y',d=>d.h/2+12)
+      .attr('text-anchor','middle').attr('font-size','7.5px').attr('fill','#9ca3af')
+      .text(d=>{const tags=[];if(d.partCount)tags.push(d.partCount+'P');if(d.fastCount)tags.push(d.fastCount+'F');return tags.join(' · ');});
 
-    // Click handler
-    nodeGs.style('cursor','pointer')
-      .on('click',function(event,d){event.stopPropagation();clickStep(d.id);})
-      .on('contextmenu',function(event,d){
-        event.preventDefault();event.stopPropagation();
-        setCtx({x:event.clientX,y:event.clientY,type:'node',nodeId:d.id,node:d});
-      });
+    // Fastener label nodes (standalone, no shape)
+    const fastLabels=g.selectAll('.fast-label').data(nodes.filter(n=>n.type==='fastLabel'))
+      .enter().append('g').attr('transform',d=>`translate(${d.x},${d.y})`);
+    fastLabels.append('text').attr('font-size','8px').attr('fill',d=>d.color).attr('font-weight','600').text(d=>d.label);
+    fastLabels.filter(d=>d.loctite&&d.loctite!=='---').append('text')
+      .attr('y',10).attr('font-size','7.5px').attr('fill','#9b59b6').text(d=>'LT-'+d.loctite);
+    fastLabels.filter(d=>d.torque&&d.torque!=='---'&&d.torque!=='—').append('text')
+      .attr('y',d=>(d.loctite&&d.loctite!=='---')?20:10).attr('font-size','7.5px').attr('fill','#e67e22').text(d=>d.torque);
 
-    // Click on empty space to deselect
-    svg.on('click',()=>setSelected(null));
+    // Click handler for step nodes
+    nodeGs.filter(d=>d.type==='step').style('cursor','pointer')
+      .on('click',function(event,d){clickStep(d.id);});
 
     // ═══ FIT TO SCREEN ═══
     let minX=Infinity,maxX=-Infinity,minY=Infinity,maxY=-Infinity;
-    nodeData.forEach(n=>{minX=Math.min(minX,n.x-100);maxX=Math.max(maxX,n.x+100);minY=Math.min(minY,n.y-40);maxY=Math.max(maxY,n.y+40);});
+    nodes.forEach(n=>{if(n.type==='fastLabel')return;minX=Math.min(minX,n.x-(n.w||60));maxX=Math.max(maxX,n.x+(n.w||60));minY=Math.min(minY,n.y-30);maxY=Math.max(maxY,n.y+30);});
     const cw=maxX-minX+100,ch=maxY-minY+100;
-    const scale=Math.min(W/cw,H/ch,1.5)*0.85;
+    const scale=Math.min(W/cw,H/ch,1.5)*0.88;
     const cx=(minX+maxX)/2,cy=(minY+maxY)/2;
-    svg.call(zoom.transform,d3.zoomIdentity.translate(W/2-cx*scale,H/2-cy*scale).scale(scale));
+    const tx=W/2-cx*scale,ty=H/2-cy*scale;
+    svg.call(zoom.transform,d3.zoomIdentity.translate(tx,ty).scale(scale));
 
-  },[groups,steps,parts,fasts,stepLinks,selected,ecnChanges,lookup,clickStep]);
+  },[groups,steps,parts,fasts,selected,ecnChanges,lookup,clickStep]);
 
-  const doZoom=(factor)=>{if(zoomRef.current)zoomRef.current.svg.transition().duration(200).call(zoomRef.current.zoom.scaleBy,factor);};
-  const fitScreen=()=>{if(!zoomRef.current)return;
+  const zoomIn=()=>{if(zoomRef.current)zoomRef.current.svg.transition().duration(200).call(zoomRef.current.zoom.scaleBy,1.4);};
+  const zoomOut=()=>{if(zoomRef.current)zoomRef.current.svg.transition().duration(200).call(zoomRef.current.zoom.scaleBy,0.7);};
+  const fitScreen=()=>{if(zoomRef.current){
     const{svg:s,zoom:z}=zoomRef.current;const c=containerRef.current;
     const W=c.clientWidth,H=c.clientHeight;
     let minX=Infinity,maxX=-Infinity,minY=Infinity,maxY=-Infinity;
-    Object.values(posRef.current).forEach(p=>{minX=Math.min(minX,p.x-100);maxX=Math.max(maxX,p.x+100);minY=Math.min(minY,p.y-40);maxY=Math.max(maxY,p.y+40);});
+    d3.select(svgRef.current).selectAll('.node-group').each(function(d){
+      minX=Math.min(minX,d.x-(d.w||60));maxX=Math.max(maxX,d.x+(d.w||60));
+      minY=Math.min(minY,d.y-30);maxY=Math.max(maxY,d.y+30);});
     if(minX===Infinity)return;
-    const cw=maxX-minX+100,ch=maxY-minY+100;const scale=Math.min(W/cw,H/ch,1.5)*0.85;
+    const cw=maxX-minX+100,ch=maxY-minY+100;
+    const scale=Math.min(W/cw,H/ch,1.5)*0.88;
     const cx=(minX+maxX)/2,cy=(minY+maxY)/2;
     s.transition().duration(400).call(z.transform,d3.zoomIdentity.translate(W/2-cx*scale,H/2-cy*scale).scale(scale));
-  };
-  const handleSave=async()=>{await saveStepPositions(posRef.current);setDirty(false);};
+  }};
 
   return(<div ref={containerRef} className="graph-container">
     <svg ref={svgRef}/>
-    <div className="graph-toolbar">
-      <button onClick={handleSave} style={dirty?{background:'#ef4444',color:'#fff',borderColor:'#ef4444'}:{}}>
-        💾 {dirty?'Save*':'Save'}
-      </button>
-      <button onClick={fitScreen}>⊡ Fit</button>
-    </div>
-    <div className="graph-zoom">
-      <button onClick={()=>doZoom(1.4)}>+</button>
-      <button onClick={()=>doZoom(0.7)}>−</button>
-      <button onClick={fitScreen}>⊡</button>
+    <div className="zoom-controls">
+      <button onClick={zoomIn} title="Zoom In">+</button>
+      <button onClick={zoomOut} title="Zoom Out">−</button>
+      <button onClick={fitScreen} title="Fit to Screen">⊡</button>
     </div>
     {groups.length>0&&<div className="graph-legend">
-      {groups.slice().sort((a,b)=>(a.sort_order||0)-(b.sort_order||0)).map((gr,i)=>
-        <div key={gr.id} className="lgi"><div className="lgs" style={{background:gr.color||LEVEL_COLORS[i%LEVEL_COLORS.length]}}/><span>L{i+1}</span></div>
+      {groups.slice().sort((a,b)=>(a.sort_order||0)-(b.sort_order||0)).map((g,i)=>
+        <div key={g.id} className="legend-item">
+          <div className="legend-swatch" style={{background:g.color||LEVEL_COLORS[i%LEVEL_COLORS.length]}}/>
+          <span>L{i+1}</span>
+        </div>
       )}
-      <div className="lgi" style={{color:'#374151',fontWeight:700}}>│ {steps.length} steps · {stepLinks.length} links</div>
     </div>}
-    {linkModal&&<StepLinkModal sourceId={linkModal} onClose={()=>setLinkModal(null)}/>}
-    {ctx&&ctx.type==='node'&&<CtxMenu x={ctx.x} y={ctx.y} onClose={()=>setCtx(null)} items={[
-      {icon:'🔗',label:'Connect to parent…',action:()=>setLinkModal(ctx.nodeId)},
-      {icon:'📌',label:`Select "${ctx.node.label}"`,action:()=>clickStep(ctx.nodeId)},
-      {sep:true},
-      {icon:'🗑',label:'Delete all links',danger:true,action:()=>{
-        const toDelete=stepLinks.filter(l=>l.child_step_id===ctx.nodeId||l.parent_step_id===ctx.nodeId);
-        if(confirm(`Delete ${toDelete.length} link(s)?`))toDelete.forEach(l=>deleteStepLink(l.id));
-      }}
-    ]}/>}
-    {ctx&&ctx.type==='link'&&<CtxMenu x={ctx.x} y={ctx.y} onClose={()=>setCtx(null)} items={[
-      {icon:'✏️',label:'Edit link',action:()=>{/* TODO: edit link modal */}},
-      {icon:'🗑',label:'Delete link',danger:true,action:()=>{if(confirm('Delete this link?'))deleteStepLink(ctx.linkId);}}
-    ]}/>}
   </div>);
 }
 
@@ -808,11 +810,12 @@ function KanbanView({selected,setSelected,ecnOn,brush,ecnChanges,setEcnChanges})
       </div>
       <div className="kan-cards">{gSteps.map(s=>{
         const e=ecnChanges[s.id];const sel=selected===s.id;
-        const sp=parts.filter(p=>p.step_id===s.id);const sf=fasts.filter(f=>f.step_id===s.id);
-        return(<div key={s.id} className={'kan-card'+(sel?' selected':'')} onClick={()=>click(s.id)}
-          style={e?{borderColor:ecnC[e],background:ecnBg[e]}:{}}>
-          <div style={{fontSize:11,fontWeight:600,color:s.type==='kanryo'?'var(--yellow)':'var(--text)',marginBottom:4}}>{s.label}</div>
-          <div style={{display:'flex',gap:4}}>{sp.length>0&&<span className="tag tag-p">{sp.length}P</span>}{sf.length>0&&<span className="tag tag-f">{sf.length}F</span>}{e&&<span style={{fontSize:10,fontWeight:800,color:ecnC[e],position:'absolute',top:6,right:8}}>{ecnI[e]}</span>}</div>
+        const pc=parts.filter(p=>p.step_id===s.id).length;const fc=fasts.filter(f=>f.step_id===s.id).length;
+        const lts=[...new Set(fasts.filter(f=>f.step_id===s.id&&f.loctite&&f.loctite!=='---').map(f=>f.loctite))];
+        return(<div key={s.id} className={'kan-card'+(sel?' selected':'')} onClick={()=>click(s.id)} style={{background:e?ecnBg[e]:undefined,borderColor:e?ecnC[e]:sel?'var(--blue)':undefined}}>
+          {e&&<div style={{position:'absolute',top:4,right:6,fontSize:12,fontWeight:900,color:ecnC[e]}}>{ecnI[e]}</div>}
+          <div style={{fontSize:11,color:s.type==='kanryo'?'var(--yellow)':'var(--text)',fontWeight:s.type==='kanryo'?800:400,paddingRight:e?16:0,marginBottom:4}}>{s.label}</div>
+          <div style={{display:'flex',gap:4,flexWrap:'wrap'}}>{pc>0&&<span className="tag tag-p">{pc}P</span>}{fc>0&&<span className="tag tag-f">{fc}F</span>}{lts.map((l,i)=><span key={i} style={{fontSize:8,color:'var(--yellow)'}}>LT-{l}</span>)}</div>
         </div>);
       })}</div>
     </div>);
@@ -821,7 +824,7 @@ function KanbanView({selected,setSelected,ecnOn,brush,ecnChanges,setEcnChanges})
 
 // ═══ MAIN APP ═══
 function AppInner(){
-  const {assy,loading,error,toast,steps,masterMap,stepLinks}=useData();
+  const {assy,loading,error,toast,steps,masterMap}=useData();
   const [view,setView]=useState('list');const [selected,setSelected]=useState(null);
   const [ecnOn,setEcnOn]=useState(false);const [brush,setBrush]=useState('remove');
   const [ecnChanges,setEcnChanges]=useState({});const [search,setSearch]=useState('');
@@ -846,7 +849,7 @@ function AppInner(){
           <div className="status" style={{background:'var(--green)'}}/>
           <h1><span>Eagle Eye</span></h1>
           <span className="tag-badge">{assy?.tag}</span>
-          <span className="count">{steps.length} steps · {stepLinks.length} links · {Object.keys(masterMap).length} master</span>
+          <span className="count">{steps.length} steps · {Object.keys(masterMap).length} master parts</span>
         </div>
         <div className="tabs">{[{v:'list',l:'📋 List'},{v:'graph',l:'🔗 Graph'},{v:'kanban',l:'📊 Kanban'}].map(t=><button key={t.v} className={'tab'+(view===t.v?' active':'')} onClick={()=>setView(t.v)}>{t.l}</button>)}</div>
         <div className="search-box"><input value={search} onChange={e=>setSearch(e.target.value)} placeholder="Search P/N, part name, step..."/></div>

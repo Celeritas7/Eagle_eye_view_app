@@ -716,7 +716,7 @@ function GraphView({selected,setSelected,ecnOn,brush,ecnChanges,setEcnChanges}){
 
     // Part quantity badge
     nodeGs.filter(d=>d.type==='part'&&d.qty>1).append('text')
-      .attr('x',d=>d.w/2-4).attr('y',-d.h/2+3)
+      .attr('x',d=>d.w/2-4).attr('y',d=>-d.h/2+3)
       .attr('text-anchor','end').attr('font-size','8px').attr('font-weight','700')
       .attr('fill','#6b7280').text(d=>'×'+d.qty);
 

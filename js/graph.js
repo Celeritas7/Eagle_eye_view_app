@@ -11,7 +11,7 @@ import {
   ECN_COLORS, ECN_ICONS, STATUS_COLORS, SEQ_BADGES
 } from './config.js';
 import { savePositions } from './database.js';
-import { showToast, updateSidePanel } from './ui.js';
+import { showToast } from './ui.js';
 
 let zoomBehavior = null;
 let currentTransform = d3.zoomIdentity;
@@ -608,7 +608,7 @@ export function renderGraph() {
       } else {
         state.setSelectedStep(state.selectedStepId === d.id ? null : d.id);
         renderGraph();
-        updateSidePanel();
+        window._eagleEyeUpdateDetail?.();
       }
     })
     .on('contextmenu', function (event, d) {
@@ -616,7 +616,7 @@ export function renderGraph() {
       event.stopPropagation();
       showContextMenu(event.clientX, event.clientY, [
         { label: '🔗 Connect to step…', action: () => showLinkModal(d.id) },
-        { label: '📌 Select', action: () => { state.setSelectedStep(d.id); renderGraph(); updateSidePanel(); } },
+        { label: '📌 Select', action: () => { state.setSelectedStep(d.id); renderGraph(); window._eagleEyeUpdateDetail?.(); } },
         { sep: true },
         { label: '🗑 Delete all links', danger: true, action: () => deleteAllLinksForNode(d.id) }
       ]);
@@ -626,7 +626,7 @@ export function renderGraph() {
   svg.on('click', () => {
     state.setSelectedStep(null);
     renderGraph();
-    updateSidePanel();
+    window._eagleEyeUpdateDetail?.();
   });
 
   // ─── FIT TO SCREEN ───

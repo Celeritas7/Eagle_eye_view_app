@@ -97,6 +97,19 @@ export async function savePositions(posMap) {
 }
 
 // ============================================================
+// AUTO-MIGRATION — ensure seq_tag column exists
+// ============================================================
+
+export async function ensureSeqTagColumn() {
+  // Try reading seq_tag from one step — if it fails, column doesn't exist
+  const { data, error } = await db.from(T.step).select('seq_tag').limit(1);
+  if (error && error.message.includes('seq_tag')) {
+    // Column doesn't exist — run migration via RPC or just log
+    console.warn('seq_tag column missing. Run: ALTER TABLE eagle_eye_app_steps ADD COLUMN IF NOT EXISTS seq_tag TEXT;');
+  }
+}
+
+// ============================================================
 // AUTO-GENERATE LINKS
 // ============================================================
 

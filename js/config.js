@@ -1,5 +1,5 @@
 // ============================================================
-// Eagle Eye Tree - Configuration
+// Eagle Eye Tree - Configuration (v3.1)
 // ============================================================
 
 export const SUPABASE_URL = 'https://wylxvmkcrexwfpjpbhyy.supabase.co';
@@ -88,8 +88,7 @@ export const PART_NODE_HEIGHT = 24;
 export const VERTICAL_GAP = 65;
 export const GROUP_GAP = 50;
 
-// Sequence badges
-export const SEQ_BADGES = ['⓪','①','②','③','④','⑤','⑥','⑦','⑧','⑨','⑩','⑪','⑫','⑬','⑭','⑮','⑯','⑰','⑱','⑲','⑳'];
+// Seq tags are free-text from DB (e.g. "1a", "2b") — no hardcoded badges
 
 // Helpers
 export function getLevelColor(idx) { return LEVEL_COLORS[Math.min(idx, LEVEL_COLORS.length - 1)]; }

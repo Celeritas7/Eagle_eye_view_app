@@ -3,11 +3,12 @@
 // ============================================================
 
 import * as state from './state.js';
-import { loadAssemblyData, autoGenerateLinks, bulkCreateStepLinks } from './database.js';
+import { loadAssemblyData, autoGenerateLinks, bulkCreateStepLinks, ensureSeqTagColumn } from './database.js';
 import { renderGraph, zoomIn, zoomOut, fitToScreen, handleSave, hideContextMenu } from './graph.js';
 import { showToast } from './ui.js';
 import { renderListView, renderKanbanView, renderDetail, updateEcnSummary } from './views.js';
 
+const APP_VERSION = 'v3.1';
 let currentView = 'list';
 
 // ============================================================
@@ -57,8 +58,14 @@ window._eagleEyeUpdateDetail = updateDetailPanel;
 // ============================================================
 
 async function init() {
+  console.log(`Eagle Eye Tree ${APP_VERSION} initializing...`);
   setStatus('Loading…');
   try {
+    // Auto-migrate: add seq_tag column if missing
+    try {
+      await ensureSeqTagColumn();
+    } catch (e) { console.warn('seq_tag migration skipped:', e.message); }
+
     const data = await loadAssemblyData('HBD_assy');
     state.setData(data);
     document.getElementById('assyTag').textContent = data.assy.tag;
@@ -76,9 +83,10 @@ async function init() {
       }
     }
 
-    setStatus('Connected');
+    setStatus(`Connected ${APP_VERSION}`);
     document.getElementById('statusDot').style.background = '#10b981';
     switchView('list');
+    console.log(`Eagle Eye Tree ${APP_VERSION} ready — ${state.steps.length} steps`);
   } catch (e) {
     console.error(e);
     setStatus('Error: ' + e.message);

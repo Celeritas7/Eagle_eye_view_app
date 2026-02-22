@@ -1,5 +1,5 @@
 // ============================================================
-// Eagle Eye Tree - Main Application
+// Eagle Eye Tree - Main Application (v3.2)
 // ============================================================
 
 import * as state from './state.js';
@@ -8,7 +8,7 @@ import { renderGraph, zoomIn, zoomOut, fitToScreen, handleSave, hideContextMenu 
 import { showToast } from './ui.js';
 import { renderListView, renderKanbanView, renderDetail, updateEcnSummary } from './views.js';
 
-const APP_VERSION = 'v3.1';
+const APP_VERSION = 'v3.2';
 let currentView = 'list';
 
 // ============================================================
@@ -61,10 +61,8 @@ async function init() {
   console.log(`Eagle Eye Tree ${APP_VERSION} initializing...`);
   setStatus('Loading…');
   try {
-    // Auto-migrate: add seq_tag column if missing
-    try {
-      await ensureSeqTagColumn();
-    } catch (e) { console.warn('seq_tag migration skipped:', e.message); }
+    // Auto-check seq_tag column
+    try { await ensureSeqTagColumn(); } catch (e) { console.warn('seq_tag check:', e.message); }
 
     const data = await loadAssemblyData('HBD_assy');
     state.setData(data);
@@ -107,20 +105,24 @@ function updateStats() {
 // ============================================================
 
 function setupEventListeners() {
+  // Tabs
   document.querySelectorAll('.tab').forEach(t => {
     t.addEventListener('click', () => switchView(t.dataset.view));
   });
 
+  // Search
   document.getElementById('searchInput')?.addEventListener('input', () => {
     if (currentView === 'list') renderListView();
   });
 
+  // Graph toolbar
   document.getElementById('zoomInBtn')?.addEventListener('click', zoomIn);
   document.getElementById('zoomOutBtn')?.addEventListener('click', zoomOut);
   document.getElementById('fitBtn')?.addEventListener('click', () => fitToScreen(false));
   document.getElementById('fitBtn2')?.addEventListener('click', () => fitToScreen(false));
   document.getElementById('saveBtn')?.addEventListener('click', handleSave);
 
+  // Toggles
   document.getElementById('seqToggle')?.addEventListener('click', () => {
     state.setShowSequenceNumbers(!state.showSequenceNumbers);
     document.getElementById('seqToggle').classList.toggle('active', state.showSequenceNumbers);
@@ -173,6 +175,7 @@ function setupEventListeners() {
     else if (currentView === 'kanban') renderKanbanView();
   });
 
+  // Global
   document.addEventListener('keydown', e => { if (e.key === 'Escape') hideContextMenu(); });
   window.addEventListener('resize', () => { if (currentView === 'graph' && state.steps.length > 0) renderGraph(); });
 }

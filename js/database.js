@@ -1,5 +1,5 @@
 // ============================================================
-// Eagle Eye Tree - Database Module
+// Eagle Eye Tree - Database Module (v3.2)
 // ============================================================
 
 import { SUPABASE_URL, SUPABASE_ANON_KEY, TABLES as T } from './config.js';
@@ -38,11 +38,10 @@ export async function loadAssemblyData(tag = 'HBD_assy') {
 }
 
 // ============================================================
-// REORDER — Swap sort_order of two adjacent items
+// REORDER — swap sort_order of two adjacent items
 // ============================================================
 
 export async function reorderStep(stepId, direction, groupId) {
-  // Get all steps in this group sorted
   const { data: steps } = await db.from(T.step).select('id,sort_order')
     .eq('group_id', groupId).order('sort_order');
   if (!steps) return false;
@@ -75,12 +74,24 @@ export async function reorderPart(partId, direction, stepId) {
 }
 
 // ============================================================
-// SEQ TAG — Update sequence tag on a step
+// SEQ TAG
 // ============================================================
 
 export async function updateSeqTag(stepId, tag) {
   const { error } = await db.from(T.step).update({ seq_tag: tag || null }).eq('id', stepId);
   return !error;
+}
+
+// ============================================================
+// AUTO-MIGRATION — ensure seq_tag column exists
+// ============================================================
+
+export async function ensureSeqTagColumn() {
+  const { error } = await db.from(T.step).select('seq_tag').limit(1);
+  if (error && error.message.includes('seq_tag')) {
+    console.warn('⚠️ seq_tag column missing! Run in Supabase SQL Editor:');
+    console.warn('ALTER TABLE eagle_eye_app_steps ADD COLUMN IF NOT EXISTS seq_tag TEXT;');
+  }
 }
 
 // ============================================================
@@ -94,19 +105,6 @@ export async function savePositions(posMap) {
     if (!error) count++;
   }
   return count;
-}
-
-// ============================================================
-// AUTO-MIGRATION — ensure seq_tag column exists
-// ============================================================
-
-export async function ensureSeqTagColumn() {
-  // Try reading seq_tag from one step — if it fails, column doesn't exist
-  const { data, error } = await db.from(T.step).select('seq_tag').limit(1);
-  if (error && error.message.includes('seq_tag')) {
-    // Column doesn't exist — run migration via RPC or just log
-    console.warn('seq_tag column missing. Run: ALTER TABLE eagle_eye_app_steps ADD COLUMN IF NOT EXISTS seq_tag TEXT;');
-  }
 }
 
 // ============================================================

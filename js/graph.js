@@ -1,14 +1,14 @@
 // ============================================================
-// Eagle Eye Tree - Graph Module (Swimlane Layout)
-// Single step column | Groups column | Root node
-// Fix: increased vertical spacing between steps
+// Eagle Eye Tree - Graph Module (v3.2)
+// Swimlane layout: Steps col → Groups col → Root
+// Increased vertical spacing, seq tags, fastener labels
 // ============================================================
 
 import * as state from './state.js';
 import {
   NODE_WIDTH, NODE_HEIGHT, VERTICAL_GAP,
   getLevelColor, getLevelShape, getLevelFontSize, getLevelFontWeight,
-  getLevelGap, getFastenerColor, darkenColor, lightenColor,
+  getFastenerColor, darkenColor, lightenColor,
   ECN_COLORS, ECN_ICONS, STATUS_COLORS, PART_NODE_WIDTH, PART_NODE_HEIGHT
 } from './config.js';
 import { savePositions, updateSeqTag } from './database.js';
@@ -31,8 +31,6 @@ function shapePath(type, w, h) {
 
 // ============================================================
 // SWIMLANE LAYOUT
-// Steps col (left) → Groups col (middle) → Root (right)
-// Each group = own horizontal swimlane band
 // ============================================================
 
 function calculateTreeLayout() {
@@ -41,13 +39,12 @@ function calculateTreeLayout() {
 
   const sortedGroups = groups.slice().sort((a, b) => (a.sort_order || 0) - (b.sort_order || 0));
 
-  // Layout
   const topPad = 80;
   const headerH = 40;
-  const swimPadY = 30;       // top/bottom padding inside swimlane
-  const swimGap = 14;        // gap between swimlane bands
-  const stepGapY = 80;       // <<< INCREASED vertical gap between steps (was 65)
-  const partZone = 170;      // space for part hexagons to the left
+  const swimPadY = 30;
+  const swimGap = 14;
+  const stepGapY = VERTICAL_GAP;  // 80px from config (was 65)
+  const partZone = 170;
 
   const stepColX = partZone + 50;
   const groupColX = stepColX + 300;
@@ -63,15 +60,12 @@ function calculateTreeLayout() {
       .sort((a, b) => (a.sort_order || 0) - (b.sort_order || 0));
 
     const numSteps = gSteps.length;
-
-    // Swimlane height based on steps + part fans
     const maxParts = gSteps.reduce((mx, s) => Math.max(mx, state.parts.filter(p => p.step_id === s.id).length), 0);
     const effectiveRows = Math.max(numSteps, Math.ceil(maxParts * 0.7));
     const contentH = Math.max(effectiveRows * stepGapY, stepGapY * 1.5);
     const swimH = contentH + swimPadY * 2;
     const swimStartY = curY;
 
-    // Step nodes
     gSteps.forEach((step, si) => {
       const x = stepColX;
       const y = (step.y != null) ? step.y : (swimStartY + swimPadY + si * stepGapY);
@@ -93,7 +87,6 @@ function calculateTreeLayout() {
       });
     });
 
-    // Group node — centered in swimlane
     const stepYs = gSteps.map((s, si) => {
       const sn = allNodes.find(n => n.id === 's_' + s.id);
       return sn ? sn.y : swimStartY + swimPadY + si * stepGapY;
@@ -113,7 +106,6 @@ function calculateTreeLayout() {
       icon: grp.icon || '', stepCount: numSteps, swimIdx: gi
     });
 
-    // Step → Group links
     gSteps.forEach(step => {
       const sf = fasts.filter(f => f.step_id === step.id);
       const first = sf[0] || {};
@@ -126,7 +118,6 @@ function calculateTreeLayout() {
       });
     });
 
-    // Group → Root
     allLinks.push({
       sourceId: 'g_' + grp.id, targetId: 'root',
       type: 'group-to-root',
@@ -142,7 +133,6 @@ function calculateTreeLayout() {
     curY = swimStartY + swimH + swimGap;
   });
 
-  // Root node
   const groupYs = allNodes.filter(n => n.isGroup).map(n => n.y);
   const rootY = groupYs.length ? (Math.min(...groupYs) + Math.max(...groupYs)) / 2 : topPad + headerH;
 
@@ -201,7 +191,6 @@ export function renderGraph() {
   });
   svg.call(zoomBehavior);
 
-  // Positions for save
   window._eagleEyePositions = {};
   window._eagleEyeBounds = { maxX: rootColX + 250, minY: Infinity, maxY: -Infinity };
   nodes.filter(n => n.isStep).forEach(n => {
@@ -215,8 +204,7 @@ export function renderGraph() {
   swimlanes.forEach((sl, si) => {
     const bgColor = si % 2 === 0 ? '#f8f9fa' : '#f1f3f5';
     swimBg.append('rect').attr('x', 0).attr('y', sl.startY)
-      .attr('width', rootColX + 250).attr('height', sl.height)
-      .attr('fill', bgColor);
+      .attr('width', rootColX + 250).attr('height', sl.height).attr('fill', bgColor);
     swimBg.append('rect').attr('x', 0).attr('y', sl.startY)
       .attr('width', 5).attr('height', sl.height).attr('fill', sl.color);
     swimBg.append('text').attr('x', 14).attr('y', sl.startY + 16)
@@ -226,23 +214,17 @@ export function renderGraph() {
 
   // ── COLUMN HEADERS ──
   if (state.showLevelHeaders) {
-    const hg1 = g.append('g');
-    hg1.append('rect').attr('x', stepColX - 55).attr('y', settings.topPad - 6).attr('width', 110).attr('height', 28)
-      .attr('rx', 5).attr('fill', '#475569').attr('opacity', 0.85);
-    hg1.append('text').attr('x', stepColX).attr('y', settings.topPad + 14).attr('text-anchor', 'middle')
-      .attr('fill', 'white').attr('font-size', '10px').attr('font-weight', '700').text('Steps');
+    const h1 = g.append('g');
+    h1.append('rect').attr('x', stepColX - 55).attr('y', settings.topPad - 6).attr('width', 110).attr('height', 28).attr('rx', 5).attr('fill', '#475569').attr('opacity', 0.85);
+    h1.append('text').attr('x', stepColX).attr('y', settings.topPad + 14).attr('text-anchor', 'middle').attr('fill', 'white').attr('font-size', '10px').attr('font-weight', '700').text('Steps');
 
-    const hg2 = g.append('g');
-    hg2.append('rect').attr('x', groupColX - 45).attr('y', settings.topPad - 6).attr('width', 90).attr('height', 28)
-      .attr('rx', 5).attr('fill', '#475569').attr('opacity', 0.85);
-    hg2.append('text').attr('x', groupColX).attr('y', settings.topPad + 14).attr('text-anchor', 'middle')
-      .attr('fill', 'white').attr('font-size', '10px').attr('font-weight', '700').text('Groups');
+    const h2 = g.append('g');
+    h2.append('rect').attr('x', groupColX - 45).attr('y', settings.topPad - 6).attr('width', 90).attr('height', 28).attr('rx', 5).attr('fill', '#475569').attr('opacity', 0.85);
+    h2.append('text').attr('x', groupColX).attr('y', settings.topPad + 14).attr('text-anchor', 'middle').attr('fill', 'white').attr('font-size', '10px').attr('font-weight', '700').text('Groups');
 
-    const hg3 = g.append('g');
-    hg3.append('rect').attr('x', rootColX - 50).attr('y', settings.topPad - 6).attr('width', 100).attr('height', 28)
-      .attr('rx', 5).attr('fill', '#f59e0b').attr('opacity', 0.85);
-    hg3.append('text').attr('x', rootColX).attr('y', settings.topPad + 14).attr('text-anchor', 'middle')
-      .attr('fill', 'white').attr('font-size', '10px').attr('font-weight', '700').text('Assembly');
+    const h3 = g.append('g');
+    h3.append('rect').attr('x', rootColX - 50).attr('y', settings.topPad - 6).attr('width', 100).attr('height', 28).attr('rx', 5).attr('fill', '#f59e0b').attr('opacity', 0.85);
+    h3.append('text').attr('x', rootColX).attr('y', settings.topPad + 14).attr('text-anchor', 'middle').attr('fill', 'white').attr('font-size', '10px').attr('font-weight', '700').text('Assembly');
   }
 
   // ── LINKS ──
@@ -295,8 +277,7 @@ export function renderGraph() {
   if (state.showPartNodes) {
     const partLayer = g.append('g');
     nodes.filter(n => n.isStep).forEach(nd => {
-      const sp = state.parts.filter(p => p.step_id === nd.dbId)
-        .sort((a, b) => (a.sort_order || 0) - (b.sort_order || 0));
+      const sp = state.parts.filter(p => p.step_id === nd.dbId).sort((a, b) => (a.sort_order || 0) - (b.sort_order || 0));
       if (!sp.length) return;
       const partColor = lightenColor(nd.color, 35);
       const totalH = (sp.length - 1) * 24;
@@ -362,7 +343,7 @@ export function renderGraph() {
       return t.join(' · ');
     });
 
-  // Seq tag or number
+  // Seq tag or number — purple bold for tags
   if (state.showSequenceNumbers) {
     stepGs.append('text')
       .attr('x', d => d.w / 2 + 6).attr('y', d => -d.h / 2 + 4)
@@ -411,7 +392,7 @@ export function renderGraph() {
     });
   stepGs.call(drag);
 
-  // ── CLICK / CONTEXT ──
+  // ── CLICK ──
   stepGs.style('cursor', 'pointer')
     .on('click', function (event, d) {
       event.stopPropagation();

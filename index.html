@@ -4,105 +4,101 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Eagle Eye — Assembly Tree</title>
+  <link rel="stylesheet" href="css/styles.css">
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
   <script src="https://d3js.org/d3.v7.min.js"></script>
-  <link rel="stylesheet" href="css/styles.css">
 </head>
 <body>
+  <div class="app-layout">
+    <!-- SIDEBAR -->
+    <div class="sidebar" id="sidebar">
+      <div class="sidebar-header">
+        <div style="display:flex;align-items:center;gap:8px;">
+          <div class="status-dot" id="statusDot"></div>
+          <span style="font-size:16px;font-weight:800;color:#e2e8f0;">Eagle Eye</span>
+          <span class="tag-badge" id="assyTag">…</span>
+        </div>
+        <div class="stats" id="statsText">Loading…</div>
+      </div>
 
-<div class="app-layout">
+      <!-- TABS -->
+      <div class="tab-bar">
+        <button class="tab active" data-view="list">📋 List</button>
+        <button class="tab" data-view="graph">🔗 Graph</button>
+        <button class="tab" data-view="kanban">📊 Kanban</button>
+      </div>
 
-  <!-- ═══ SIDEBAR ═══ -->
-  <div class="sidebar" id="sidebar">
+      <!-- SEARCH -->
+      <div style="padding:0 12px 8px;">
+        <input class="search-box" type="text" id="searchInput" placeholder="Search P/N, part name, step...">
+      </div>
 
-    <!-- Header -->
-    <div class="sidebar-header">
-      <div class="status-dot" id="statusDot"></div>
-      <h1><span>Eagle Eye</span></h1>
-      <span class="tag-badge" id="assyTag">…</span>
-      <span class="stats" id="statsText">Loading…</span>
-    </div>
+      <!-- ECN -->
+      <div style="padding:0 12px 8px;">
+        <button class="ecn-toggle" id="ecnToggle">ECN</button>
+        <div class="ecn-brushes" id="ecnBrushes" style="display:none;">
+          <button class="ecn-brush-btn active" data-brush="remove" style="--c:#ef4444;">Remove</button>
+          <button class="ecn-brush-btn" data-brush="replace" style="--c:#f59e0b;">Replace</button>
+          <button class="ecn-brush-btn" data-brush="add" style="--c:#10b981;">Add</button>
+          <button class="ecn-brush-btn" data-brush="modify" style="--c:#3b82f6;">Modify</button>
+          <button class="ecn-brush-btn" id="ecnClear" style="--c:#64748b;">Clear</button>
+        </div>
+        <div class="ecn-summary" id="ecnSummary" style="display:none;"></div>
+      </div>
 
-    <!-- Tabs -->
-    <div class="tab-bar">
-      <button class="tab active" data-view="list" id="tabList">📋 List</button>
-      <button class="tab" data-view="graph" id="tabGraph">🔗 Graph</button>
-      <button class="tab" data-view="kanban" id="tabKanban">📊 Kanban</button>
-    </div>
+      <!-- LIST VIEW (in sidebar) -->
+      <div class="sidebar-scroll" id="listView"></div>
 
-    <!-- Search -->
-    <div class="search-box">
-      <input id="searchInput" placeholder="Search P/N, part name, step…"/>
-    </div>
-
-    <!-- ECN controls -->
-    <div class="ecn-controls">
-      <button class="ecn-toggle-btn" id="ecnToggle">ECN</button>
-      <div class="ecn-brushes" id="ecnBrushes" style="display:none;">
-        <button class="ecn-brush-btn active" data-brush="remove">Remove</button>
-        <button class="ecn-brush-btn" data-brush="replace">Replace</button>
-        <button class="ecn-brush-btn" data-brush="add">Add</button>
-        <button class="ecn-brush-btn" data-brush="modify">Modify</button>
-        <button class="ecn-brush-btn" id="ecnClear" style="margin-left:auto;">Clear</button>
+      <!-- DETAIL PANEL for Graph/Kanban (in sidebar) -->
+      <div class="sidebar-scroll" id="sidebarDetail" style="display:none;">
+        <div class="empty-detail" id="sidebarEmptyDetail">
+          <div style="font-size:40px;">🔧</div>
+          <div>Select a step to view details</div>
+          <div style="font-size:10px;margin-top:4px;">Right-click steps for more actions</div>
+        </div>
+        <div id="sidebarDetailContent"></div>
       </div>
     </div>
-    <div class="ecn-summary" id="ecnSummary" style="display:none;"></div>
 
-    <!-- List View (shows in sidebar when List tab active) -->
-    <div class="sidebar-scroll" id="listView"></div>
-
-    <!-- Detail Panel (shows in sidebar when Graph/Kanban tabs active) -->
-    <div class="sidebar-scroll detail-in-sidebar" id="sidebarDetail" style="display:none;">
-      <div class="empty-detail" id="sidebarEmptyDetail">
-        <div style="font-size:48px;opacity:0.15;">🔧</div>
-        <div style="font-size:13px;color:#334155;text-align:center;line-height:1.8;">Select a step to view details<br/>Right-click steps for more actions</div>
+    <!-- MAIN AREA -->
+    <div class="main-area">
+      <!-- GRAPH TOOLBAR -->
+      <div class="graph-toolbar" id="graphToolbar" style="display:none;">
+        <button class="tool-btn" id="saveBtn">💾 Save</button>
+        <button class="tool-btn" id="fitBtn">⊡ Fit</button>
+        <button class="tool-btn active" id="seqToggle">1️⃣ Seq</button>
+        <button class="tool-btn active" id="partsToggle">🔩 Parts</button>
+        <button class="tool-btn active" id="headersToggle">🏷 Headers</button>
+        <button class="tool-btn active" id="fastToggle">🔗 Fasteners</button>
+        <span class="toolbar-status" id="statusText">Connecting…</span>
       </div>
-      <div id="sidebarDetailContent"></div>
+
+      <!-- DETAIL PANEL for List view (right side) -->
+      <div class="main-detail" id="mainDetail" style="display:none;">
+        <div class="empty-detail" id="mainEmptyDetail">
+          <div style="font-size:40px;">🔧</div>
+          <div>Select a step to view details</div>
+          <div style="font-size:10px;margin-top:4px;">Right-click steps for more actions</div>
+        </div>
+        <div id="mainDetailContent"></div>
+      </div>
+
+      <!-- GRAPH -->
+      <div class="tree-container" id="treeContainer" style="display:none;">
+        <svg id="treeSvg"></svg>
+        <div class="zoom-controls">
+          <button class="zoom-btn" id="zoomInBtn">+</button>
+          <button class="zoom-btn" id="zoomOutBtn">−</button>
+          <button class="zoom-btn" id="fitBtn2">⊡</button>
+        </div>
+        <div class="legend" id="legend"></div>
+      </div>
+
+      <!-- KANBAN -->
+      <div class="kanban-container" id="kanbanView" style="display:none;"></div>
     </div>
   </div>
 
-  <!-- ═══ MAIN AREA ═══ -->
-  <div class="main-area" id="mainArea">
-
-    <!-- Graph toolbar (only in graph view) -->
-    <div class="graph-toolbar" id="graphToolbar" style="display:none;">
-      <button class="tool-btn" id="saveBtn">💾 Save</button>
-      <button class="tool-btn" id="fitBtn">⊡ Fit</button>
-      <div class="tsep"></div>
-      <button class="tool-btn active" id="seqToggle">1️⃣ Seq</button>
-      <button class="tool-btn active" id="partsToggle">🔩 Parts</button>
-      <button class="tool-btn active" id="headersToggle">🏷 Headers</button>
-      <button class="tool-btn active" id="fastToggle">🔩 Fasteners</button>
-      <span class="toolbar-status" id="statusText">Connecting…</span>
-    </div>
-
-    <!-- Detail Panel (right side, only in list view) -->
-    <div class="main-detail" id="mainDetail">
-      <div class="empty-detail" id="mainEmptyDetail">
-        <div style="font-size:48px;opacity:0.15;">🔧</div>
-        <div style="font-size:13px;color:#334155;text-align:center;line-height:1.8;">Select a step to view details<br/>Right-click steps for more actions</div>
-      </div>
-      <div id="mainDetailContent"></div>
-    </div>
-
-    <!-- Graph View -->
-    <div class="tree-container" id="treeContainer" style="display:none;">
-      <svg id="treeSvg"><g class="zoom-group"></g></svg>
-      <div class="zoom-controls">
-        <button class="zoom-btn" id="zoomInBtn">+</button>
-        <button class="zoom-btn" id="zoomOutBtn">−</button>
-        <button class="zoom-btn" id="fitBtn2" style="font-size:12px;">⊡</button>
-      </div>
-      <div class="graph-legend" id="legend"></div>
-    </div>
-
-    <!-- Kanban View -->
-    <div class="kanban-container" id="kanbanView" style="display:none;"></div>
-  </div>
-
-</div>
-
-<script type="module" src="js/app.js"></script>
-
+  <script type="module" src="js/app.js"></script>
 </body>
 </html>

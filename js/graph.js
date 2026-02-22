@@ -1,7 +1,8 @@
 // ============================================================
-// Eagle Eye Tree - Graph Module
-// Column-locked tree: Steps → Group nodes → Root (HBD assy)
-// Inspired by Logi Assembly v29
+// Eagle Eye Tree - Graph Module (Swimlane Layout)
+// Each group gets its own horizontal swimlane band.
+// Steps → Group node → Root node (HBD_assy)
+// Column-locked: drag Y only within swimlane.
 // ============================================================
 
 import * as state from './state.js';
@@ -51,16 +52,15 @@ function shapePath(type, w, h) {
 }
 
 // ============================================================
-// TREE LAYOUT — Column locked (Logi Assembly style)
+// SWIMLANE TREE LAYOUT
 //
-// Structure:
-//   Col 0..N-1 : Step columns (one per group, ordered by sort_order)
-//   Col N      : Group nodes column
-//   Col N+1    : Root node "HBD assy"
+// Each group = one horizontal swimlane band
+// Within each swimlane:
+//   - Steps in the group's own column (X fixed by group index)
+//   - Group node in a shared "Groups" column
+//   - All group nodes connect to a single root "HBD_assy"
 //
-// Links:
-//   each step → its group node
-//   each group node → root
+// Swimlanes are stacked vertically with gaps between them.
 // ============================================================
 
 function calculateTreeLayout() {
@@ -68,44 +68,51 @@ function calculateTreeLayout() {
   if (!groups.length || !steps.length) return null;
 
   const sortedGroups = groups.slice().sort((a, b) => (a.sort_order || 0) - (b.sort_order || 0));
-  const numLevels = sortedGroups.length;
+  const numGroups = sortedGroups.length;
 
   // Layout constants
-  const leftPad = 140;
+  const leftPad = 160;
   const topPad = 80;
-  const headerH = 50;
+  const headerH = 45;
+  const swimlanePadY = 25;  // padding inside swimlane top/bottom
+  const swimlaneGap = 16;   // gap between swimlanes
 
-  // ── Compute column X positions ──
-  // Columns: 0..numLevels-1 = step columns, numLevels = group nodes, numLevels+1 = root
-  const columnX = {};
-  let cx = leftPad;
-  for (let i = 0; i < numLevels; i++) {
-    columnX[i] = cx;
-    cx += getLevelGap(i);
-  }
-  // Group column
-  const groupColX = cx;
-  cx += 260;
-  // Root column
-  const rootColX = cx;
+  // ── Column X positions ──
+  // Each group gets its OWN X column for its steps
+  // Then a shared "Groups" column, then "Root" column
+  // But since each swimlane only uses ONE step column, we place
+  // the step column at a FIXED left position for ALL swimlanes,
+  // and add the group column + root to the right.
+  //
+  // Actually, to match the Logi Assembly look where different levels
+  // have different X positions, let's put each group's steps at their
+  // own column X based on group index:
+  const stepColX = leftPad;  // All steps at same X (left side)
+  
+  // Groups column and root column
+  const groupColX = stepColX + 300;
+  const rootColX = groupColX + 300;
 
-  // ── Build all nodes ──
+  // ── Build swimlanes ──
+  const swimlanes = [];
+  let currentY = topPad + headerH;
+
   const allNodes = [];
   const allLinks = [];
 
-  // Map group_id → level index
-  const gidToLevel = {};
-  sortedGroups.forEach((g, i) => { gidToLevel[g.id] = i; });
-
-  // 1) STEP NODES — positioned in their group's column
   sortedGroups.forEach((grp, gi) => {
     const gSteps = steps.filter(s => s.group_id === grp.id)
       .sort((a, b) => (a.sort_order || 0) - (b.sort_order || 0));
 
+    const numSteps = gSteps.length;
+    const swimlaneStartY = currentY;
+    const contentH = Math.max(numSteps * VERTICAL_GAP, VERTICAL_GAP * 2);
+    const swimlaneH = contentH + swimlanePadY * 2;
+
+    // Step nodes
     gSteps.forEach((step, si) => {
-      const x = columnX[gi];
-      // Use saved Y if available, else auto-layout
-      const y = (step.y != null) ? step.y : (topPad + headerH + si * VERTICAL_GAP);
+      const x = stepColX;
+      const y = (step.y != null) ? step.y : (swimlaneStartY + swimlanePadY + si * VERTICAL_GAP);
 
       allNodes.push({
         id: 's_' + step.id,
@@ -120,126 +127,107 @@ function calculateTreeLayout() {
         groupId: grp.id,
         groupLabel: grp.label,
         seq: si + 1,
-        isStep: true,
-        isGroup: false,
-        isRoot: false,
+        isStep: true, isGroup: false, isRoot: false,
         ecn: state.ecnChanges[step.id] || null,
         isSelected: state.selectedStepId === step.id,
         partCount: state.parts.filter(p => p.step_id === step.id).length,
-        fastCount: fasts.filter(f => f.step_id === step.id).length
+        fastCount: fasts.filter(f => f.step_id === step.id).length,
+        swimlaneIdx: gi
       });
     });
-  });
 
-  // 2) GROUP NODES — one per group, in the group column
-  //    Y = vertically centered among its steps
-  sortedGroups.forEach((grp, gi) => {
-    const mySteps = allNodes.filter(n => n.isStep && n.groupId === grp.id);
-    const ys = mySteps.map(n => n.y);
-    const centerY = ys.length ? (Math.min(...ys) + Math.max(...ys)) / 2 : topPad + headerH + gi * (VERTICAL_GAP * 3);
+    // Group node — centered in swimlane
+    const stepYs = gSteps.map((s, si) => {
+      const sNode = allNodes.find(n => n.id === 's_' + s.id);
+      return sNode ? sNode.y : swimlaneStartY + swimlanePadY + si * VERTICAL_GAP;
+    });
+    const groupY = stepYs.length
+      ? (Math.min(...stepYs) + Math.max(...stepYs)) / 2
+      : swimlaneStartY + swimlaneH / 2;
 
     allNodes.push({
       id: 'g_' + grp.id,
       dbId: null,
-      x: groupColX,
-      y: centerY,
+      x: groupColX, y: groupY,
       w: NODE_WIDTH + 20, h: NODE_HEIGHT + 8,
       label: grp.label,
-      type: 'group',
-      level: numLevels,
+      type: 'group', level: numGroups,
       shape: 'stadium',
       color: grp.color || getLevelColor(gi),
-      groupId: grp.id,
-      groupLabel: grp.label,
+      groupId: grp.id, groupLabel: grp.label,
       seq: gi + 1,
-      isStep: false,
-      isGroup: true,
-      isRoot: false,
-      ecn: null,
-      isSelected: false,
+      isStep: false, isGroup: true, isRoot: false,
+      ecn: null, isSelected: false,
       icon: grp.icon || '',
-      stepCount: mySteps.length
+      stepCount: numSteps,
+      swimlaneIdx: gi
     });
+
+    // Step → Group links
+    gSteps.forEach(step => {
+      const sf = fasts.filter(f => f.step_id === step.id);
+      const first = sf[0] || {};
+      allLinks.push({
+        sourceId: 's_' + step.id, targetId: 'g_' + grp.id,
+        type: 'step-to-group',
+        fastener_pn: first.pn || null, qty: first.qty || 0,
+        loctite: first.loctite || null, torque: first.torque || null,
+        totalFasteners: sf.length
+      });
+    });
+
+    // Group → Root link
+    allLinks.push({
+      sourceId: 'g_' + grp.id, targetId: 'root',
+      type: 'group-to-root',
+      fastener_pn: null, qty: 0, loctite: null, torque: null, totalFasteners: 0
+    });
+
+    swimlanes.push({
+      grp, gi,
+      startY: swimlaneStartY,
+      height: swimlaneH,
+      endY: swimlaneStartY + swimlaneH,
+      color: grp.color || getLevelColor(gi),
+      label: grp.label,
+      icon: grp.icon || '',
+      stepCount: numSteps
+    });
+
+    currentY = swimlaneStartY + swimlaneH + swimlaneGap;
   });
 
-  // 3) ROOT NODE
+  // ── Root node ──
   const allGroupNodes = allNodes.filter(n => n.isGroup);
   const groupYs = allGroupNodes.map(n => n.y);
   const rootY = groupYs.length ? (Math.min(...groupYs) + Math.max(...groupYs)) / 2 : topPad + headerH;
 
   allNodes.push({
-    id: 'root',
-    dbId: null,
-    x: rootColX,
-    y: rootY,
+    id: 'root', dbId: null,
+    x: rootColX, y: rootY,
     w: NODE_WIDTH + 40, h: NODE_HEIGHT + 16,
-    label: assy.tag || 'HBD assy',
-    type: 'root',
-    level: numLevels + 1,
-    shape: 'stadium',
-    color: '#f59e0b',
-    groupId: null,
-    groupLabel: '',
-    seq: 0,
-    isStep: false,
-    isGroup: false,
-    isRoot: true,
-    ecn: null,
-    isSelected: false
-  });
-
-  // ── Build links ──
-
-  // Step → Group links (with fastener data from first fastener of that step)
-  sortedGroups.forEach((grp) => {
-    const gSteps = steps.filter(s => s.group_id === grp.id);
-    gSteps.forEach(step => {
-      // Get first fastener for this step (for link annotation)
-      const sf = fasts.filter(f => f.step_id === step.id);
-      const first = sf[0] || {};
-
-      allLinks.push({
-        sourceId: 's_' + step.id,
-        targetId: 'g_' + grp.id,
-        type: 'step-to-group',
-        fastener_pn: first.pn || null,
-        qty: first.qty || 0,
-        loctite: first.loctite || null,
-        torque: first.torque || null,
-        totalFasteners: sf.length
-      });
-    });
-  });
-
-  // Group → Root links
-  sortedGroups.forEach((grp) => {
-    allLinks.push({
-      sourceId: 'g_' + grp.id,
-      targetId: 'root',
-      type: 'group-to-root',
-      fastener_pn: null, qty: 0, loctite: null, torque: null, totalFasteners: 0
-    });
+    label: assy.tag || 'HBD_assy',
+    type: 'root', level: numGroups + 1,
+    shape: 'stadium', color: '#f59e0b',
+    groupId: null, groupLabel: '',
+    seq: 0, isStep: false, isGroup: false, isRoot: true,
+    ecn: null, isSelected: false
   });
 
   // Dimensions
-  const totalWidth = rootColX + 200;
-  const allYs = allNodes.map(n => n.y);
-  const totalHeight = Math.max(...allYs, 300) + 150;
+  const totalWidth = rootColX + 250;
+  const totalHeight = currentY + 50;
 
   return {
-    nodes: allNodes,
-    links: allLinks,
-    sortedGroups,
-    columnX,
-    groupColX,
-    rootColX,
+    nodes: allNodes, links: allLinks, swimlanes,
+    sortedGroups, stepColX, groupColX, rootColX,
     dimensions: { width: totalWidth, height: totalHeight },
-    settings: { leftPad, topPad, headerH, numLevels }
+    settings: { leftPad, topPad, headerH, numGroups }
   };
 }
 
 // ============================================================
-// RENDER GRAPH
+// RENDER
 // ============================================================
 
 export function renderGraph() {
@@ -256,17 +244,15 @@ export function renderGraph() {
   const W = container.clientWidth, H = container.clientHeight;
   svg.attr('width', W).attr('height', H);
 
-  // Layout
   const layout = calculateTreeLayout();
   if (!layout) return;
 
-  const { nodes, links, sortedGroups, columnX, groupColX, rootColX, settings } = layout;
-  const { leftPad, topPad, headerH, numLevels } = settings;
+  const { nodes, links, swimlanes, sortedGroups, stepColX, groupColX, rootColX, settings } = layout;
+  const { leftPad, topPad, headerH, numGroups } = settings;
 
-  // Arrow defs
+  // Defs
   const defs = svg.append('defs');
-  const arrowColors = ['#888', '#3498db', '#9b59b6', '#27ae60', '#e67e22', '#e74c3c', '#f59e0b', '#555'];
-  arrowColors.forEach(c => {
+  ['#888','#3498db','#9b59b6','#27ae60','#e67e22','#e74c3c','#f59e0b','#555','#94a3b8'].forEach(c => {
     defs.append('marker').attr('id', 'a' + c.replace('#', '')).attr('viewBox', '0 0 10 10')
       .attr('refX', 9).attr('refY', 5).attr('orient', 'auto').attr('markerWidth', 5).attr('markerHeight', 5)
       .append('path').attr('d', 'M 0,1 L 8,5 L 0,9 z').attr('fill', c);
@@ -281,68 +267,85 @@ export function renderGraph() {
   });
   svg.call(zoomBehavior);
 
-  // Store positions for save
+  // Positions for save
   window._eagleEyePositions = {};
   window._eagleEyeRootX = rootColX;
   nodes.filter(n => n.isStep).forEach(n => {
     window._eagleEyePositions[n.dbId] = { x: n.x, y: n.y };
   });
 
-  // ── LEVEL HEADERS (colored badges at top) ──
-  if (state.showLevelHeaders) {
-    // Step level headers
-    sortedGroups.forEach((grp, gi) => {
-      const x = columnX[gi];
-      const color = grp.color || getLevelColor(gi);
-      const lbl = `L${gi + 1} ${grp.label}`;
-      const trunc = lbl.length > 18 ? lbl.slice(0, 18) + '…' : lbl;
+  // ── SWIMLANE BACKGROUNDS ──
+  const swimBg = g.append('g').attr('class', 'swimlane-bg');
+  swimlanes.forEach((sl, si) => {
+    const bgColor = si % 2 === 0 ? '#f8f9fa' : '#f0f1f3';
+    // Full-width band
+    swimBg.append('rect')
+      .attr('x', 0).attr('y', sl.startY)
+      .attr('width', rootColX + 250).attr('height', sl.height)
+      .attr('fill', bgColor).attr('rx', 0);
 
-      const hg = g.append('g').attr('class', 'level-header');
-      hg.append('rect').attr('x', x - 65).attr('y', topPad - 5).attr('width', 130).attr('height', 32)
-        .attr('rx', 6).attr('fill', color).attr('opacity', 0.9);
-      hg.append('text').attr('x', x).attr('y', topPad + 16).attr('text-anchor', 'middle')
-        .attr('fill', 'white').attr('font-size', '11px').attr('font-weight', '700').text(trunc);
-    });
-    // Group column header
-    const ghg = g.append('g');
-    ghg.append('rect').attr('x', groupColX - 50).attr('y', topPad - 5).attr('width', 100).attr('height', 32)
+    // Left color stripe
+    swimBg.append('rect')
+      .attr('x', 0).attr('y', sl.startY)
+      .attr('width', 5).attr('height', sl.height)
+      .attr('fill', sl.color).attr('rx', 0);
+
+    // Swimlane label (vertical, left side)
+    swimBg.append('text')
+      .attr('x', 14).attr('y', sl.startY + sl.height / 2)
+      .attr('fill', sl.color).attr('font-size', '11px').attr('font-weight', '800')
+      .attr('dominant-baseline', 'middle')
+      .text(`${sl.icon} L${sl.gi + 1} ${sl.label}`);
+  });
+
+  // ── COLUMN HEADERS ──
+  if (state.showLevelHeaders) {
+    // Step column
+    const shg = g.append('g');
+    shg.append('rect').attr('x', stepColX - 55).attr('y', topPad - 8).attr('width', 110).attr('height', 30)
       .attr('rx', 6).attr('fill', '#475569').attr('opacity', 0.85);
-    ghg.append('text').attr('x', groupColX).attr('y', topPad + 16).attr('text-anchor', 'middle')
+    shg.append('text').attr('x', stepColX).attr('y', topPad + 12).attr('text-anchor', 'middle')
+      .attr('fill', 'white').attr('font-size', '11px').attr('font-weight', '700').text('Steps');
+
+    // Group column
+    const ghg = g.append('g');
+    ghg.append('rect').attr('x', groupColX - 45).attr('y', topPad - 8).attr('width', 90).attr('height', 30)
+      .attr('rx', 6).attr('fill', '#475569').attr('opacity', 0.85);
+    ghg.append('text').attr('x', groupColX).attr('y', topPad + 12).attr('text-anchor', 'middle')
       .attr('fill', 'white').attr('font-size', '11px').attr('font-weight', '700').text('Groups');
-    // Root column header
+
+    // Root column
     const rhg = g.append('g');
-    rhg.append('rect').attr('x', rootColX - 50).attr('y', topPad - 5).attr('width', 100).attr('height', 32)
+    rhg.append('rect').attr('x', rootColX - 50).attr('y', topPad - 8).attr('width', 100).attr('height', 30)
       .attr('rx', 6).attr('fill', '#f59e0b').attr('opacity', 0.85);
-    rhg.append('text').attr('x', rootColX).attr('y', topPad + 16).attr('text-anchor', 'middle')
+    rhg.append('text').attr('x', rootColX).attr('y', topPad + 12).attr('text-anchor', 'middle')
       .attr('fill', 'white').attr('font-size', '11px').attr('font-weight', '700').text('Assembly');
   }
 
   // ── LINKS ──
   const linkLayer = g.append('g').attr('class', 'links-layer');
-
   links.forEach(lk => {
     const src = nodes.find(n => n.id === lk.sourceId);
     const tgt = nodes.find(n => n.id === lk.targetId);
     if (!src || !tgt) return;
 
-    const sx = src.x + src.w / 2;   // right edge of source
-    const sy = src.y;
-    const tx = tgt.x - tgt.w / 2;   // left edge of target
-    const ty = tgt.y;
+    const sx = src.x + src.w / 2, sy = src.y;
+    const tx = tgt.x - tgt.w / 2, ty = tgt.y;
     const midX = (sx + tx) / 2;
-    const linkColor = lk.fastener_pn ? getFastenerColor(lk.fastener_pn) : (lk.type === 'group-to-root' ? '#f59e0b' : '#888');
+    const linkColor = lk.fastener_pn ? getFastenerColor(lk.fastener_pn) : (lk.type === 'group-to-root' ? '#f59e0b' : '#94a3b8');
 
     const lg = linkLayer.append('g').attr('class', 'link-group')
       .attr('data-src', lk.sourceId).attr('data-tgt', lk.targetId);
 
-    // Curved bezier path
     lg.append('path').attr('class', 'link-path')
       .attr('d', `M${sx},${sy} C${midX},${sy} ${midX},${ty} ${tx},${ty}`)
-      .attr('stroke', linkColor).attr('stroke-width', lk.type === 'group-to-root' ? 2.5 : 1.5)
-      .attr('fill', 'none').attr('stroke-dasharray', lk.type === 'group-to-root' ? '' : '')
+      .attr('stroke', linkColor)
+      .attr('stroke-width', lk.type === 'group-to-root' ? 2.5 : 1.4)
+      .attr('fill', 'none')
+      .attr('opacity', lk.type === 'group-to-root' ? 0.7 : 0.8)
       .attr('marker-end', `url(#a${linkColor.replace('#', '')})`);
 
-    // Fastener annotation on step-to-group links
+    // Fastener annotation (step-to-group only)
     if (lk.type === 'step-to-group' && (lk.fastener_pn || lk.totalFasteners > 0)) {
       const lx = (sx + tx) / 2, ly = (sy + ty) / 2;
       const lines = [];
@@ -412,7 +415,6 @@ export function renderGraph() {
     .enter().append('g').attr('class', 'step-node')
     .attr('transform', d => `translate(${d.x},${d.y})`);
 
-  // Shape
   stepGs.append('path').attr('class', 'node-shape')
     .attr('d', d => shapePath(d.shape, d.w, d.h))
     .attr('fill', d => d.ecn ? ({ remove: '#fdedec', replace: '#fef9e7', add: '#d5f5e3', modify: '#ebf5fb' }[d.ecn] || d.color) : d.color)
@@ -482,7 +484,7 @@ export function renderGraph() {
     rg.append('path').attr('d', shapePath('stadium', rootNode.w, rootNode.h))
       .attr('fill', '#fef3c7').attr('stroke', '#f59e0b').attr('stroke-width', 3);
     rg.append('text').attr('text-anchor', 'middle').attr('y', 5)
-      .attr('font-size', '13px').attr('font-weight', '900').attr('fill', '#92400e')
+      .attr('font-size', '14px').attr('font-weight', '900').attr('fill', '#92400e')
       .text(rootNode.label);
   }
 
@@ -490,15 +492,11 @@ export function renderGraph() {
   const drag = d3.drag()
     .on('start', function () { d3.select(this).raise(); })
     .on('drag', function (event, d) {
-      // Only move Y — X stays locked to column!
       d.y = event.y;
       d3.select(this).attr('transform', `translate(${d.x},${d.y})`);
-      if (d.dbId) {
-        window._eagleEyePositions[d.dbId] = { x: d.x, y: d.y };
-      }
+      if (d.dbId) window._eagleEyePositions[d.dbId] = { x: d.x, y: d.y };
       state.setLayoutDirty(true);
       updateSaveButton();
-      // Live link update
       updateLinksForMovedNode(d, linkLayer, nodes);
     });
   stepGs.call(drag);
@@ -507,29 +505,17 @@ export function renderGraph() {
   stepGs.style('cursor', 'pointer')
     .on('click', function (event, d) {
       event.stopPropagation();
-      if (state.ecnMode) {
-        state.toggleEcnStep(d.dbId);
-        renderGraph();
-      } else {
-        state.setSelectedStep(state.selectedStepId === d.dbId ? null : d.dbId);
-        renderGraph();
-        window._eagleEyeUpdateDetail?.();
-      }
+      if (state.ecnMode) { state.toggleEcnStep(d.dbId); renderGraph(); }
+      else { state.setSelectedStep(state.selectedStepId === d.dbId ? null : d.dbId); renderGraph(); window._eagleEyeUpdateDetail?.(); }
     })
     .on('contextmenu', function (event, d) {
-      event.preventDefault();
-      event.stopPropagation();
+      event.preventDefault(); event.stopPropagation();
       showContextMenu(event.clientX, event.clientY, [
         { label: '📌 Select', action: () => { state.setSelectedStep(d.dbId); renderGraph(); window._eagleEyeUpdateDetail?.(); } }
       ]);
     });
 
-  // Click empty to deselect
-  svg.on('click', () => {
-    state.setSelectedStep(null);
-    renderGraph();
-    window._eagleEyeUpdateDetail?.();
-  });
+  svg.on('click', () => { state.setSelectedStep(null); renderGraph(); window._eagleEyeUpdateDetail?.(); });
 
   // ── FIT ──
   fitToScreen(true);
@@ -553,14 +539,10 @@ export function renderGraph() {
 function updateLinksForMovedNode(movedNode, linkLayer, allNodes) {
   linkLayer.selectAll('.link-group').each(function () {
     const lg = d3.select(this);
-    const srcId = lg.attr('data-src');
-    const tgtId = lg.attr('data-tgt');
-
+    const srcId = lg.attr('data-src'), tgtId = lg.attr('data-tgt');
     const src = allNodes.find(n => n.id === srcId);
     const tgt = allNodes.find(n => n.id === tgtId);
     if (!src || !tgt) return;
-
-    // Only update if this link involves the moved node
     if (src.id !== movedNode.id && tgt.id !== movedNode.id) return;
 
     const sx = src.x + src.w / 2, sy = src.y;
@@ -568,7 +550,6 @@ function updateLinksForMovedNode(movedNode, linkLayer, allNodes) {
     const midX = (sx + tx) / 2;
     lg.select('.link-path').attr('d', `M${sx},${sy} C${midX},${sy} ${midX},${ty} ${tx},${ty}`);
 
-    // Update label positions
     const lx = (sx + tx) / 2, ly = (sy + ty) / 2;
     lg.selectAll('rect').each(function () {
       const r = d3.select(this);
@@ -586,10 +567,6 @@ function updateLinksForMovedNode(movedNode, linkLayer, allNodes) {
     });
   });
 }
-
-// ============================================================
-// SAVE BUTTON
-// ============================================================
 
 function updateSaveButton() {
   const btn = document.getElementById('saveBtn');
@@ -614,20 +591,16 @@ export function fitToScreen(instant = false) {
   const svg = d3.select('#treeSvg');
   const W = container.clientWidth, H = container.clientHeight;
 
+  let minX = 0, maxX = (window._eagleEyeRootX || 800) + 250;
+  let minY = Infinity, maxY = -Infinity;
   const pos = window._eagleEyePositions || {};
-  let minX = Infinity, maxX = -Infinity, minY = Infinity, maxY = -Infinity;
-
-  // Include all node types for bounds
   Object.values(pos).forEach(p => {
-    minX = Math.min(minX, p.x - 120); maxX = Math.max(maxX, p.x + 120);
     minY = Math.min(minY, p.y - 50); maxY = Math.max(maxY, p.y + 50);
   });
-  // Account for group & root columns
-  maxX = Math.max(maxX, (window._eagleEyeRootX || 0) + 200);
-  if (minX === Infinity) return;
+  if (minY === Infinity) { minY = 0; maxY = 600; }
 
-  const cw = maxX - minX + 100, ch = maxY - minY + 100;
-  const scale = Math.min(W / cw, H / ch, 1.5) * 0.85;
+  const cw = maxX - minX + 60, ch = maxY - minY + 80;
+  const scale = Math.min(W / cw, H / ch, 1.5) * 0.88;
   const cx = (minX + maxX) / 2, cy = (minY + maxY) / 2;
   const transform = d3.zoomIdentity.translate(W / 2 - cx * scale, H / 2 - cy * scale).scale(scale);
 

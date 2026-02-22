@@ -274,8 +274,8 @@ export function renderGraph() {
   });
 
   // ── PART LEAF NODES ──
-  const partLayer = g.append('g').attr('class', 'part-layer');
   if (state.showPartNodes) {
+    const partLayer = g.append('g');
     nodes.filter(n => n.isStep).forEach(nd => {
       const sp = state.parts.filter(p => p.step_id === nd.dbId).sort((a, b) => (a.sort_order || 0) - (b.sort_order || 0));
       if (!sp.length) return;
@@ -289,12 +289,10 @@ export function renderGraph() {
         const label = (m.name || p.pn);
         const trunc = label.length > 14 ? label.slice(0, 14) + '…' : label;
 
-        partLayer.append('path').attr('class', 'part-link').attr('data-stepid', nd.dbId)
+        partLayer.append('path')
           .attr('d', `M${px + PART_NODE_WIDTH / 2},${py} C${px + PART_NODE_WIDTH / 2 + 15},${py} ${nd.x - nd.w / 2 - 15},${nd.y} ${nd.x - nd.w / 2},${nd.y}`)
           .attr('stroke', '#ccc').attr('stroke-width', 0.7).attr('fill', 'none');
-        const pg = partLayer.append('g').attr('class', 'part-hex').attr('data-stepid', nd.dbId)
-          .attr('data-offsety', py - nd.y)
-          .attr('transform', `translate(${px},${py})`);
+        const pg = partLayer.append('g').attr('transform', `translate(${px},${py})`);
         pg.append('path').attr('d', shapePath('hexagon', PART_NODE_WIDTH, PART_NODE_HEIGHT))
           .attr('fill', partColor).attr('stroke', darkenColor(partColor, 25)).attr('stroke-width', 0.7);
         pg.append('text').attr('text-anchor', 'middle').attr('y', 3)
@@ -390,38 +388,7 @@ export function renderGraph() {
       d3.select(this).attr('transform', `translate(${d.x},${d.y})`);
       if (d.dbId) window._eagleEyePositions[d.dbId] = { x: d.x, y: d.y };
       state.setLayoutDirty(true); updateSaveButton();
-
-      // Recenter group node based on its steps' new Y positions
-      const grpNode = nodes.find(n => n.isGroup && n.groupId === d.groupId);
-      if (grpNode) {
-        const siblingYs = nodes.filter(n => n.isStep && n.groupId === d.groupId).map(n => n.y);
-        if (siblingYs.length) {
-          grpNode.y = (Math.min(...siblingYs) + Math.max(...siblingYs)) / 2;
-          nodeLayer.selectAll('.group-node')
-            .filter(gn => gn.id === grpNode.id)
-            .attr('transform', `translate(${grpNode.x},${grpNode.y})`);
-        }
-        // Also recenter root node
-        const rootNode = nodes.find(n => n.isRoot);
-        if (rootNode) {
-          const groupYs = nodes.filter(n => n.isGroup).map(n => n.y);
-          if (groupYs.length) {
-            rootNode.y = (Math.min(...groupYs) + Math.max(...groupYs)) / 2;
-            nodeLayer.selectAll('g').filter(function() {
-              const dd = d3.select(this).datum();
-              return dd && dd.isRoot;
-            }).attr('transform', `translate(${rootNode.x},${rootNode.y})`);
-          }
-        }
-      }
-
-      // Update ALL links (step→group and group→root may both change)
-      updateAllLinks(linkLayer, nodes);
-
-      // Move part hexagons connected to this step
-      if (state.showPartNodes) {
-        updatePartPositions(d, partLayer);
-      }
+      updateLinksForNode(d, linkLayer, nodes);
     });
   stepGs.call(drag);
 
@@ -458,75 +425,24 @@ export function renderGraph() {
   }
 }
 
-// ── Update ALL links (recalculate every bezier) ──
-function updateAllLinks(linkLayer, allNodes) {
+// ── Live link update ──
+function updateLinksForNode(moved, linkLayer, allNodes) {
   linkLayer.selectAll('.link-group').each(function () {
     const lg = d3.select(this);
     const src = allNodes.find(n => n.id === lg.attr('data-src'));
     const tgt = allNodes.find(n => n.id === lg.attr('data-tgt'));
-    if (!src || !tgt) return;
-
-    const sx = src.x + src.w / 2, sy = src.y;
-    const tx = tgt.x - tgt.w / 2, ty = tgt.y;
+    if (!src || !tgt || (src.id !== moved.id && tgt.id !== moved.id)) return;
+    const sx = src.x + src.w / 2, sy = src.y, tx = tgt.x - tgt.w / 2, ty = tgt.y;
     const midX = (sx + tx) / 2;
-
     lg.select('.link-path').attr('d', `M${sx},${sy} C${midX},${sy} ${midX},${ty} ${tx},${ty}`);
-
-    // Reposition fastener label
     const lx = (sx + tx) / 2, ly = (sy + ty) / 2;
-    lg.selectAll('rect').each(function () {
-      const r = d3.select(this);
-      const w = +r.attr('width'), h = +r.attr('height');
-      r.attr('x', lx - w / 2).attr('y', ly - h / 2);
-    });
+    lg.selectAll('rect').each(function () { const r = d3.select(this); const w = +r.attr('width'), h = +r.attr('height'); r.attr('x', lx - w / 2).attr('y', ly - h / 2); });
     let idx = 0;
     lg.selectAll('.link-label').each(function () {
       const rects = lg.selectAll('rect');
-      if (rects.size()) {
-        d3.select(this).attr('x', lx).attr('y', +rects.attr('y') + 10 + idx * 12);
-      }
+      if (rects.size()) { d3.select(this).attr('x', lx).attr('y', +rects.attr('y') + 10 + idx * 12); }
       idx++;
     });
-  });
-}
-
-// ── Move part hexagons when their parent step is dragged ──
-function updatePartPositions(movedStep, partLayer) {
-  if (!partLayer) return;
-  const stepId = movedStep.dbId;
-  const stepX = movedStep.x;
-  const stepY = movedStep.y;
-
-  // Move part hexagons (maintain their relative offset from step)
-  partLayer.selectAll('.part-hex').each(function () {
-    const el = d3.select(this);
-    if (+el.attr('data-stepid') !== stepId) return;
-    const offsetY = +el.attr('data-offsety');
-    const px = stepX - movedStep.w / 2 - PART_NODE_WIDTH / 2 - 30;
-    const newY = stepY + offsetY;
-    el.attr('transform', `translate(${px},${newY})`);
-  });
-
-  // Update part connection lines
-  partLayer.selectAll('.part-link').each(function () {
-    const el = d3.select(this);
-    if (+el.attr('data-stepid') !== stepId) return;
-    // Find the corresponding hex for this link (same index approach)
-    // Recalculate all part links for this step
-  });
-
-  // Simpler: recalculate all part-link paths for this step
-  const sp = state.parts.filter(p => p.step_id === stepId)
-    .sort((a, b) => (a.sort_order || 0) - (b.sort_order || 0));
-  const totalH = (sp.length - 1) * 24;
-  let pi = 0;
-  partLayer.selectAll('.part-link').each(function () {
-    const el = d3.select(this);
-    if (+el.attr('data-stepid') !== stepId) return;
-    const px = stepX - movedStep.w / 2 - PART_NODE_WIDTH / 2 - 30;
-    const py = stepY - totalH / 2 + pi * 24;
-    el.attr('d', `M${px + PART_NODE_WIDTH / 2},${py} C${px + PART_NODE_WIDTH / 2 + 15},${py} ${stepX - movedStep.w / 2 - 15},${stepY} ${stepX - movedStep.w / 2},${stepY}`);
-    pi++;
   });
 }
 

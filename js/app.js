@@ -8,7 +8,20 @@ import { renderGraph, zoomIn, zoomOut, fitToScreen, handleSave, hideContextMenu 
 import { showToast } from './ui.js';
 import { renderListView, renderKanbanView, renderDetail, updateEcnSummary } from './views.js';
 
-let currentView = 'list'; // 'list' | 'graph' | 'kanban'
+let currentView = 'list';
+
+// ============================================================
+// RELOAD (after reorder etc.)
+// ============================================================
+
+async function reload() {
+  const tag = state.assy?.tag || 'HBD_assy';
+  const data = await loadAssemblyData(tag);
+  state.setData(data);
+  updateStats();
+  switchView(currentView);
+}
+window._eagleEyeReload = reload;
 
 // ============================================================
 // VIEW SWITCHING
@@ -16,68 +29,41 @@ let currentView = 'list'; // 'list' | 'graph' | 'kanban'
 
 function switchView(view) {
   currentView = view;
-
-  // Update tabs
   document.querySelectorAll('.tab').forEach(t => t.classList.toggle('active', t.dataset.view === view));
 
-  // Sidebar width
   const sidebar = document.getElementById('sidebar');
   sidebar.style.width = view === 'list' ? '420px' : '320px';
 
-  // Show/hide sidebar content
   document.getElementById('listView').style.display = view === 'list' ? '' : 'none';
   document.getElementById('sidebarDetail').style.display = view !== 'list' ? '' : 'none';
-
-  // Show/hide main areas
   document.getElementById('mainDetail').style.display = view === 'list' ? '' : 'none';
   document.getElementById('graphToolbar').style.display = view === 'graph' ? '' : 'none';
   document.getElementById('treeContainer').style.display = view === 'graph' ? '' : 'none';
   document.getElementById('kanbanView').style.display = view === 'kanban' ? '' : 'none';
 
-  // Render the appropriate view
-  if (view === 'list') {
-    renderListView();
-    updateDetailPanel();
-  } else if (view === 'graph') {
-    renderGraph();
-    updateDetailPanel();
-  } else if (view === 'kanban') {
-    renderKanbanView();
-    updateDetailPanel();
-  }
+  if (view === 'list') { renderListView(); updateDetailPanel(); }
+  else if (view === 'graph') { renderGraph(); updateDetailPanel(); }
+  else if (view === 'kanban') { renderKanbanView(); updateDetailPanel(); }
 }
-
-// ============================================================
-// DETAIL PANEL MANAGEMENT
-// ============================================================
 
 function updateDetailPanel() {
-  if (currentView === 'list') {
-    renderDetail('mainDetailContent');
-  } else {
-    renderDetail('sidebarDetailContent');
-  }
+  if (currentView === 'list') renderDetail('mainDetailContent');
+  else renderDetail('sidebarDetailContent');
 }
-
-// Expose for views.js to call
 window._eagleEyeUpdateDetail = updateDetailPanel;
 
 // ============================================================
-// INITIALIZATION
+// INIT
 // ============================================================
 
 async function init() {
-  console.log('Eagle Eye Tree initializing...');
   setStatus('Loading…');
-
   try {
     const data = await loadAssemblyData('HBD_assy');
     state.setData(data);
-
     document.getElementById('assyTag').textContent = data.assy.tag;
     updateStats();
 
-    // Auto-generate links if none exist
     if (data.stepLinks.length === 0 && data.steps.length > 0) {
       setStatus('Auto-generating links…');
       const autoLinks = autoGenerateLinks(data.assy.id, data.groups, data.steps, []);
@@ -92,10 +78,7 @@ async function init() {
 
     setStatus('Connected');
     document.getElementById('statusDot').style.background = '#10b981';
-
-    // Render initial view
     switchView('list');
-    console.log('Eagle Eye Tree ready');
   } catch (e) {
     console.error(e);
     setStatus('Error: ' + e.message);
@@ -104,10 +87,7 @@ async function init() {
   }
 }
 
-function setStatus(msg) {
-  const el = document.getElementById('statusText');
-  if (el) el.textContent = msg;
-}
+function setStatus(msg) { const el = document.getElementById('statusText'); if (el) el.textContent = msg; }
 
 function updateStats() {
   document.getElementById('statsText').textContent =
@@ -115,28 +95,24 @@ function updateStats() {
 }
 
 // ============================================================
-// EVENT LISTENERS
+// EVENTS
 // ============================================================
 
 function setupEventListeners() {
-  // Tab switching
   document.querySelectorAll('.tab').forEach(t => {
     t.addEventListener('click', () => switchView(t.dataset.view));
   });
 
-  // Search
   document.getElementById('searchInput')?.addEventListener('input', () => {
     if (currentView === 'list') renderListView();
   });
 
-  // Zoom buttons
   document.getElementById('zoomInBtn')?.addEventListener('click', zoomIn);
   document.getElementById('zoomOutBtn')?.addEventListener('click', zoomOut);
   document.getElementById('fitBtn')?.addEventListener('click', () => fitToScreen(false));
   document.getElementById('fitBtn2')?.addEventListener('click', () => fitToScreen(false));
   document.getElementById('saveBtn')?.addEventListener('click', handleSave);
 
-  // Toggle buttons
   document.getElementById('seqToggle')?.addEventListener('click', () => {
     state.setShowSequenceNumbers(!state.showSequenceNumbers);
     document.getElementById('seqToggle').classList.toggle('active', state.showSequenceNumbers);
@@ -155,7 +131,13 @@ function setupEventListeners() {
     if (currentView === 'graph') renderGraph();
   });
 
-  // ECN mode
+  document.getElementById('fastToggle')?.addEventListener('click', () => {
+    state.setShowFastenerLabels(!state.showFastenerLabels);
+    document.getElementById('fastToggle').classList.toggle('active', state.showFastenerLabels);
+    if (currentView === 'graph') renderGraph();
+  });
+
+  // ECN
   document.getElementById('ecnToggle')?.addEventListener('click', () => {
     state.setEcnMode(!state.ecnMode);
     const btn = document.getElementById('ecnToggle');
@@ -163,7 +145,6 @@ function setupEventListeners() {
     btn.classList.toggle('ecn-active', state.ecnMode);
     btn.textContent = state.ecnMode ? '⚡ ECN' : 'ECN';
     brushes.style.display = state.ecnMode ? 'flex' : 'none';
-    // Re-render current view
     if (currentView === 'list') renderListView();
     else if (currentView === 'graph') renderGraph();
     else if (currentView === 'kanban') renderKanbanView();
@@ -178,29 +159,14 @@ function setupEventListeners() {
   });
 
   document.getElementById('ecnClear')?.addEventListener('click', () => {
-    state.clearEcnChanges();
-    updateEcnSummary();
+    state.clearEcnChanges(); updateEcnSummary();
     if (currentView === 'list') renderListView();
     else if (currentView === 'graph') renderGraph();
     else if (currentView === 'kanban') renderKanbanView();
   });
 
-  // Escape
-  document.addEventListener('keydown', e => {
-    if (e.key === 'Escape') hideContextMenu();
-  });
-
-  // Window resize
-  window.addEventListener('resize', () => {
-    if (currentView === 'graph' && state.steps.length > 0) renderGraph();
-  });
+  document.addEventListener('keydown', e => { if (e.key === 'Escape') hideContextMenu(); });
+  window.addEventListener('resize', () => { if (currentView === 'graph' && state.steps.length > 0) renderGraph(); });
 }
 
-// ============================================================
-// START
-// ============================================================
-
-document.addEventListener('DOMContentLoaded', () => {
-  setupEventListeners();
-  init();
-});
+document.addEventListener('DOMContentLoaded', () => { setupEventListeners(); init(); });

@@ -200,3 +200,22 @@ input,select { font-family:inherit; outline:none; }
   color:#fff; z-index:300; animation:fadeIn .2s;
 }
 @keyframes fadeIn { from { opacity:0; transform:translateY(10px); } to { opacity:1; } }
+
+/* ═══ REORDER ARROWS ═══ */
+.reorder-arrows { display:flex; flex-direction:column; gap:0; margin-right:2px; }
+.arr-btn {
+  font-size:8px; line-height:1; color:var(--text4); cursor:pointer;
+  padding:1px 3px; border-radius:2px; user-select:none; transition:all .1s;
+}
+.arr-btn:hover:not(.dim) { color:var(--blue); background:rgba(96,165,250,0.15); }
+.arr-btn.dim { opacity:0.15; cursor:default; }
+.part-reorder { display:flex; flex-direction:column; gap:0; margin-right:4px; }
+.arr-sm {
+  font-size:7px; line-height:1; color:var(--text4); cursor:pointer;
+  padding:1px 2px; border-radius:2px; user-select:none;
+}
+.arr-sm:hover:not(.dim) { color:#10b981; background:rgba(16,185,129,0.15); }
+.arr-sm.dim { opacity:0.15; cursor:default; }
+
+/* ═══ SEQ TAG HIGHLIGHT ═══ */
+.step-row .sid.tag { color:#7c3aed; font-weight:800; font-style:italic; }

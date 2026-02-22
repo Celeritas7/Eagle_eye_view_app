@@ -11,7 +11,7 @@ import {
   getFastenerColor, darkenColor, lightenColor,
   ECN_COLORS, ECN_ICONS, STATUS_COLORS, PART_NODE_WIDTH, PART_NODE_HEIGHT
 } from './config.js';
-import { savePositions, updateSeqTag, updatePart, updateFastener } from './database.js';
+import { savePositions, updateSeqTag, updatePart, updateFastener, updateLabelPosition } from './database.js';
 import { showToast } from './ui.js';
 
 var zoomBehavior = null;
@@ -35,6 +35,41 @@ function shapePath(type, w, h) {
 function bezierPath(sx, sy, tx, ty) {
   var mx = (sx + tx) / 2;
   return 'M' + sx + ',' + sy + ' C' + mx + ',' + sy + ' ' + mx + ',' + ty + ' ' + tx + ',' + ty;
+}
+
+// Evaluate cubic bezier at parameter t (0..1)
+// Control points: P0=(sx,sy) P1=(mx,sy) P2=(mx,ty) P3=(tx,ty) where mx=(sx+tx)/2
+function bezierPoint(t, sx, sy, tx, ty) {
+  var mx = (sx + tx) / 2;
+  var u = 1 - t;
+  var uu = u * u, uuu = uu * u;
+  var tt = t * t, ttt = tt * t;
+  return {
+    x: uuu * sx + 3 * uu * t * mx + 3 * u * tt * mx + ttt * tx,
+    y: uuu * sy + 3 * uu * t * sy + 3 * u * tt * ty + ttt * ty
+  };
+}
+
+// Find nearest t on the bezier curve to a given point (x,y)
+function nearestT(px, py, sx, sy, tx, ty) {
+  var bestT = 0.5, bestDist = Infinity;
+  for (var i = 0; i <= 40; i++) {
+    var t = i / 40;
+    var pt = bezierPoint(t, sx, sy, tx, ty);
+    var dx = pt.x - px, dy = pt.y - py;
+    var dist = dx * dx + dy * dy;
+    if (dist < bestDist) { bestDist = dist; bestT = t; }
+  }
+  // Refine
+  var lo = Math.max(0, bestT - 0.025), hi = Math.min(1, bestT + 0.025);
+  for (var j = 0; j <= 20; j++) {
+    var t2 = lo + (hi - lo) * j / 20;
+    var pt2 = bezierPoint(t2, sx, sy, tx, ty);
+    var dx2 = pt2.x - px, dy2 = pt2.y - py;
+    var dist2 = dx2 * dx2 + dy2 * dy2;
+    if (dist2 < bestDist) { bestDist = dist2; bestT = t2; }
+  }
+  return Math.round(bestT * 1000) / 1000;
 }
 
 // ============================================================
@@ -108,6 +143,7 @@ function calculateTreeLayout() {
       allLinks.push({
         sourceId: 's_' + step.id, targetId: 'g_' + grp.id, type: 'step-to-group',
         stepDbId: step.id,
+        labelPos: step.label_position != null ? step.label_position : 0.5,
         fastener_pn: first.pn || null, qty: first.qty || 0,
         loctite: first.loctite || null, torque: first.torque || null, totalFasteners: sf.length
       });
@@ -228,9 +264,10 @@ export function renderGraph() {
       .attr('fill', 'none').attr('opacity', 0.75)
       .attr('marker-end', 'url(#a' + linkColor.replace('#', '') + ')');
 
-    // Fastener label
+    // Fastener label — positioned at t along bezier, draggable
     if (state.showFastenerLabels && lk.type === 'step-to-group' && lk.totalFasteners > 0) {
-      var mx = (sx + tx) / 2, my = (sy + ty) / 2;
+      var t = lk.labelPos;
+      var bp = bezierPoint(t, sx, sy, tx, ty);
       var lines = [];
       if (lk.fastener_pn) lines.push({ text: lk.fastener_pn + (lk.qty > 1 ? ' x' + lk.qty : ''), color: linkColor, bold: true });
       if (lk.loctite && lk.loctite !== '---') lines.push({ text: 'LT-' + lk.loctite, color: '#9b59b6' });
@@ -242,8 +279,10 @@ export function renderGraph() {
         var lW = Math.max(58, Math.max.apply(null, lines.map(function(l) { return l.text.length * 5.2 + 14; })));
         var fg = lg.append('g').attr('class', 'fast-label')
           .attr('data-stepid', String(lk.stepDbId))
-          .attr('transform', 'translate(' + mx + ',' + my + ')')
-          .style('cursor', 'pointer');
+          .attr('data-labelpos', String(t))
+          .attr('data-sx', sx).attr('data-sy', sy).attr('data-tx', tx).attr('data-ty', ty)
+          .attr('transform', 'translate(' + bp.x + ',' + bp.y + ')')
+          .style('cursor', 'grab');
         fg.append('rect').attr('x', -lW / 2).attr('y', -lH / 2)
           .attr('width', lW).attr('height', lH).attr('rx', 3)
           .attr('fill', 'white').attr('stroke', '#e5e7eb').attr('stroke-width', 0.5).attr('opacity', 0.94);
@@ -254,7 +293,39 @@ export function renderGraph() {
             .text(ln.text);
         });
 
-        // Click to edit fastener
+        // Drag label along curve
+        var labelDrag = d3.drag()
+          .on('start', function(event) { event.sourceEvent.stopPropagation(); d3.select(this).style('cursor', 'grabbing'); })
+          .on('drag', function(event) {
+            // Get current bezier endpoints from data attrs
+            var el = d3.select(this);
+            var csx = parseFloat(el.attr('data-sx'));
+            var csy = parseFloat(el.attr('data-sy'));
+            var ctx2 = parseFloat(el.attr('data-tx'));
+            var cty = parseFloat(el.attr('data-ty'));
+            // Convert event coords (already in SVG group space)
+            var newT = nearestT(event.x, event.y, csx, csy, ctx2, cty);
+            newT = Math.max(0.05, Math.min(0.95, newT));
+            var newPt = bezierPoint(newT, csx, csy, ctx2, cty);
+            el.attr('transform', 'translate(' + newPt.x + ',' + newPt.y + ')');
+            el.attr('data-labelpos', String(newT));
+          })
+          .on('end', function() {
+            var el = d3.select(this);
+            el.style('cursor', 'grab');
+            var stepId = parseInt(el.attr('data-stepid'));
+            var finalT = parseFloat(el.attr('data-labelpos'));
+            // Save to Supabase + local state
+            updateLabelPosition(stepId, finalT).then(function(ok) {
+              if (ok) {
+                var step = state.steps.find(function(s) { return s.id === stepId; });
+                if (step) step.label_position = finalT;
+              }
+            });
+          });
+        fg.call(labelDrag);
+
+        // Click to edit fastener (only if not dragged)
         fg.on('click', function(event) {
           event.stopPropagation();
           editFastenerFromGraph(lk.stepDbId);
@@ -426,10 +497,14 @@ export function renderGraph() {
         var tx2 = tgt.x - tgt.w / 2, ty2 = tgt.y;
         lg.select('.link-path').attr('d', bezierPath(sx2, sy2, tx2, ty2));
 
-        // Move fastener label
+        // Move fastener label along curve at stored t
         var fl = lg.select('.fast-label');
         if (fl.node()) {
-          fl.attr('transform', 'translate(' + ((sx2 + tx2) / 2) + ',' + ((sy2 + ty2) / 2) + ')');
+          var t = parseFloat(fl.attr('data-labelpos')) || 0.5;
+          var pt = bezierPoint(t, sx2, sy2, tx2, ty2);
+          fl.attr('transform', 'translate(' + pt.x + ',' + pt.y + ')');
+          // Update stored endpoints for label's own drag
+          fl.attr('data-sx', sx2).attr('data-sy', sy2).attr('data-tx', tx2).attr('data-ty', ty2);
         }
       });
 

@@ -115,6 +115,16 @@ export async function updateFastener(fastId, updates) {
 }
 
 // ============================================================
+// UPDATE LABEL POSITION (t = 0..1 along bezier)
+// ============================================================
+
+export async function updateLabelPosition(stepId, t) {
+  const { error } = await db.from(T.step).update({ label_position: t }).eq('id', stepId);
+  if (error) console.error('updateLabelPosition error:', error.message);
+  return !error;
+}
+
+// ============================================================
 // POSITION SAVING
 // ============================================================
 

@@ -7,7 +7,7 @@
 
 import * as state from './state.js';
 import { ECN_COLORS, ECN_ICONS } from './config.js';
-import { reorderStep, reorderPart } from './database.js';
+import { reorderStep, reorderPart, updateSeqTag } from './database.js';
 import { showToast } from './ui.js';
 
 const expandedGroups = new Set();
@@ -63,7 +63,7 @@ export function renderListView() {
             <span class="arr-btn ${si === 0 ? 'dim' : ''}" data-dir="up" data-sid="${s.id}" data-gid="${g.id}" title="Move up">▲</span>
             <span class="arr-btn ${si === gSteps.length - 1 ? 'dim' : ''}" data-dir="down" data-sid="${s.id}" data-gid="${g.id}" title="Move down">▼</span>
           </div>
-          <span class="sid${s.seq_tag ? ' seq-tag' : ''}">${seqDisplay}</span>
+          <span class="sid-edit${s.seq_tag ? ' has-tag' : ''}" data-sid="${s.id}" data-tag="${s.seq_tag || ''}" title="Click to set tag (e.g. 1a, 2b)">${seqDisplay}</span>
           <span class="badge badge-${s.type}">${({ step: 'STEP', prep: 'PREP', kanryo: '完了', note: 'NOTE' })[s.type] || 'STEP'}</span>
           <span class="slabel${s.type === 'kanryo' ? ' kanryo' : ''}">${s.label}</span>
           ${ecn ? `<span class="ecn-mark" style="color:${ECN_COLORS[ecn]};">${ECN_ICONS[ecn]}</span>` : ''}
@@ -115,6 +115,24 @@ export function renderListView() {
       if (ok) {
         await window._eagleEyeReload?.();
         showToast(`Moved ${dir}`);
+      }
+    });
+  });
+
+  // Event: click seq tag to edit
+  container.querySelectorAll('.sid-edit').forEach(el => {
+    el.addEventListener('click', async (e) => {
+      e.stopPropagation();
+      const sid = parseInt(el.dataset.sid);
+      const current = el.dataset.tag || '';
+      const tag = prompt('Sequence tag (e.g. 1a, 2b, 3c):', current);
+      if (tag === null) return;
+      const ok = await updateSeqTag(sid, tag.trim());
+      if (ok) {
+        const step = state.steps.find(s => s.id === sid);
+        if (step) step.seq_tag = tag.trim() || null;
+        renderListView();
+        showToast(tag.trim() ? `Tag: ${tag.trim()}` : 'Tag cleared');
       }
     });
   });

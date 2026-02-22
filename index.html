@@ -70,12 +70,32 @@
         <button class="tool-btn active" id="partsToggle">🔩 Parts</button>
         <button class="tool-btn active" id="headersToggle">🏷 Headers</button>
         <button class="tool-btn active" id="fastToggle">🔗 Fasteners</button>
-        <div class="toolbar-slider">
-          <span class="slider-label">↔</span>
-          <input type="range" id="colSpacingSlider" min="120" max="500" value="300" step="10" title="Column spacing">
-          <span class="slider-val" id="colSpacingVal">300</span>
-        </div>
+        <button class="tool-btn" id="spacingBtn">↔ Spacing</button>
         <span class="toolbar-status" id="statusText">Connecting…</span>
+      </div>
+
+      <!-- FLOATING LEVEL SPACING PANEL -->
+      <div class="spacing-panel" id="spacingPanel" style="display:none;">
+        <div class="spacing-panel-header">
+          <span>↔ Level Spacing</span>
+          <button class="spacing-close" id="spacingClose">×</button>
+        </div>
+        <div class="spacing-row">
+          <span class="spacing-label">Steps ↔ Groups</span>
+          <input type="range" id="gap1Slider" min="120" max="500" value="300" step="10">
+          <input type="number" id="gap1Input" class="spacing-num" value="300" min="120" max="500" step="10">
+          <span class="spacing-unit">px</span>
+        </div>
+        <div class="spacing-row">
+          <span class="spacing-label">Groups ↔ Root</span>
+          <input type="range" id="gap2Slider" min="100" max="400" value="240" step="10">
+          <input type="number" id="gap2Input" class="spacing-num" value="240" min="100" max="400" step="10">
+          <span class="spacing-unit">px</span>
+        </div>
+        <div class="spacing-actions">
+          <button class="spacing-action-btn" id="spacingReset">↺ Reset</button>
+          <button class="spacing-action-btn" id="spacingEqual">= Equal</button>
+        </div>
       </div>
       <!-- GROUP FILTER BAR -->
       <div class="group-filter-bar" id="groupFilterBar" style="display:none;">

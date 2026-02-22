@@ -39,7 +39,8 @@ export let showLevelHeaders = true;
 export let showPartNodes = true;
 export let showFastenerLabels = true;
 export let layoutDirty = false;
-export let colSpacing = 300;
+export let gap1 = 300;   // Steps ↔ Groups
+export let gap2 = 240;   // Groups ↔ Root
 export let visibleGroupIds = null;  // null = all visible, Set = only these
 
 export function setShowSequenceNumbers(v) { showSequenceNumbers = v; }
@@ -47,7 +48,8 @@ export function setShowLevelHeaders(v) { showLevelHeaders = v; }
 export function setShowPartNodes(v) { showPartNodes = v; }
 export function setShowFastenerLabels(v) { showFastenerLabels = v; }
 export function setLayoutDirty(v) { layoutDirty = v; }
-export function setColSpacing(v) { colSpacing = v; }
+export function setGap1(v) { gap1 = v; }
+export function setGap2(v) { gap2 = v; }
 export function setVisibleGroupIds(ids) { visibleGroupIds = ids; }
 
 // Lookup

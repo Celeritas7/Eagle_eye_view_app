@@ -53,10 +53,11 @@ function calculateTreeLayout() {
   const stepGapY = VERTICAL_GAP;  // 80px from config (was 65)
   const partZone = 170;
 
-  const colGap = state.colSpacing;  // dynamic from slider
+  const colGap = state.gap1;       // Steps ↔ Groups (dynamic)
+  const rootGap = state.gap2;      // Groups ↔ Root (dynamic)
   const stepColX = partZone + 50;
   const groupColX = stepColX + colGap;
-  const rootColX = groupColX + Math.max(colGap * 0.8, 180);
+  const rootColX = groupColX + rootGap;
 
   const allNodes = [];
   const allLinks = [];

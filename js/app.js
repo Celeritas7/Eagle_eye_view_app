@@ -220,12 +220,42 @@ function setupEventListeners() {
     if (currentView === 'graph') renderGraph();
   });
 
-  // Column spacing slider
-  document.getElementById('colSpacingSlider')?.addEventListener('input', (e) => {
-    const val = parseInt(e.target.value);
-    state.setColSpacing(val);
-    document.getElementById('colSpacingVal').textContent = val;
+  // Spacing panel toggle
+  document.getElementById('spacingBtn')?.addEventListener('click', () => {
+    const panel = document.getElementById('spacingPanel');
+    panel.style.display = panel.style.display === 'none' ? '' : 'none';
+  });
+  document.getElementById('spacingClose')?.addEventListener('click', () => {
+    document.getElementById('spacingPanel').style.display = 'none';
+  });
+
+  // Gap 1: Steps ↔ Groups
+  const syncGap1 = (val) => {
+    val = Math.max(120, Math.min(500, parseInt(val) || 300));
+    state.setGap1(val);
+    document.getElementById('gap1Slider').value = val;
+    document.getElementById('gap1Input').value = val;
     if (currentView === 'graph') renderGraph();
+  };
+  document.getElementById('gap1Slider')?.addEventListener('input', e => syncGap1(e.target.value));
+  document.getElementById('gap1Input')?.addEventListener('change', e => syncGap1(e.target.value));
+
+  // Gap 2: Groups ↔ Root
+  const syncGap2 = (val) => {
+    val = Math.max(100, Math.min(400, parseInt(val) || 240));
+    state.setGap2(val);
+    document.getElementById('gap2Slider').value = val;
+    document.getElementById('gap2Input').value = val;
+    if (currentView === 'graph') renderGraph();
+  };
+  document.getElementById('gap2Slider')?.addEventListener('input', e => syncGap2(e.target.value));
+  document.getElementById('gap2Input')?.addEventListener('change', e => syncGap2(e.target.value));
+
+  // Reset / Equal buttons
+  document.getElementById('spacingReset')?.addEventListener('click', () => { syncGap1(300); syncGap2(240); });
+  document.getElementById('spacingEqual')?.addEventListener('click', () => {
+    const avg = Math.round((state.gap1 + state.gap2) / 2);
+    syncGap1(avg); syncGap2(avg);
   });
 
   // Group filter: All button

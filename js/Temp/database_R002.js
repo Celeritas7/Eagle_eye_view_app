@@ -95,26 +95,6 @@ export async function ensureSeqTagColumn() {
 }
 
 // ============================================================
-// UPDATE PART
-// ============================================================
-
-export async function updatePart(partId, updates) {
-  const { error } = await db.from(T.part).update(updates).eq('id', partId);
-  if (error) console.error('updatePart error:', error.message);
-  return !error;
-}
-
-// ============================================================
-// UPDATE FASTENER
-// ============================================================
-
-export async function updateFastener(fastId, updates) {
-  const { error } = await db.from(T.fast).update(updates).eq('id', fastId);
-  if (error) console.error('updateFastener error:', error.message);
-  return !error;
-}
-
-// ============================================================
 // POSITION SAVING
 // ============================================================
 

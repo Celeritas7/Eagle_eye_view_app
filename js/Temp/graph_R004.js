@@ -264,15 +264,13 @@ export function renderGraph() {
       const sp = state.parts.filter(p => p.step_id === nd.dbId).sort((a, b) => (a.sort_order || 0) - (b.sort_order || 0));
       if (!sp.length) return;
       const partColor = lightenColor(nd.color, 35);
-      const partSpacing = 34;  // vertical gap between part hexagons
-      const totalH = (sp.length - 1) * partSpacing;
+      const totalH = (sp.length - 1) * 24;
       sp.forEach(function(p, pi) {
         const px = nd.x - nd.w / 2 - PART_NODE_WIDTH / 2 - 30;
-        const py = nd.y - totalH / 2 + pi * partSpacing;
+        const py = nd.y - totalH / 2 + pi * 24;
         const m = state.lookup(p.pn);
-        const nameLabel = m.name || p.pn;
-        const truncName = nameLabel.length > 16 ? nameLabel.slice(0, 16) + '..' : nameLabel;
-        const truncPN = p.pn.length > 18 ? p.pn.slice(0, 18) + '..' : p.pn;
+        const label = (m.name || p.pn);
+        const trunc = label.length > 14 ? label.slice(0, 14) + '...' : label;
 
         _partLayer.append('path').attr('class', 'part-link').attr('data-stepid', String(nd.dbId))
           .attr('d', 'M' + (px + PART_NODE_WIDTH / 2) + ',' + py + ' C' + (px + PART_NODE_WIDTH / 2 + 15) + ',' + py + ' ' + (nd.x - nd.w / 2 - 15) + ',' + nd.y + ' ' + (nd.x - nd.w / 2) + ',' + nd.y)
@@ -282,12 +280,8 @@ export function renderGraph() {
           .attr('transform', 'translate(' + px + ',' + py + ')');
         pg.append('path').attr('d', shapePath('hexagon', PART_NODE_WIDTH, PART_NODE_HEIGHT))
           .attr('fill', partColor).attr('stroke', darkenColor(partColor, 25)).attr('stroke-width', 0.7);
-        // Line 1: Part name
-        pg.append('text').attr('text-anchor', 'middle').attr('y', -2)
-          .attr('font-size', '7px').attr('font-weight', '600').attr('fill', '#1f2937').text(truncName);
-        // Line 2: P/N (smaller, monospace, muted)
-        pg.append('text').attr('text-anchor', 'middle').attr('y', 8)
-          .attr('font-size', '5.5px').attr('fill', '#6b7280').attr('font-family', 'monospace').text(truncPN);
+        pg.append('text').attr('text-anchor', 'middle').attr('y', 3)
+          .attr('font-size', '7px').attr('fill', '#374151').text(trunc);
         if (p.qty > 1)
           pg.append('text').attr('x', PART_NODE_WIDTH / 2 - 2).attr('y', -PART_NODE_HEIGHT / 2 + 3)
             .attr('text-anchor', 'end').attr('font-size', '6.5px').attr('fill', '#6b7280').attr('font-weight', '700').text('x' + p.qty);
@@ -460,7 +454,7 @@ function onStepDragged(d) {
     var stepId = String(d.dbId);
     var sp = state.parts.filter(function(p) { return p.step_id === d.dbId; })
       .sort(function(a, b) { return (a.sort_order || 0) - (b.sort_order || 0); });
-    var totalH = (sp.length - 1) * 34;
+    var totalH = (sp.length - 1) * 24;
 
     _partLayer.selectAll('.part-hex').each(function () {
       var el = d3.select(this);
@@ -475,7 +469,7 @@ function onStepDragged(d) {
       var el = d3.select(this);
       if (el.attr('data-stepid') !== stepId) return;
       var px = d.x - d.w / 2 - PART_NODE_WIDTH / 2 - 30;
-      var py = d.y - totalH / 2 + pi * 34;
+      var py = d.y - totalH / 2 + pi * 24;
       var ex = d.x - d.w / 2;
       el.attr('d', 'M' + (px + PART_NODE_WIDTH / 2) + ',' + py + ' C' + (px + PART_NODE_WIDTH / 2 + 15) + ',' + py + ' ' + (ex - 15) + ',' + d.y + ' ' + ex + ',' + d.y);
       pi++;

@@ -56,8 +56,8 @@ export function getFastenerColor(pn) {
 }
 
 // ECN
-export const ECN_COLORS = { remove: '#ef4444', replace: '#f59e0b', add: '#10b981', modify: '#3b82f6', affected: '#f97316' };
-export const ECN_ICONS = { remove: '✕', replace: '↻', add: '+', modify: '~', affected: '⚠️' };
+export const ECN_COLORS = { remove: '#ef4444', replace: '#f59e0b', add: '#10b981', modify: '#3b82f6' };
+export const ECN_ICONS = { remove: '✕', replace: '↻', add: '+', modify: '~' };
 
 // Node dimensions
 export const NODE_WIDTH = 150;

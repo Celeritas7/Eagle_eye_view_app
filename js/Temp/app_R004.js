@@ -3,12 +3,12 @@
 // ============================================================
 
 import * as state from './state.js';
-import { loadAssemblyData, autoGenerateLinks, bulkCreateStepLinks, ensureSeqTagColumn, updateStepEcnStatus, clearAllEcnStatus } from './database.js';
+import { loadAssemblyData, autoGenerateLinks, bulkCreateStepLinks, ensureSeqTagColumn } from './database.js';
 import { renderGraph, zoomIn, zoomOut, fitToScreen, handleSave, hideContextMenu } from './graph.js';
 import { showToast } from './ui.js';
 import { renderListView, renderKanbanView, renderDetail, updateEcnSummary } from './views.js';
 
-const APP_VERSION = 'v3.5';
+const APP_VERSION = 'v3.2';
 let currentView = 'list';
 
 // ============================================================
@@ -302,14 +302,8 @@ function setupEventListeners() {
     });
   });
 
-  document.getElementById('ecnClear')?.addEventListener('click', async () => {
-    // Clear all ECN status in Supabase
-    var gids = state.groups.map(function(g) { return g.id; });
-    await clearAllEcnStatus(state.assy?.id, gids);
-    // Clear local state
-    state.steps.forEach(function(s) { s.ecn_status = null; });
+  document.getElementById('ecnClear')?.addEventListener('click', () => {
     state.clearEcnChanges(); updateEcnSummary();
-    showToast('ECN markings cleared & saved');
     if (currentView === 'list') renderListView();
     else if (currentView === 'graph') renderGraph();
     else if (currentView === 'kanban') renderKanbanView();

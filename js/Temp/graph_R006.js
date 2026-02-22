@@ -11,7 +11,7 @@ import {
   getFastenerColor, darkenColor, lightenColor,
   ECN_COLORS, ECN_ICONS, STATUS_COLORS, PART_NODE_WIDTH, PART_NODE_HEIGHT
 } from './config.js';
-import { savePositions, updateSeqTag, updatePart, updateFastener, updateLabelPosition, updateStepEcnStatus, updateStepPN } from './database.js';
+import { savePositions, updateSeqTag, updatePart, updateFastener, updateLabelPosition } from './database.js';
 import { showToast } from './ui.js';
 
 var zoomBehavior = null;
@@ -95,7 +95,6 @@ function calculateTreeLayout() {
 
   var allNodes = [], allLinks = [], swimlanes = [];
   var curY = topPad + headerH;
-  var ecnAffected = state.getEcnAffectedSteps();
 
   filteredGroups.forEach(function(grp, gi) {
     var gSteps = steps.filter(function(s) { return s.group_id === grp.id; })
@@ -112,14 +111,12 @@ function calculateTreeLayout() {
       allNodes.push({
         id: 's_' + step.id, dbId: step.id, x: x, y: y, w: NODE_WIDTH, h: NODE_HEIGHT,
         label: step.label, type: step.type || 'step',
-        stepPN: step.pn || null,
         level: gi, shape: getLevelShape(gi),
         color: grp.color || getLevelColor(gi),
         groupId: grp.id, groupLabel: grp.label,
         seq: si + 1, seqTag: step.seq_tag || null,
         isStep: true, isGroup: false, isRoot: false,
         ecn: state.ecnChanges[step.id] || null,
-        isEcnAffected: ecnAffected.has(step.id),
         isSelected: state.selectedStepId === step.id,
         partCount: state.parts.filter(function(p) { return p.step_id === step.id; }).length,
         fastCount: fasts.filter(function(f) { return f.step_id === step.id; }).length,
@@ -395,18 +392,9 @@ export function renderGraph() {
 
   stepGs.append('path').attr('class', 'node-shape')
     .attr('d', function(d) { return shapePath(d.shape, d.w, d.h); })
-    .attr('fill', function(d) {
-      if (d.ecn) return { remove: '#fdedec', replace: '#fef9e7', add: '#d5f5e3', modify: '#ebf5fb', affected: '#fff7ed' }[d.ecn] || d.color;
-      if (d.isEcnAffected) return '#fff7ed';
-      return d.color;
-    })
-    .attr('stroke', function(d) {
-      if (d.ecn) return ECN_COLORS[d.ecn];
-      if (d.isEcnAffected) return '#f97316';
-      return d.isSelected ? '#1d4ed8' : darkenColor(d.color, 30);
-    })
-    .attr('stroke-width', function(d) { return (d.isSelected || d.ecn || d.isEcnAffected) ? 2.5 : 1.5; })
-    .attr('stroke-dasharray', function(d) { return d.isEcnAffected && !d.ecn ? '4,3' : null; });
+    .attr('fill', function(d) { return d.ecn ? ({ remove: '#fdedec', replace: '#fef9e7', add: '#d5f5e3', modify: '#ebf5fb' }[d.ecn] || d.color) : d.color; })
+    .attr('stroke', function(d) { return d.ecn ? ECN_COLORS[d.ecn] : d.isSelected ? '#1d4ed8' : darkenColor(d.color, 30); })
+    .attr('stroke-width', function(d) { return (d.isSelected || d.ecn) ? 2.5 : 1.5; });
 
   stepGs.append('circle')
     .attr('cx', function(d) { return -d.w / 2 + 10; }).attr('cy', function(d) { return -d.h / 2 + 10; }).attr('r', 4)
@@ -418,24 +406,11 @@ export function renderGraph() {
     .attr('font-size', '12px').attr('fill', function(d) { return ECN_COLORS[d.ecn]; }).attr('font-weight', '900')
     .text(function(d) { return ECN_ICONS[d.ecn]; });
 
-  // ⚠️ on auto-affected nodes (not directly ECN-marked)
-  stepGs.filter(function(d) { return d.isEcnAffected && !d.ecn; }).append('text')
-    .attr('x', function(d) { return d.w / 2 - 4; }).attr('y', -2).attr('text-anchor', 'end')
-    .attr('font-size', '11px').text('⚠️');
-
-  // Step name (shift up slightly if has P/N)
-  stepGs.append('text').attr('text-anchor', 'middle')
-    .attr('y', function(d) { return d.stepPN ? 0 : 4; })
+  stepGs.append('text').attr('text-anchor', 'middle').attr('y', 4)
     .attr('font-size', function(d) { return getLevelFontSize(d.level) + 'px'; })
     .attr('font-weight', function(d) { return getLevelFontWeight(d.level); })
     .attr('fill', '#1f2937')
     .text(function(d) { return d.label.length > 18 ? d.label.slice(0, 18) + '..' : d.label; });
-
-  // Step P/N below name (smaller, monospace)
-  stepGs.filter(function(d) { return d.stepPN; }).append('text')
-    .attr('text-anchor', 'middle').attr('y', 12)
-    .attr('font-size', '7px').attr('fill', '#6b7280').attr('font-family', 'monospace')
-    .text(function(d) { var pn = d.stepPN; return pn.length > 22 ? pn.slice(0, 22) + '..' : pn; });
 
   stepGs.filter(function(d) { return d.partCount > 0 || d.fastCount > 0; }).append('text')
     .attr('x', 0).attr('y', function(d) { return d.h / 2 + 11; }).attr('text-anchor', 'middle')
@@ -566,29 +541,17 @@ export function renderGraph() {
   stepGs.style('cursor', 'pointer')
     .on('click', function(event, d) {
       event.stopPropagation();
-      if (state.ecnMode) {
-        var result = state.toggleEcnStep(d.dbId);
-        var step = state.steps.find(function(s) { return s.id === result.id; });
-        if (step) step.ecn_status = result.status;
-        updateStepEcnStatus(result.id, result.status);
-        renderGraph();
-      } else {
-        state.setSelectedStep(state.selectedStepId === d.dbId ? null : d.dbId);
-        renderGraph(); window._eagleEyeUpdateDetail?.();
-      }
+      if (state.ecnMode) { state.toggleEcnStep(d.dbId); renderGraph(); }
+      else { state.setSelectedStep(state.selectedStepId === d.dbId ? null : d.dbId); renderGraph(); window._eagleEyeUpdateDetail?.(); }
     })
     .on('contextmenu', function(event, d) {
       event.preventDefault(); event.stopPropagation();
-      var menuItems = [
+      showContextMenu(event.clientX, event.clientY, [
         { label: '📌 Select', action: function() { state.setSelectedStep(d.dbId); renderGraph(); window._eagleEyeUpdateDetail?.(); }},
         { label: '🏷 Set seq tag...', action: function() { promptSeqTag(d.dbId, d.seqTag); } },
-        { label: '📋 Set P/N...', action: function() { promptStepPN(d.dbId, d.stepPN); } },
         { sep: true },
-        { label: '⚠️ Mark ECN affected', action: function() { markEcnAffected(d.dbId); } },
-        { label: '🏷 Clear seq tag', danger: true, action: function() { clearSeqTag(d.dbId); } },
-        { label: '❌ Clear ECN', danger: true, action: function() { clearStepEcn(d.dbId); } }
-      ];
-      showContextMenu(event.clientX, event.clientY, menuItems);
+        { label: '🏷 Clear seq tag', danger: true, action: function() { clearSeqTag(d.dbId); } }
+      ]);
     });
 
   svg.on('click', function() { state.setSelectedStep(null); renderGraph(); window._eagleEyeUpdateDetail?.(); });
@@ -712,35 +675,6 @@ async function clearSeqTag(stepId) {
   var step = state.steps.find(function(s) { return s.id === stepId; });
   if (step) step.seq_tag = null;
   renderGraph(); showToast('Tag cleared');
-}
-
-async function promptStepPN(stepId, current) {
-  var pn = prompt('Step Part Number (P/N):', current || '');
-  if (pn === null) return;
-  pn = pn.trim();
-  var ok = await updateStepPN(stepId, pn);
-  if (ok) {
-    var step = state.steps.find(function(s) { return s.id === stepId; });
-    if (step) step.pn = pn || null;
-    renderGraph(); showToast(pn ? 'P/N set: ' + pn : 'P/N cleared');
-    window._eagleEyeUpdateDetail?.();
-  }
-}
-
-async function markEcnAffected(stepId) {
-  state.setEcnStatus(stepId, 'affected');
-  var step = state.steps.find(function(s) { return s.id === stepId; });
-  if (step) step.ecn_status = 'affected';
-  await updateStepEcnStatus(stepId, 'affected');
-  renderGraph(); showToast('⚠️ Marked as ECN affected');
-}
-
-async function clearStepEcn(stepId) {
-  state.setEcnStatus(stepId, null);
-  var step = state.steps.find(function(s) { return s.id === stepId; });
-  if (step) step.ecn_status = null;
-  await updateStepEcnStatus(stepId, null);
-  renderGraph(); showToast('ECN cleared');
 }
 
 export function zoomIn() { d3.select('#treeSvg').transition().duration(200).call(zoomBehavior.scaleBy, 1.4); }

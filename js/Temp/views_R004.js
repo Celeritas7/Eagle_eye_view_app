@@ -1,58 +1,41 @@
 // ============================================================
-// Eagle Eye Tree - Views Module (v3.5)
-// ECN persist + cascade ⚠️, Step P/N, inline editing
+// Eagle Eye Tree - Views Module (v3.3)
+// List view, Kanban view, Detail panel
+// Inline editing for Parts & Fasteners
 // ============================================================
 
 import * as state from './state.js';
 import { ECN_COLORS, ECN_ICONS } from './config.js';
-import {
-  reorderStep, reorderPart, updateSeqTag,
-  updatePart, updateFastener, updateStepPN, updateStepEcnStatus
-} from './database.js';
+import { reorderStep, reorderPart, updateSeqTag, updatePart, updateFastener } from './database.js';
 import { showToast } from './ui.js';
 
-var expandedGroups = new Set();
+const expandedGroups = new Set();
 
 // ============================================================
-// ECN toggle + auto-save helper
-// ============================================================
-async function toggleEcnAndSave(stepId) {
-  var result = state.toggleEcnStep(stepId);
-  // Update local step object
-  var step = state.steps.find(function(s) { return s.id === result.id; });
-  if (step) step.ecn_status = result.status;
-  // Persist to Supabase
-  await updateStepEcnStatus(result.id, result.status);
-}
-
-// ============================================================
-// LIST VIEW
+// LIST VIEW — with ▲▼ reorder arrows per step
 // ============================================================
 
 export function renderListView() {
-  var container = document.getElementById('listView');
+  const container = document.getElementById('listView');
   if (!container) return;
 
-  var sortedGroups = state.groups.slice().sort(function(a, b) { return (a.sort_order || 0) - (b.sort_order || 0); });
-  var search = (document.getElementById('searchInput')?.value || '').toLowerCase();
-  var ecnAffected = state.getEcnAffectedSteps();
+  const sortedGroups = state.groups.slice().sort((a, b) => (a.sort_order || 0) - (b.sort_order || 0));
+  const search = (document.getElementById('searchInput')?.value || '').toLowerCase();
 
-  if (expandedGroups.size === 0) sortedGroups.forEach(function(g) { expandedGroups.add(g.id); });
+  if (expandedGroups.size === 0) sortedGroups.forEach(g => expandedGroups.add(g.id));
 
-  var html = '';
-  sortedGroups.forEach(function(g) {
-    var gSteps = state.steps.filter(function(s) { return s.group_id === g.id; })
-      .sort(function(a, b) { return (a.sort_order || 0) - (b.sort_order || 0); });
-    var open = expandedGroups.has(g.id);
-    var ecnCount = gSteps.filter(function(s) { return state.ecnChanges[s.id]; }).length;
-    var affectedCount = gSteps.filter(function(s) { return ecnAffected.has(s.id); }).length;
+  let html = '';
+  sortedGroups.forEach(g => {
+    const gSteps = state.steps.filter(s => s.group_id === g.id)
+      .sort((a, b) => (a.sort_order || 0) - (b.sort_order || 0));
+    const open = expandedGroups.has(g.id);
+    const ecnCount = gSteps.filter(s => state.ecnChanges[s.id]).length;
 
     html += '<div class="group-section">';
     html += '<div class="group-hdr" data-gid="' + g.id + '" style="border-bottom:2px solid ' + g.color + ';">';
     html += '<span class="arrow ' + (open ? 'open' : '') + '">▶</span>';
     html += '<span class="glabel" style="color:' + g.color + ';">' + (g.icon || '') + ' ' + g.label + '</span>';
     if (ecnCount > 0) html += '<span class="ecn-cnt">' + ecnCount + '</span>';
-    if (affectedCount > 0) html += '<span class="ecn-cnt" style="background:#f9731620;color:#f97316;">⚠️' + affectedCount + '</span>';
     html += '<span class="gcnt">' + gSteps.length + '</span>';
     html += '</div>';
 
@@ -61,20 +44,17 @@ export function renderListView() {
         var sp = state.parts.filter(function(p) { return p.step_id === s.id; });
         var sf = state.fasts.filter(function(f) { return f.step_id === s.id; });
         var ecn = state.ecnChanges[s.id];
-        var isAffected = ecnAffected.has(s.id);
         var sel = state.selectedStepId === s.id;
         var seqDisplay = s.seq_tag || (si + 1);
 
         var vis = true;
         if (search) {
           vis = s.label.toLowerCase().includes(search) ||
-            (s.pn && s.pn.toLowerCase().includes(search)) ||
             sp.some(function(p) { return p.pn.toLowerCase().includes(search); }) ||
             sf.some(function(f) { return f.pn.toLowerCase().includes(search); });
         }
 
-        var bgStyle = ecn ? 'background:' + ECN_COLORS[ecn] + '08;border-left-color:' + ECN_COLORS[ecn] + ';'
-          : isAffected ? 'background:#f9731608;border-left-color:#f97316;' : '';
+        var bgStyle = ecn ? 'background:' + ECN_COLORS[ecn] + '08;border-left-color:' + ECN_COLORS[ecn] + ';' : '';
 
         html += '<div class="step-row' + (sel ? ' selected' : '') + '" data-sid="' + s.id + '" data-gid="' + g.id + '" style="' + bgStyle + 'opacity:' + (vis ? 1 : 0.2) + ';">';
         html += '<div class="reorder-arrows">';
@@ -83,11 +63,7 @@ export function renderListView() {
         html += '</div>';
         html += '<span class="sid-edit' + (s.seq_tag ? ' has-tag' : '') + '" data-sid="' + s.id + '" data-tag="' + (s.seq_tag || '') + '" title="Click to set tag">' + seqDisplay + '</span>';
         html += '<span class="badge badge-' + s.type + '">' + ({ step: 'STEP', prep: 'PREP', kanryo: '完了', note: 'NOTE' }[s.type] || 'STEP') + '</span>';
-        // Show ⚠️ for auto-affected steps
-        if (isAffected && !ecn) html += '<span style="font-size:11px;margin-right:2px;" title="Affected by ECN upstream">⚠️</span>';
         html += '<span class="slabel' + (s.type === 'kanryo' ? ' kanryo' : '') + '">' + s.label + '</span>';
-        // Show step P/N if present
-        if (s.pn) html += '<span style="font-size:8px;color:#64748b;font-family:monospace;margin-left:4px;">' + s.pn + '</span>';
         if (ecn) html += '<span class="ecn-mark" style="color:' + ECN_COLORS[ecn] + ';">' + ECN_ICONS[ecn] + '</span>';
         if (sp.length > 0) html += '<span class="tag tag-p">' + sp.length + 'P</span>';
         if (sf.length > 0) html += '<span class="tag tag-f">' + sf.length + 'F</span>';
@@ -114,9 +90,9 @@ export function renderListView() {
       if (e.target.closest('.reorder-arrows') || e.target.closest('.sid-edit')) return;
       var sid = parseInt(el.dataset.sid);
       if (state.ecnMode) {
-        toggleEcnAndSave(sid).then(function() {
-          renderListView(); updateEcnSummary();
-        });
+        state.toggleEcnStep(sid);
+        renderListView();
+        updateEcnSummary();
       } else {
         state.setSelectedStep(state.selectedStepId === sid ? null : sid);
         renderListView();
@@ -134,7 +110,10 @@ export function renderListView() {
       var gid = parseInt(el.dataset.gid);
       var dir = el.dataset.dir;
       var ok = await reorderStep(sid, dir, gid);
-      if (ok) { await window._eagleEyeReload?.(); showToast('Moved ' + dir); }
+      if (ok) {
+        await window._eagleEyeReload?.();
+        showToast('Moved ' + dir);
+      }
     });
   });
 
@@ -166,7 +145,6 @@ export function renderKanbanView() {
   if (!container) return;
 
   var sortedGroups = state.groups.slice().sort(function(a, b) { return (a.sort_order || 0) - (b.sort_order || 0); });
-  var ecnAffected = state.getEcnAffectedSteps();
 
   var html = '';
   sortedGroups.forEach(function(g) {
@@ -183,19 +161,13 @@ export function renderKanbanView() {
       var sp = state.parts.filter(function(p) { return p.step_id === s.id; });
       var sf = state.fasts.filter(function(f) { return f.step_id === s.id; });
       var ecn = state.ecnChanges[s.id];
-      var isAffected = ecnAffected.has(s.id);
       var sel = state.selectedStepId === s.id;
       var seqDisplay = s.seq_tag || '';
 
-      var borderStyle = ecn ? 'border-color:' + ECN_COLORS[ecn] + ';'
-        : isAffected ? 'border-color:#f97316;' : '';
-
-      html += '<div class="kan-card' + (sel ? ' selected' : '') + '" data-sid="' + s.id + '" style="' + borderStyle + '">';
+      html += '<div class="kan-card' + (sel ? ' selected' : '') + '" data-sid="' + s.id + '" style="' + (ecn ? 'border-color:' + ECN_COLORS[ecn] + ';' : '') + '">';
       html += '<div style="display:flex;gap:4px;align-items:center;">';
       if (seqDisplay) html += '<span style="font-size:9px;font-weight:800;color:#7c3aed;min-width:18px;">' + seqDisplay + '</span>';
-      if (isAffected && !ecn) html += '<span style="font-size:10px;" title="ECN affected">⚠️</span>';
       html += '<span style="font-size:11px;font-weight:600;color:' + (s.type === 'kanryo' ? '#f59e0b' : '#e2e8f0') + ';flex:1;">' + s.label + '</span>';
-      if (ecn) html += '<span style="font-size:10px;color:' + ECN_COLORS[ecn] + ';">' + ECN_ICONS[ecn] + '</span>';
       html += '</div>';
       html += '<div style="display:flex;gap:4px;margin-top:4px;">';
       if (sp.length) html += '<span class="tag tag-p">' + sp.length + 'P</span>';
@@ -211,9 +183,7 @@ export function renderKanbanView() {
     el.addEventListener('click', function() {
       var sid = parseInt(el.dataset.sid);
       if (state.ecnMode) {
-        toggleEcnAndSave(sid).then(function() {
-          renderKanbanView(); updateEcnSummary();
-        });
+        state.toggleEcnStep(sid); renderKanbanView(); updateEcnSummary();
       } else {
         state.setSelectedStep(state.selectedStepId === sid ? null : sid);
         renderKanbanView(); window._eagleEyeUpdateDetail?.();
@@ -223,7 +193,7 @@ export function renderKanbanView() {
 }
 
 // ============================================================
-// LOCTITE OPTIONS
+// LOCTITE OPTIONS (from Logi Assembly reference)
 // ============================================================
 var LOCTITE_OPTIONS = [
   { value: '', label: 'None' },
@@ -250,7 +220,7 @@ function loctiteSelect(id, current) {
 }
 
 // ============================================================
-// DETAIL PANEL — Step P/N, Editable Parts & Fasteners, ECN info
+// DETAIL PANEL — Editable Parts & Fasteners
 // ============================================================
 
 export function renderDetail(containerId) {
@@ -275,42 +245,28 @@ export function renderDetail(containerId) {
   var sp = state.parts.filter(function(p) { return p.step_id === step.id; }).sort(function(a, b) { return (a.sort_order || 0) - (b.sort_order || 0); });
   var sf = state.fasts.filter(function(f) { return f.step_id === step.id; }).sort(function(a, b) { return (a.sort_order || 0) - (b.sort_order || 0); });
   var ecn = state.ecnChanges[step.id];
-  var ecnAffected = state.getEcnAffectedSteps();
-  var isAffected = ecnAffected.has(step.id);
 
-  // ── HEADER with Step P/N ──
+  // ── HEADER ──
   var html = '<div class="detail-hdr">';
   html += '<div style="flex:1;">';
   html += '<div style="font-size:10px;color:' + (grp?.color || '#888') + ';font-weight:600;">↳ ' + (grp?.label || 'Unknown') + '</div>';
   html += '<div style="font-size:15px;font-weight:700;color:' + (step.type === 'kanryo' ? '#f59e0b' : '#e2e8f0') + '">' + step.label + '</div>';
-  // Step P/N (editable)
-  html += '<div style="display:flex;align-items:center;gap:6px;margin-top:3px;">';
+  html += '<div style="display:flex;gap:12px;margin-top:3px;">';
   html += '<span style="font-size:9px;color:#64748b;font-family:monospace;">ID: ' + step.id + '</span>';
   if (step.seq_tag) html += '<span style="font-size:10px;font-weight:800;color:#7c3aed;">🏷 ' + step.seq_tag + '</span>';
-  html += '</div>';
-  // P/N row
-  html += '<div style="display:flex;align-items:center;gap:6px;margin-top:4px;">';
-  html += '<span style="font-size:9px;color:#475569;font-weight:700;">P/N:</span>';
-  if (step.pn) {
-    html += '<span style="font-size:10px;color:#60a5fa;font-family:monospace;font-weight:600;">' + step.pn + '</span>';
-  } else {
-    html += '<span style="font-size:9px;color:#475569;font-style:italic;">not set</span>';
-  }
-  html += '<span class="edit-btn" id="editStepPN" title="Edit step P/N" style="font-size:10px;">✏️</span>';
-  html += '</div>';
-  html += '</div>';
-  // ECN badges
-  if (ecn) html += '<span class="ecn-badge" style="background:' + ECN_COLORS[ecn] + '18;border:1px solid ' + ECN_COLORS[ecn] + ';color:' + ECN_COLORS[ecn] + ';">' + ECN_ICONS[ecn] + ' ' + ecn + '</span>';
-  if (isAffected && !ecn) html += '<span class="ecn-badge" style="background:#f9731618;border:1px solid #f97316;color:#f97316;">⚠️ affected</span>';
+  html += '</div></div>';
+  if (ecn) html += '<span class="ecn-badge" style="background:' + ECN_COLORS[ecn] + '18;border:1px solid ' + ECN_COLORS[ecn] + ';color:' + ECN_COLORS[ecn] + ';">' + ecn + '</span>';
   html += '</div>';
 
   // ══════════════════════════════════════════
-  // PARTS
+  // PARTS — Name + P/N display + ✏️ edit
   // ══════════════════════════════════════════
   html += '<div class="section-title" style="color:#10b981;">PARTS (' + sp.length + ')</div>';
   sp.forEach(function(p, i) {
     var m = state.lookup(p.pn);
     var displayName = m.name || p.pn;
+
+    // Display row
     html += '<div class="item-row" style="background:' + (i % 2 ? '#071a12' : 'transparent') + ';">';
     html += '<div class="part-reorder">';
     html += '<span class="arr-sm ' + (i === 0 ? 'dim' : '') + '" data-dir="up" data-pid="' + p.id + '" data-sid="' + step.id + '">▲</span>';
@@ -326,7 +282,8 @@ export function renderDetail(containerId) {
     html += '<span class="iqty" style="color:#6ee7b7;">×' + p.qty + '</span>';
     html += '<span class="edit-btn" data-edit="part" data-id="' + p.id + '" title="Edit part">✏️</span>';
     html += '</div>';
-    // Edit form
+
+    // Edit form (hidden)
     html += '<div class="edit-form" id="edit-part-' + p.id + '" style="display:none;">';
     html += '<div class="ef-row"><label>P/N</label><input type="text" class="ef-input" id="ep-pn-' + p.id + '" value="' + p.pn + '"></div>';
     html += '<div class="ef-row"><label>Qty</label><input type="number" class="ef-input ef-sm" id="ep-qty-' + p.id + '" value="' + p.qty + '" min="1"></div>';
@@ -337,11 +294,13 @@ export function renderDetail(containerId) {
   });
 
   // ══════════════════════════════════════════
-  // FASTENERS
+  // FASTENERS — P/N, Qty, Loctite, Torque + ✏️ edit
   // ══════════════════════════════════════════
   html += '<div class="section-title" style="color:#ef4444;margin-top:16px;">FASTENERS (' + sf.length + ')</div>';
   sf.forEach(function(f, i) {
     var m = state.lookup(f.pn);
+
+    // Display row
     html += '<div class="item-row" style="background:' + (i % 2 ? '#1a0505' : 'transparent') + ';">';
     html += '<span class="dot" style="background:#ef4444;"></span>';
     html += '<div style="flex:1;min-width:0;">';
@@ -352,16 +311,19 @@ export function renderDetail(containerId) {
     html += '<span class="iqty" style="color:#f87171;">×' + f.qty + '</span>';
     html += '<span class="edit-btn" data-edit="fast" data-id="' + f.id + '" title="Edit fastener">✏️</span>';
     html += '</div>';
+
+    // Loctite + Torque info line
     html += '<div style="display:flex;gap:14px;padding-left:11px;font-size:10px;margin-top:1px;margin-bottom:4px;">';
     html += '<span><span style="color:#475569;">LT </span><span style="color:' + (f.loctite === '---' || !f.loctite ? '#475569' : '#f59e0b') + ';font-weight:700;">' + (f.loctite || '—') + '</span></span>';
     html += '<span><span style="color:#475569;">TQ </span><span style="color:' + (!f.torque || f.torque === '---' ? '#475569' : '#60a5fa') + ';font-weight:700;">' + (f.torque || '—') + '</span></span>';
     html += '</div>';
-    // Edit form
+
+    // Edit form (hidden)
     html += '<div class="edit-form" id="edit-fast-' + f.id + '" style="display:none;">';
-    html += '<div class="ef-row"><label>P/N</label><input type="text" class="ef-input" id="ef-pn-' + f.id + '" value="' + f.pn + '" placeholder="e.g. CBE6-30"></div>';
+    html += '<div class="ef-row"><label>P/N</label><input type="text" class="ef-input" id="ef-pn-' + f.id + '" value="' + f.pn + '" placeholder="e.g. CBE6-30, CSH-M3-5"></div>';
     html += '<div class="ef-row"><label>Qty</label><input type="number" class="ef-input ef-sm" id="ef-qty-' + f.id + '" value="' + f.qty + '" min="1"></div>';
     html += '<div class="ef-row"><label>Loctite</label>' + loctiteSelect('ef-lt-' + f.id, f.loctite) + '</div>';
-    html += '<div class="ef-row"><label>Torque</label><input type="text" class="ef-input" id="ef-tq-' + f.id + '" value="' + (f.torque && f.torque !== '---' ? f.torque : '') + '" placeholder="e.g. 25Nm"></div>';
+    html += '<div class="ef-row"><label>Torque</label><input type="text" class="ef-input" id="ef-tq-' + f.id + '" value="' + (f.torque && f.torque !== '---' ? f.torque : '') + '" placeholder="e.g. 25Nm, 3.5Nm"></div>';
     html += '<div class="ef-actions">';
     html += '<button class="ef-btn ef-cancel" data-close="fast-' + f.id + '">Cancel</button>';
     html += '<button class="ef-btn ef-save" data-save="fast" data-id="' + f.id + '">Save</button>';
@@ -386,28 +348,10 @@ export function renderDetail(containerId) {
   contentEl.innerHTML = html;
 
   // ══════════════════════════════════════════
-  // WIRE EVENT HANDLERS
+  // WIRE ALL EVENT HANDLERS
   // ══════════════════════════════════════════
 
-  // Edit step P/N
-  var editPNBtn = contentEl.querySelector('#editStepPN');
-  if (editPNBtn) {
-    editPNBtn.addEventListener('click', async function(e) {
-      e.stopPropagation();
-      var current = step.pn || '';
-      var newPN = prompt('Step Part Number (P/N):', current);
-      if (newPN === null) return;
-      newPN = newPN.trim();
-      var ok = await updateStepPN(step.id, newPN);
-      if (ok) {
-        step.pn = newPN || null;
-        showToast(newPN ? 'Step P/N: ' + newPN : 'Step P/N cleared');
-        renderDetail(containerId);
-      }
-    });
-  }
-
-  // Part reorder arrows
+  // Part reorder arrows ▲▼
   contentEl.querySelectorAll('.arr-sm').forEach(function(el) {
     el.addEventListener('click', async function(e) {
       e.stopPropagation();
@@ -421,15 +365,17 @@ export function renderDetail(containerId) {
   });
 
   // ✏️ Edit toggle buttons
-  contentEl.querySelectorAll('.edit-btn[data-edit]').forEach(function(el) {
+  contentEl.querySelectorAll('.edit-btn').forEach(function(el) {
     el.addEventListener('click', function(e) {
       e.stopPropagation();
-      var type = el.dataset.edit;
+      var type = el.dataset.edit; // 'part' or 'fast'
       var id = el.dataset.id;
       var form = document.getElementById('edit-' + type + '-' + id);
       if (form) {
+        // Close all other open forms first
         contentEl.querySelectorAll('.edit-form').forEach(function(f) { f.style.display = 'none'; });
         form.style.display = '';
+        // Focus first input
         var firstInput = form.querySelector('input[type="text"]');
         if (firstInput) firstInput.focus();
       }
@@ -440,7 +386,7 @@ export function renderDetail(containerId) {
   contentEl.querySelectorAll('.ef-cancel').forEach(function(el) {
     el.addEventListener('click', function(e) {
       e.stopPropagation();
-      var key = el.dataset.close;
+      var key = el.dataset.close; // e.g. 'part-123' or 'fast-456'
       var form = document.getElementById('edit-' + key);
       if (form) form.style.display = 'none';
     });
@@ -450,68 +396,93 @@ export function renderDetail(containerId) {
   contentEl.querySelectorAll('.ef-save').forEach(function(el) {
     el.addEventListener('click', async function(e) {
       e.stopPropagation();
-      var type = el.dataset.save;
+      var type = el.dataset.save; // 'part' or 'fast'
       var id = parseInt(el.dataset.id);
-      if (type === 'part') await savePartEdit(id, containerId);
-      else if (type === 'fast') await saveFastenerEdit(id, containerId);
+
+      if (type === 'part') {
+        await savePartEdit(id);
+      } else if (type === 'fast') {
+        await saveFastenerEdit(id);
+      }
     });
   });
 }
 
 // ============================================================
-// SAVE PART EDIT
+// SAVE PART EDIT → Supabase
 // ============================================================
-async function savePartEdit(partId, containerId) {
+
+async function savePartEdit(partId) {
   var pnEl = document.getElementById('ep-pn-' + partId);
   var qtyEl = document.getElementById('ep-qty-' + partId);
   if (!pnEl || !qtyEl) return;
+
   var pn = pnEl.value.trim();
   var qty = parseInt(qtyEl.value) || 1;
+
   if (!pn) { showToast('P/N is required', 'error'); return; }
+
   var ok = await updatePart(partId, { pn: pn, qty: qty });
   if (ok) {
+    // Update local state
     var part = state.parts.find(function(p) { return p.id === partId; });
     if (part) { part.pn = pn; part.qty = qty; }
     showToast('Part updated');
-    renderDetail(containerId);
-  } else { showToast('Failed to update part', 'error'); }
+    renderDetail(document.getElementById('mainDetailContent') ? 'mainDetailContent' : 'sidebarDetailContent');
+  } else {
+    showToast('Failed to update part', 'error');
+  }
 }
 
 // ============================================================
-// SAVE FASTENER EDIT
+// SAVE FASTENER EDIT → Supabase
 // ============================================================
-async function saveFastenerEdit(fastId, containerId) {
+
+async function saveFastenerEdit(fastId) {
   var pnEl = document.getElementById('ef-pn-' + fastId);
   var qtyEl = document.getElementById('ef-qty-' + fastId);
   var ltEl = document.getElementById('ef-lt-' + fastId);
   var tqEl = document.getElementById('ef-tq-' + fastId);
   if (!pnEl || !qtyEl) return;
+
   var pn = pnEl.value.trim();
   var qty = parseInt(qtyEl.value) || 1;
   var loctite = ltEl ? ltEl.value : null;
   var torque = tqEl ? tqEl.value.trim() : null;
+
   if (!pn) { showToast('P/N is required', 'error'); return; }
-  var ok = await updateFastener(fastId, { pn: pn, qty: qty, loctite: loctite || null, torque: torque || null });
+
+  var updates = {
+    pn: pn,
+    qty: qty,
+    loctite: loctite || null,
+    torque: torque || null
+  };
+
+  var ok = await updateFastener(fastId, updates);
   if (ok) {
+    // Update local state
     var fast = state.fasts.find(function(f) { return f.id === fastId; });
-    if (fast) { fast.pn = pn; fast.qty = qty; fast.loctite = loctite || null; fast.torque = torque || null; }
+    if (fast) {
+      fast.pn = pn;
+      fast.qty = qty;
+      fast.loctite = loctite || null;
+      fast.torque = torque || null;
+    }
     showToast('Fastener updated');
-    renderDetail(containerId);
-  } else { showToast('Failed to update fastener', 'error'); }
+    renderDetail(document.getElementById('mainDetailContent') ? 'mainDetailContent' : 'sidebarDetailContent');
+  } else {
+    showToast('Failed to update fastener', 'error');
+  }
 }
 
 // ============================================================
 // ECN SUMMARY
 // ============================================================
+
 export function updateEcnSummary() {
   var el = document.getElementById('ecnSummary');
-  var directCount = Object.keys(state.ecnChanges).length;
-  var affectedCount = state.getEcnAffectedSteps().size;
-  var total = directCount + affectedCount;
-  if (total > 0) {
-    el.style.display = '';
-    el.textContent = '⚡ ' + directCount + ' marked' + (affectedCount > 0 ? ' · ⚠️ ' + affectedCount + ' affected' : '');
-  } else {
-    el.style.display = 'none';
-  }
+  var count = Object.keys(state.ecnChanges).length;
+  if (count > 0) { el.style.display = ''; el.textContent = '⚡ ' + count + ' steps affected'; }
+  else { el.style.display = 'none'; }
 }

@@ -125,37 +125,6 @@ export async function updateLabelPosition(stepId, t) {
 }
 
 // ============================================================
-// STEP P/N
-// ============================================================
-
-export async function updateStepPN(stepId, pn) {
-  const { error } = await db.from(T.step).update({ pn: pn || null }).eq('id', stepId);
-  if (error) console.error('updateStepPN error:', error.message);
-  return !error;
-}
-
-// ============================================================
-// ECN STATUS — persist per-step ECN markings
-// ============================================================
-
-export async function updateStepEcnStatus(stepId, status) {
-  const { error } = await db.from(T.step).update({ ecn_status: status || null }).eq('id', stepId);
-  if (error) console.error('updateStepEcnStatus error:', error.message);
-  return !error;
-}
-
-export async function clearAllEcnStatus(assemblyId, groupIds) {
-  if (!groupIds || !groupIds.length) return false;
-  // Get all step IDs for this assembly's groups
-  const { data: steps } = await db.from(T.step).select('id').in('group_id', groupIds);
-  if (!steps || !steps.length) return false;
-  const ids = steps.map(s => s.id);
-  const { error } = await db.from(T.step).update({ ecn_status: null }).in('id', ids);
-  if (error) console.error('clearAllEcnStatus error:', error.message);
-  return !error;
-}
-
-// ============================================================
 // POSITION SAVING
 // ============================================================
 

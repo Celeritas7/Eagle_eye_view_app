@@ -4,1112 +4,887 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>EagleEye — Assembly Tracking</title>
-<script src="https://d3js.org/d3.v7.min.js"></script>
 <link rel="preconnect" href="https://fonts.googleapis.com">
-<link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600;700&family=DM+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600;700;800&family=DM+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
 <style>
 *{margin:0;padding:0;box-sizing:border-box}
 :root{
-  --bg:#0c0e1a;--surface:#141627;--surface2:#1a1d32;--surface3:#22263e;
-  --border:#2a2e4a;--border-hover:#3d4270;
-  --text:#e8eaf0;--text2:#8b8fa8;--text3:#5c6080;
-  --accent:#f5a623;--accent2:#e8952e;--accent-glow:rgba(245,166,35,0.15);
-  --green:#22c55e;--green-bg:rgba(34,197,94,0.12);--green-border:rgba(34,197,94,0.3);
-  --red:#ef4444;--red-bg:rgba(239,68,68,0.12);--red-border:rgba(239,68,68,0.3);
-  --yellow:#eab308;--yellow-bg:rgba(234,179,8,0.12);--yellow-border:rgba(234,179,8,0.3);
-  --blue:#3b82f6;--blue-bg:rgba(59,130,246,0.12);--blue-border:rgba(59,130,246,0.3);
-  --purple:#8b5cf6;--purple-bg:rgba(139,92,246,0.12);
-  --pink:#ec4899;--pink-border:rgba(236,72,153,0.4);
-  --cyan:#06b6d4;--cyan-border:rgba(6,182,212,0.4);
-  --orange:#f97316;--orange-border:rgba(249,115,22,0.4);
+  --bg:#0a0b0f;--card:#12131a;--card-hover:#1a1c24;--modal:#15161e;
+  --border:#1e2030;--text:#d1d5e4;--muted:#6b7080;--dim:#3a3d4d;
+  --accent:#f59e0b;--purple:#8b5cf6;
+  --red:#ef4444;--green:#22c55e;--blue:#3b82f6;--orange:#f97316;--pink:#ec4899;--cyan:#06b6d4;
 }
 body{font-family:'DM Sans',system-ui,sans-serif;background:var(--bg);color:var(--text);min-height:100vh}
+::-webkit-scrollbar{width:4px}::-webkit-scrollbar-track{background:var(--bg)}::-webkit-scrollbar-thumb{background:var(--border);border-radius:2px}
 .mono{font-family:'JetBrains Mono',monospace}
 
-/* ====== TOP BAR ====== */
-.topbar{
-  height:48px;padding:0 24px;display:flex;align-items:center;justify-content:space-between;
-  background:var(--surface);border-bottom:1px solid var(--border);position:sticky;top:0;z-index:100;
-}
-.topbar-left{display:flex;align-items:center;gap:12px}
-.topbar-logo{font-family:'JetBrains Mono',monospace;font-size:14px;font-weight:700;color:var(--accent);cursor:pointer;display:flex;align-items:center;gap:6px}
-.topbar-logo span{color:var(--text)}
-.topbar-breadcrumb{display:flex;align-items:center;gap:6px;font-size:12px;color:var(--text3)}
-.topbar-breadcrumb .sep{color:var(--text3)}
-.topbar-breadcrumb .crumb{color:var(--text2);cursor:pointer;padding:2px 6px;border-radius:4px}
-.topbar-breadcrumb .crumb:hover{color:var(--text);background:var(--surface2)}
-.topbar-breadcrumb .crumb.active{color:var(--accent)}
-.topbar-right{display:flex;align-items:center;gap:10px}
-.admin-badge{
-  display:flex;align-items:center;gap:6px;padding:4px 12px;border-radius:6px;
-  background:var(--accent-glow);border:1px solid rgba(245,166,35,0.25);
-  font-size:12px;font-weight:600;color:var(--accent);
-}
-.admin-badge .icon{font-size:14px}
-.topbar-btn{
-  padding:4px 10px;border-radius:5px;font-size:11px;border:1px solid var(--border);
-  background:transparent;color:var(--text2);cursor:pointer;font-family:'DM Sans',sans-serif;
-}
-.topbar-btn:hover{border-color:var(--text3);color:var(--text)}
-.theme-dot{width:24px;height:24px;border-radius:50%;background:linear-gradient(135deg,#f5a623,#e8952e);cursor:pointer;border:2px solid var(--border)}
+/* ====== SHARED STYLES ====== */
+.badge{padding:2px 7px;border-radius:8px;font-size:9px;font-weight:700;font-family:'JetBrains Mono',monospace;display:inline-block}
+.btn-sm{padding:3px 10px;border-radius:6px;font-size:10px;font-weight:700;border:1px solid var(--border);cursor:pointer;font-family:'JetBrains Mono',monospace}
+.inp{background:#0d0e14;border:1px solid var(--border);border-radius:6px;padding:5px 8px;color:var(--text);font-size:11px;font-family:'JetBrains Mono',monospace;outline:none}
+.inp:focus{border-color:var(--accent)}
 
 /* ====== PAGE SYSTEM ====== */
-.page{display:none;padding:32px 40px;max-width:1300px;margin:0 auto}
-.page.active{display:block}
+.page{display:none}.page.active{display:block}
 
 /* ====== HOME PAGE ====== */
-.home-header{text-align:center;padding:48px 0 36px}
-.home-icon{font-size:36px;margin-bottom:8px;display:inline-block}
-.home-title{font-family:'JetBrains Mono',monospace;font-size:40px;font-weight:700;letter-spacing:-1px;margin-bottom:8px}
-.home-title .e{color:var(--accent)}
-.home-subtitle{font-size:15px;color:var(--text2)}
+.home-wrap{min-height:100vh;display:flex;flex-direction:column;align-items:center}
+.home-admin{position:fixed;top:12px;right:16px;display:flex;align-items:center;gap:8px;z-index:10}
+.admin-pill{display:flex;align-items:center;gap:5px;padding:5px 12px;border-radius:8px;background:rgba(245,158,11,0.08);border:1px solid rgba(245,158,11,0.2);font-size:11px;font-weight:600;color:var(--accent);font-family:'JetBrains Mono',monospace}
+.home-hero{text-align:center;padding-top:72px;margin-bottom:44px}
+.home-logo{font-size:48px;font-weight:900;color:var(--accent);font-family:'JetBrains Mono',monospace;letter-spacing:-2px;line-height:1}
+.home-logo .sym{font-size:42px;margin-right:4px}
+.home-sub{font-size:14px;color:var(--muted);margin-top:10px;letter-spacing:0.3px}
+.home-stats{display:flex;gap:16px;justify-content:center;margin-top:16px;font-size:12px;color:var(--muted);font-family:'JetBrains Mono',monospace}
+.home-stats .num{font-weight:700}
 
-.section-label{
-  font-family:'JetBrains Mono',monospace;font-size:11px;font-weight:600;
-  letter-spacing:1.5px;text-transform:uppercase;color:var(--text3);margin-bottom:16px;
+/* Nav Cards */
+.nav-cards{display:flex;gap:16px;margin-bottom:44px;flex-wrap:wrap;justify-content:center;padding:0 24px}
+.nav-card{
+  width:280px;padding:28px 24px;border-radius:16px;background:var(--card);
+  cursor:pointer;transition:all 0.2s;
 }
+.nav-card:hover{transform:translateY(-4px)}
+.nav-card .nc-icon{font-size:36px;margin-bottom:12px}
+.nav-card .nc-title{font-size:18px;font-weight:700}
+.nav-card .nc-desc{font-size:12px;color:var(--muted);margin-top:6px;line-height:1.5}
+.nav-card .nc-tags{margin-top:14px;display:flex;gap:6px;flex-wrap:wrap}
+
+/* Section labels */
+.section-label{font-family:'JetBrains Mono',monospace;font-size:11px;font-weight:700;letter-spacing:1.5px;text-transform:uppercase;color:var(--dim);margin-bottom:14px}
 
 /* Assembly Cards */
-.assy-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:14px;margin-bottom:40px}
+.assy-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(190px,1fr));gap:10px;max-width:860px;width:100%;padding:0 24px 60px}
 .assy-card{
-  background:var(--surface);border:2px solid var(--border);border-radius:12px;
-  padding:20px;cursor:pointer;transition:all 0.2s;position:relative;overflow:hidden;
+  background:var(--card);border:1px solid var(--border);border-radius:12px;
+  padding:16px 18px;cursor:pointer;transition:all 0.15s;
 }
-.assy-card:hover{border-color:var(--border-hover);transform:translateY(-2px);box-shadow:0 8px 24px rgba(0,0,0,0.3)}
-.assy-card .card-icon{font-size:40px;margin-bottom:12px;display:block}
-.assy-card .card-name{font-size:16px;font-weight:700;margin-bottom:4px;display:flex;align-items:center;gap:8px}
-.assy-card .card-name .ver{
-  font-family:'JetBrains Mono',monospace;font-size:11px;font-weight:600;
-  padding:2px 8px;border-radius:4px;
-}
-.assy-card .card-units{font-size:12px;font-weight:600;margin-top:6px;padding:2px 10px;border-radius:4px;display:inline-block}
-
-/* Card border colors */
-.assy-card[data-color="green"]{border-color:var(--green-border)}.assy-card[data-color="green"]:hover{border-color:var(--green);box-shadow:0 8px 24px rgba(34,197,94,0.1)}
-.assy-card[data-color="pink"]{border-color:var(--pink-border)}.assy-card[data-color="pink"]:hover{border-color:var(--pink);box-shadow:0 8px 24px rgba(236,72,153,0.1)}
-.assy-card[data-color="orange"]{border-color:var(--orange-border)}.assy-card[data-color="orange"]:hover{border-color:var(--orange);box-shadow:0 8px 24px rgba(249,115,22,0.1)}
-.assy-card[data-color="cyan"]{border-color:var(--cyan-border)}.assy-card[data-color="cyan"]:hover{border-color:var(--cyan);box-shadow:0 8px 24px rgba(6,182,212,0.1)}
-.assy-card[data-color="blue"]{border-color:var(--blue-border)}.assy-card[data-color="blue"]:hover{border-color:var(--blue);box-shadow:0 8px 24px rgba(59,130,246,0.1)}
-.assy-card[data-color="purple"]{border-color:rgba(139,92,246,0.4)}.assy-card[data-color="purple"]:hover{border-color:var(--purple);box-shadow:0 8px 24px rgba(139,92,246,0.1)}
-
-.ver-green{background:var(--green-bg);color:var(--green)}
-.ver-pink{background:rgba(236,72,153,0.12);color:var(--pink)}
-.ver-orange{background:rgba(249,115,22,0.12);color:var(--orange)}
-.ver-cyan{background:rgba(6,182,212,0.12);color:var(--cyan)}
-.ver-blue{background:var(--blue-bg);color:var(--blue)}
-.ver-purple{background:var(--purple-bg);color:var(--purple)}
-.units-green{background:var(--green-bg);color:var(--green)}
-.units-pink{background:rgba(236,72,153,0.12);color:var(--pink)}
-.units-orange{background:rgba(249,115,22,0.12);color:var(--orange)}
-.units-cyan{background:rgba(6,182,212,0.12);color:var(--cyan)}
-.units-blue{background:var(--blue-bg);color:var(--blue)}
-.units-purple{background:var(--purple-bg);color:var(--purple)}
-
-/* Full robot card */
+.assy-card:hover{transform:translateY(-2px)}
+.assy-card .ac-top{display:flex;align-items:center;gap:8px;margin-bottom:8px}
+.assy-card .ac-icon{font-size:22px}
+.assy-card .ac-name{font-size:14px;font-weight:700}
+.assy-card .ac-tags{display:flex;gap:5px;flex-wrap:wrap}
+.full-robot-wrap{margin-bottom:40px;padding:0 24px;max-width:860px;width:100%}
 .full-robot-card{
-  background:var(--surface);border:2px solid var(--green-border);border-radius:12px;
-  padding:24px;cursor:pointer;transition:all 0.2s;max-width:320px;
+  background:var(--card);border:2px solid rgba(34,197,94,0.25);border-radius:14px;
+  padding:20px;cursor:pointer;transition:all 0.2s;max-width:320px;
 }
-.full-robot-card:hover{border-color:var(--green);transform:translateY(-2px);box-shadow:0 8px 24px rgba(34,197,94,0.12)}
+.full-robot-card:hover{border-color:var(--green);transform:translateY(-2px);box-shadow:0 8px 24px rgba(34,197,94,0.1)}
 
-/* ====== ASSEMBLY DETAIL PAGE — TABS ====== */
-.detail-header{display:flex;align-items:center;gap:16px;margin-bottom:4px}
-.detail-icon{font-size:32px}
-.detail-title{font-size:22px;font-weight:700;font-family:'JetBrains Mono',monospace}
-.detail-ver{font-size:12px;padding:3px 10px;border-radius:5px;font-family:'JetBrains Mono',monospace;font-weight:600}
-.detail-subtitle{font-size:13px;color:var(--text2);margin-bottom:20px}
+/* ====== UNIT SELECT PAGE ====== */
+.us-header{display:flex;align-items:center;gap:12px;margin-bottom:20px}
+.us-back{background:none;border:1px solid var(--border);border-radius:8px;padding:6px 14px;color:var(--muted);cursor:pointer;font-size:12px}
+.us-back:hover{border-color:var(--muted);color:var(--text)}
+.us-filters{display:flex;gap:8px;margin-bottom:12px;flex-wrap:wrap;align-items:center}
+.us-filter{padding:5px 12px;border-radius:8px;font-size:11px;font-weight:600;cursor:pointer;border:1px solid var(--border);background:transparent;color:var(--muted);text-transform:capitalize}
+.us-filter.active{border:none}
+.us-filter[data-f="all"].active{background:rgba(245,158,11,0.15);color:var(--accent)}
+.us-filter[data-f="outdated"].active{background:rgba(239,68,68,0.15);color:var(--red)}
+.us-filter[data-f="current"].active{background:rgba(34,197,94,0.15);color:var(--green)}
+.unit-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(140px,1fr));gap:5px;max-height:420px;overflow-y:auto;padding:2px}
+.unit-card{padding:8px 10px;border-radius:8px;cursor:pointer;border:1px solid var(--border);background:var(--card);transition:all 0.1s;position:relative}
+.unit-card.selected{border:2px solid var(--accent);background:rgba(245,158,11,0.03)}
+.proceed-bar{margin-top:14px;padding:10px 16px;border-radius:12px;display:flex;align-items:center;justify-content:space-between}
+.proceed-btn{padding:8px 22px;border-radius:10px;font-size:13px;font-weight:700;border:none;color:#000;cursor:pointer}
 
-.detail-tabs{display:flex;gap:0;border-bottom:1px solid var(--border);margin-bottom:20px}
-.detail-tab{
-  padding:10px 20px;font-size:13px;font-weight:600;cursor:pointer;
-  border-bottom:2px solid transparent;color:var(--text3);transition:all 0.15s;
-  font-family:'JetBrains Mono',monospace;
-}
-.detail-tab:hover{color:var(--text2)}
-.detail-tab.active{color:var(--accent);border-bottom-color:var(--accent)}
-.tab-content{display:none}.tab-content.active{display:block}
+/* ====== ASSEMBLY VIEW PAGE ====== */
+.av-header{display:flex;align-items:center;gap:10px;padding:8px 16px;border-bottom:1px solid var(--border);background:#0e0f15;position:sticky;top:0;z-index:10;flex-wrap:wrap}
+.av-tabs{display:flex;align-items:center;gap:0;padding:0 16px;border-bottom:1px solid var(--border);background:#0e0f15}
+.av-tab{display:flex;align-items:center;gap:5px;padding:9px 16px;font-size:12px;font-weight:500;color:var(--muted);background:transparent;border:none;cursor:pointer;border-bottom:2px solid transparent}
+.av-tab.active{font-weight:700;color:var(--accent);border-bottom-color:var(--accent)}
+.av-tab .count{font-size:8px;font-weight:700;padding:1px 5px;border-radius:6px;background:rgba(239,68,68,0.15);color:var(--red);font-family:'JetBrains Mono',monospace}
+.av-tab .soon{font-size:7px;font-weight:700;padding:1px 5px;border-radius:4px;background:rgba(58,61,77,0.2);color:var(--dim);font-family:'JetBrains Mono',monospace}
 
-/* ====== UNIT TABLE ====== */
-.table-wrap{overflow-x:auto;border:1px solid var(--border);border-radius:10px;background:var(--surface)}
-table{width:100%;border-collapse:collapse;font-size:13px}
-th{background:var(--surface2);padding:10px 14px;text-align:left;font-size:10px;font-weight:600;
-  font-family:'JetBrains Mono',monospace;text-transform:uppercase;letter-spacing:0.5px;color:var(--text3);
-  border-bottom:1px solid var(--border);position:sticky;top:0}
-td{padding:10px 14px;border-bottom:1px solid rgba(42,46,74,0.5);vertical-align:middle}
-tr:hover td{background:rgba(255,255,255,0.015)}
-tr:last-child td{border-bottom:none}
+/* ECN Banner */
+.ecn-banner{margin:10px 16px 0;padding:10px 14px;border-radius:10px;background:rgba(239,68,68,0.04);border:1px solid rgba(239,68,68,0.1)}
+.ecn-progress{height:3px;border-radius:2px;background:rgba(239,68,68,0.1);overflow:hidden;margin:6px 0 8px}
+.ecn-progress-fill{height:100%;border-radius:2px;transition:width 0.3s}
+.ecn-item{display:flex;align-items:center;gap:7px;padding:6px 9px;border-radius:6px;cursor:pointer;margin-bottom:3px;border:1px solid var(--border);background:var(--card);transition:all 0.15s}
+.ecn-item:hover{border-color:var(--muted)}
+.ecn-item.done{background:rgba(34,197,94,0.05);border-color:rgba(34,197,94,0.12)}
+.ecn-item.blocked{opacity:0.55;cursor:not-allowed}
+.ecn-tag{font-size:10px;font-weight:700;font-family:'JetBrains Mono',monospace;min-width:28px;text-align:center;padding:2px 5px;border-radius:4px}
+.ecn-all-done{margin-top:10px;padding:12px 14px;border-radius:9px;background:rgba(34,197,94,0.06);border:2px solid rgba(34,197,94,0.25);display:flex;align-items:center;justify-content:space-between}
 
-.badge{padding:2px 8px;border-radius:4px;font-size:10px;font-weight:600;font-family:'JetBrains Mono',monospace;display:inline-block}
-.badge-green{background:var(--green-bg);color:var(--green)}
-.badge-red{background:var(--red-bg);color:var(--red)}
-.badge-yellow{background:var(--yellow-bg);color:var(--yellow)}
-.badge-blue{background:var(--blue-bg);color:var(--blue)}
-.badge-purple{background:var(--purple-bg);color:var(--purple)}
-.badge-gray{background:rgba(107,114,128,0.15);color:#9ca3af}
-
-/* ====== BUTTONS ====== */
-.btn{
-  padding:7px 14px;border:none;border-radius:6px;cursor:pointer;font-size:12px;
-  font-weight:600;transition:all 0.15s;font-family:'DM Sans',sans-serif;
-  display:inline-flex;align-items:center;gap:6px;
-}
-.btn-primary{background:var(--blue);color:#fff}.btn-primary:hover{filter:brightness(1.15)}
-.btn-accent{background:var(--accent);color:#000}.btn-accent:hover{filter:brightness(1.1)}
-.btn-success{background:var(--green);color:#fff}.btn-success:hover{filter:brightness(1.15)}
-.btn-danger{background:var(--red);color:#fff}.btn-danger:hover{filter:brightness(1.15)}
-.btn-ghost{background:transparent;color:var(--text2);border:1px solid var(--border)}
-.btn-ghost:hover{color:var(--text);border-color:var(--text3)}
-.btn-sm{padding:4px 10px;font-size:11px}
-
-/* ====== SEARCH / FILTER ====== */
-.search-bar{display:flex;align-items:center;gap:8px;margin-bottom:14px;flex-wrap:wrap}
-.search-input{
-  padding:8px 12px;border:1px solid var(--border);border-radius:6px;
-  background:var(--surface2);color:var(--text);font-size:12px;flex:1;max-width:280px;
-}
-.search-input:focus{outline:none;border-color:var(--accent)}
-.filter-pill{
-  padding:5px 12px;font-size:11px;border:1px solid var(--border);border-radius:20px;
-  background:transparent;color:var(--text3);cursor:pointer;font-family:'DM Sans',sans-serif;font-weight:500;
-}
-.filter-pill:hover,.filter-pill.active{border-color:var(--accent);color:var(--accent);background:var(--accent-glow)}
-
-/* ====== VERSION SELECTOR BAR ====== */
-.version-bar{display:flex;align-items:center;gap:12px;margin-bottom:16px;flex-wrap:wrap;padding:10px 14px;background:var(--surface);border:1px solid var(--border);border-radius:8px}
-.version-select{
-  padding:5px 10px;border-radius:5px;background:var(--surface2);border:1px solid var(--border);
-  color:var(--text);font-size:12px;font-family:'JetBrains Mono',monospace;cursor:pointer;
-}
-.version-select:focus{outline:none;border-color:var(--accent)}
-.version-info{font-size:11px;color:var(--text3);font-family:'JetBrains Mono',monospace}
-.version-frozen{padding:3px 10px;border-radius:4px;background:var(--blue-bg);border:1px solid var(--blue-border);color:var(--blue);font-size:10px;font-weight:600;font-family:'JetBrains Mono',monospace}
-
-/* ====== TREE LIST VIEW ====== */
-.group-block{margin-bottom:14px;border:1px solid var(--border);border-radius:8px;overflow:hidden;background:var(--surface)}
-.group-header{
-  padding:10px 14px;display:flex;align-items:center;gap:10px;cursor:pointer;
-  background:var(--surface2);border-bottom:1px solid var(--border);
-}
-.group-header:hover{background:var(--surface3)}
-.group-dot{width:10px;height:10px;border-radius:3px;flex-shrink:0}
-.group-label{font-weight:600;font-size:13px}
-.group-count{font-size:10px;color:var(--text3);font-family:'JetBrains Mono',monospace;margin-left:auto}
-.step-row{
-  display:flex;align-items:center;gap:10px;padding:8px 14px 8px 32px;
-  font-size:12px;cursor:pointer;transition:background 0.1s;
-}
+/* Assembly tree list in assembly view */
+.tree-list{padding:10px 16px}
+.grp-block{margin-bottom:8px}
+.grp-hdr{display:flex;align-items:center;gap:6px;padding:7px 10px;border-radius:8px;cursor:pointer}
+.grp-hdr:hover{background:rgba(255,255,255,0.02)}
+.step-row{display:flex;align-items:center;gap:6px;padding:5px 8px 5px 28px;cursor:pointer;border-radius:5px;font-size:11px}
 .step-row:hover{background:rgba(255,255,255,0.02)}
-.step-seq{font-family:'JetBrains Mono',monospace;font-weight:600;color:var(--text3);min-width:30px;font-size:11px}
-.step-name{flex:1}
-.ecn-dot{width:8px;height:8px;border-radius:50%;flex-shrink:0}
-.ecn-dot.changed{background:var(--red)}.ecn-dot.pending{background:var(--yellow)}.ecn-dot.applied{background:var(--green)}.ecn-dot.none{background:var(--text3);opacity:0.3}
+.step-row .sn-tag{font-weight:700;min-width:26px;text-align:center;font-size:10px;padding:1px 4px;border-radius:3px}
+.step-row .s-type{font-size:9px;font-weight:600}
+.step-row .s-name{flex:1;font-size:10px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 
-/* ====== ECN CHANGE TYPE ====== */
-.ecn-type{font-size:10px;padding:2px 7px;border-radius:3px;font-weight:600;font-family:'JetBrains Mono',monospace}
-.ecn-type.added{background:var(--green-bg);color:var(--green)}
-.ecn-type.removed{background:var(--red-bg);color:var(--red)}
-.ecn-type.modified{background:var(--yellow-bg);color:var(--yellow)}
-.ecn-type.replaced{background:var(--purple-bg);color:var(--purple)}
+/* ====== TREE EDITOR PAGE ====== */
+.te-wrap{display:flex;height:100vh;overflow:hidden}
+.te-left{flex:1;display:flex;flex-direction:column;overflow:hidden}
+.te-right{width:360px;border-left:1px solid var(--border);background:var(--card);overflow-y:auto;padding:12px 14px}
+.te-verbar{padding:8px 12px;border-bottom:1px solid var(--border);background:#0e0f15;display:flex;align-items:center;gap:6px;flex-wrap:wrap}
+.te-ver-pill{padding:3px 10px;border-radius:6px;font-size:10px;font-weight:700;cursor:pointer;font-family:'JetBrains Mono',monospace}
+.te-frozen-banner{padding:6px 12px;background:rgba(239,68,68,0.06);border-bottom:1px solid rgba(239,68,68,0.1);font-size:10px;color:var(--red);font-weight:700;text-align:center}
+.te-tree{flex:1;overflow-y:auto;padding:8px 10px}
+.te-grp-hdr{display:flex;align-items:center;gap:6px;padding:6px 10px;border-radius:8px}
+.te-step{display:flex;align-items:center;gap:5px;padding:5px 8px 5px 24px;cursor:pointer;border-radius:6px;margin:1px 0}
+.te-step.sel{background:rgba(139,92,246,0.08);border:1px solid rgba(139,92,246,0.2)}
 
-/* ====== CASCADE WARNING ====== */
-.cascade-box{
-  padding:14px;border-radius:8px;background:var(--red-bg);border:1px solid var(--red-border);margin-top:16px;
-}
-.cascade-title{font-size:13px;font-weight:700;color:var(--red);margin-bottom:8px;display:flex;align-items:center;gap:6px}
-.cascade-unit{
-  display:inline-flex;padding:2px 8px;border-radius:4px;
-  background:rgba(239,68,68,0.08);font-family:'JetBrains Mono',monospace;font-size:10px;margin:2px 3px;color:var(--text2);
-}
+/* Detail panel sections */
+.dp-section{margin-bottom:12px}
+.dp-label{font-size:8px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:0.5px;margin-bottom:4px}
+.dp-ecn-box{padding:7px 9px;border-radius:7px;margin-bottom:10px}
+.disp-btn{flex:1;padding:4px;border-radius:4px;font-size:9px;font-weight:700;cursor:pointer;font-family:'JetBrains Mono',monospace}
+.dp-row{display:flex;gap:3px;align-items:center;margin-bottom:3px;padding:4px 6px;border-radius:5px;border:1px solid var(--border)}
 
-/* ====== SIDE PANEL ====== */
-.side-panel{
-  position:fixed;right:0;top:48px;width:400px;height:calc(100vh - 48px);
-  background:var(--surface);border-left:1px solid var(--border);
-  transform:translateX(100%);transition:transform 0.25s ease;z-index:50;
-  display:flex;flex-direction:column;
-}
-.side-panel.open{transform:translateX(0)}
-.sp-header{padding:14px 16px;border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between;background:var(--surface2)}
-.sp-title{font-weight:700;font-size:14px;font-family:'JetBrains Mono',monospace}
-.sp-body{flex:1;overflow-y:auto;padding:16px}
-.sp-footer{padding:12px 16px;border-top:1px solid var(--border);display:flex;gap:8px;justify-content:flex-end}
-.sp-section{margin-bottom:16px}
-.sp-section-title{font-size:10px;font-weight:600;color:var(--text3);font-family:'JetBrains Mono',monospace;text-transform:uppercase;letter-spacing:0.5px;margin-bottom:8px}
-.sp-field{margin-bottom:10px}
-.sp-field label{display:block;font-size:11px;font-weight:600;color:var(--text3);margin-bottom:4px;font-family:'JetBrains Mono',monospace}
-.sp-field input,.sp-field select,.sp-field textarea{
-  width:100%;padding:7px 10px;border:1px solid var(--border);border-radius:5px;
-  background:var(--surface2);color:var(--text);font-size:12px;font-family:'DM Sans',sans-serif;
-}
-.sp-field input:focus,.sp-field select:focus,.sp-field textarea:focus{outline:none;border-color:var(--accent)}
-.sp-field textarea{resize:vertical;min-height:56px}
+/* ====== CHANGE MODAL ====== */
+.cm-overlay{position:fixed;inset:0;z-index:100;background:rgba(0,0,0,0.65);backdrop-filter:blur(6px);display:flex;align-items:center;justify-content:center}
+.cm-box{background:var(--modal);border-radius:14px;width:min(460px,92vw);max-height:80vh;box-shadow:0 12px 40px rgba(0,0,0,0.6);border:1px solid var(--border);overflow:hidden;display:flex;flex-direction:column}
+.cm-header{padding:12px 16px;border-bottom:1px solid var(--border);display:flex;align-items:center;gap:8px}
+.cm-body{padding:16px;overflow-y:auto;flex:1;display:flex;flex-direction:column;gap:12px}
+.cm-footer{padding:10px 16px;border-top:1px solid var(--border);display:flex;justify-content:flex-end;gap:8px;align-items:center}
+.cm-box-pair{display:flex;gap:8px}
+.cm-box-pair>div{flex:1;padding:10px;border-radius:8px}
 
-/* ====== D3 TREE ====== */
-.tree-container{
-  width:100%;height:calc(100vh - 220px);min-height:480px;position:relative;
-  background:var(--bg);border-radius:10px;border:1px solid var(--border);overflow:hidden;
-  background-image:radial-gradient(circle at 1px 1px,rgba(255,255,255,0.025) 1px,transparent 0);
-  background-size:24px 24px;
-}
-.tree-container svg{display:block;width:100%;height:100%}
-.tree-controls{position:absolute;top:10px;left:10px;display:flex;gap:5px;z-index:10;flex-wrap:wrap}
-.tc-btn{
-  padding:4px 10px;font-size:11px;border:1px solid var(--border);border-radius:5px;
-  background:rgba(20,22,39,0.9);backdrop-filter:blur(6px);color:var(--text3);cursor:pointer;
-  font-family:'DM Sans',sans-serif;font-weight:500;transition:all 0.15s;
-}
-.tc-btn:hover{border-color:var(--accent);color:var(--text)}
-.tc-btn.active{background:var(--accent-glow);border-color:rgba(245,166,35,0.3);color:var(--accent)}
-.tree-zoom{position:absolute;bottom:12px;right:12px;display:flex;flex-direction:column;gap:4px;z-index:10}
-.tz-btn{
-  width:32px;height:32px;border:1px solid var(--border);border-radius:5px;
-  background:rgba(20,22,39,0.9);cursor:pointer;font-size:15px;color:var(--text3);
-  display:flex;align-items:center;justify-content:center;
-}
-.tz-btn:hover{color:var(--text);border-color:var(--accent)}
+/* ====== DUP MODAL ====== */
+.dup-overlay{position:fixed;inset:0;z-index:100;background:rgba(0,0,0,0.6);display:flex;align-items:center;justify-content:center}
+.dup-box{background:var(--modal);border-radius:12px;width:320px;padding:20px;border:1px solid var(--border)}
 
-/* ====== MODAL ====== */
-.modal-overlay{position:fixed;inset:0;background:rgba(0,0,0,0.6);z-index:200;display:none;align-items:center;justify-content:center;backdrop-filter:blur(3px)}
-.modal-overlay.show{display:flex}
-.modal{background:var(--surface);border:1px solid var(--border);border-radius:12px;min-width:380px;max-width:500px;box-shadow:0 8px 40px rgba(0,0,0,0.5)}
-.modal-header{padding:16px 20px;border-bottom:1px solid var(--border)}
-.modal-title{font-size:15px;font-weight:700;font-family:'JetBrains Mono',monospace}
-.modal-body{padding:16px 20px}
-.modal-footer{padding:12px 20px;border-top:1px solid var(--border);display:flex;gap:8px;justify-content:flex-end}
-
-/* ====== TOAST ====== */
-.toast-box{position:fixed;top:56px;right:16px;z-index:999;display:flex;flex-direction:column;gap:6px}
-.toast{padding:10px 16px;border-radius:8px;font-size:12px;font-weight:500;box-shadow:0 4px 16px rgba(0,0,0,0.3);transition:all 0.3s;max-width:300px}
-.toast.success{background:var(--green);color:#fff}.toast.error{background:var(--red);color:#fff}
-.toast.info{background:var(--blue);color:#fff}.toast.warning{background:var(--yellow);color:#000}
-
-/* ====== UTILITY ====== */
-.flex{display:flex}.items-center{align-items:center}.gap-2{gap:8px}.gap-3{gap:12px}
-.mt-2{margin-top:8px}.mt-3{margin-top:12px}.mt-4{margin-top:16px}.mb-2{margin-bottom:8px}.mb-3{margin-bottom:12px}
-.text-sm{font-size:12px}.text-xs{font-size:10px}.text-muted{color:var(--text2)}.text-dim{color:var(--text3)}
-.fw-600{font-weight:600}.fw-700{font-weight:700}
-
-@media(max-width:768px){.page{padding:16px}.side-panel{width:100%}.assy-grid{grid-template-columns:repeat(auto-fill,minmax(160px,1fr))}}
+/* Placeholder tabs */
+.placeholder-tab{display:flex;flex-direction:column;align-items:center;justify-content:center;padding:80px 20px;color:var(--dim)}
+.placeholder-tab .ph-icon{font-size:40px;margin-bottom:12px;opacity:0.3}
+.placeholder-tab .ph-title{font-size:22px;font-weight:700;margin-bottom:6px}
+.placeholder-tab .ph-desc{font-size:12px;max-width:380px;text-align:center;line-height:1.6}
 </style>
 </head>
 <body>
 
-<!-- ====== TOP BAR ====== -->
-<div class="topbar">
-  <div class="topbar-left">
-    <div class="topbar-logo" onclick="goHome()">◈ <span>Eagle</span>Eye</div>
-    <div class="topbar-breadcrumb" id="breadcrumb"></div>
-  </div>
-  <div class="topbar-right">
-    <div class="admin-badge" id="adminBadge"><span class="icon">🔧</span> Admin · Aniket</div>
-    <button class="topbar-btn" id="roleToggle" onclick="toggleRole()">Switch to Viewer</button>
-    <div class="theme-dot" title="Theme"></div>
-  </div>
-</div>
-
-<!-- ====== HOME PAGE ====== -->
-<div class="page active" id="page-home">
-  <div class="home-header">
-    <div class="home-icon">◈</div>
-    <div class="home-title"><span class="e">Eagle</span>Eye</div>
-    <div class="home-subtitle">Assembly version tracking & ECN management</div>
-  </div>
-
-  <div class="section-label">FULL ROBOT</div>
-  <div style="margin-bottom:40px">
-    <div class="full-robot-card" onclick="openAssembly('ghost')">
-      <div style="font-size:36px;margin-bottom:8px">🤖</div>
-      <div style="font-size:18px;font-weight:700;display:flex;align-items:center;gap:10px">
-        Ghost (Full Robot) <span class="badge badge-green" style="font-size:11px">v1.0</span>
-      </div>
-      <div style="margin-top:8px"><span style="font-size:12px;font-weight:600;padding:3px 10px;border-radius:4px;background:var(--green-bg);color:var(--green)">115 units</span></div>
-    </div>
-  </div>
-
-  <div class="section-label">MAJOR ASSEMBLIES</div>
-  <div class="assy-grid" id="assyGrid"></div>
-</div>
-
-<!-- ====== ASSEMBLY DETAIL PAGE ====== -->
-<div class="page" id="page-detail">
-  <div class="detail-header" id="detailHeader"></div>
-  <div class="detail-subtitle" id="detailSubtitle"></div>
-
-  <div class="detail-tabs" id="detailTabs">
-    <div class="detail-tab active" data-tab="units" onclick="switchDetailTab('units')">📋 Unit Tracking</div>
-    <div class="detail-tab" data-tab="ecn" onclick="switchDetailTab('ecn')">🔴 ECN Management</div>
-    <div class="detail-tab" data-tab="tree-editor" onclick="switchDetailTab('tree-editor')">🌲 Tree Editor</div>
-  </div>
-
-  <!-- ===== TAB: Unit Tracking ===== -->
-  <div class="tab-content active" id="tc-units">
-    <div class="search-bar">
-      <input class="search-input" id="unitSearch" placeholder="Search S/N, status..." oninput="filterUnits()">
-      <div class="filter-pill active" onclick="setFilter('all',this)">All</div>
-      <div class="filter-pill" onclick="setFilter('current',this)">✅ Current</div>
-      <div class="filter-pill" onclick="setFilter('outdated',this)">⚠️ Outdated</div>
-      <div class="filter-pill" onclick="setFilter('blocked',this)">🚫 Blocked</div>
-    </div>
-    <div class="table-wrap">
-      <table>
-        <thead><tr><th>S/N</th><th>Assembly Version</th><th>Latest</th><th>Status</th><th>Assigned To</th><th>ECN Progress</th><th></th></tr></thead>
-        <tbody id="unitTbody"></tbody>
-      </table>
-    </div>
-  </div>
-
-  <!-- ===== TAB: ECN Management ===== -->
-  <div class="tab-content" id="tc-ecn">
-    <div class="flex items-center gap-3 mb-3" style="justify-content:space-between">
-      <div>
-        <h3 class="mono fw-700" style="font-size:15px">ECN Change Records</h3>
-        <p class="text-xs text-muted mt-2">Track all engineering change notices and their cascade impact</p>
-      </div>
-      <div class="flex gap-2" id="ecnAdminBtns">
-        <button class="btn btn-sm btn-danger" onclick="showMarkChangedModal()">🔴 Mark Steps Changed</button>
-        <button class="btn btn-sm btn-accent" onclick="showAddEcnModal()">➕ Add ECN Record</button>
-      </div>
-    </div>
-
-    <div class="version-bar mb-3">
-      <span class="text-xs mono text-dim">Version:</span>
-      <select class="version-select" id="ecnVersionPicker" onchange="renderEcnTab()">
-      </select>
-      <span class="version-info" id="ecnVersionInfo"></span>
-    </div>
-
-    <div class="table-wrap">
-      <table>
-        <thead><tr><th>Step</th><th>Change Type</th><th>Field</th><th>Old Value</th><th>New Value</th><th>Disposition</th><th>Version</th></tr></thead>
-        <tbody id="ecnTbody"></tbody>
-      </table>
-    </div>
-    <div id="cascadeBox"></div>
-
-    <h4 class="mono fw-600 mt-4 mb-2" style="font-size:13px">📊 Version History</h4>
-    <div class="table-wrap">
-      <table>
-        <thead><tr><th>Version</th><th>Created</th><th>By</th><th>Notes</th><th>Status</th></tr></thead>
-        <tbody id="versionHistTbody"></tbody>
-      </table>
-    </div>
-  </div>
-
-  <!-- ===== TAB: Tree Editor (Admin) ===== -->
-  <div class="tab-content" id="tc-tree-editor">
-    <div class="flex items-center gap-3 mb-3" style="justify-content:space-between">
-      <div>
-        <h3 class="mono fw-700" style="font-size:15px">Assembly Tree</h3>
-        <p class="text-xs text-muted mt-2">View and manage the assembly step hierarchy</p>
-      </div>
-      <div class="flex gap-2">
-        <select class="version-select" id="treeVersionPicker" onchange="renderTreeEditor()">
-        </select>
-        <span class="version-frozen" id="treeFrozenBadge" style="display:none">🔒 FROZEN</span>
-        <button class="btn btn-sm btn-ghost" id="treeFreezeBtn" onclick="toggleTreeFreeze()">❄️ Freeze</button>
-        <button class="btn btn-sm btn-accent" id="treeAddStepBtn" onclick="showAddStepModal()">➕ Add Step</button>
-      </div>
-    </div>
-
-    <!-- Sub-tabs: List vs D3 Visual -->
-    <div style="display:flex;gap:0;border-bottom:1px solid var(--border);margin-bottom:14px">
-      <div class="detail-tab active" style="font-size:11px" data-stab="list" onclick="switchTreeSub('list')">📋 List View</div>
-      <div class="detail-tab" style="font-size:11px" data-stab="visual" onclick="switchTreeSub('visual')">🔬 Visual Tree</div>
-    </div>
-
-    <div id="tree-sub-list">
-      <div class="search-bar"><input class="search-input" placeholder="Search steps..." oninput="filterTreeSteps(this.value)"></div>
-      <div id="treeListContainer"></div>
-    </div>
-
-    <div id="tree-sub-visual" style="display:none">
-      <div class="tree-container" id="treeContainer">
-        <svg id="treeSvg"></svg>
-        <div class="tree-controls">
-          <button class="tc-btn active" id="tcSeq" onclick="toggleTreeOpt('seq')">🔢 Seq</button>
-          <button class="tc-btn active" id="tcLvl" onclick="toggleTreeOpt('levels')">📊 Levels</button>
-          <select class="version-select" style="font-size:11px" onchange="APP.treeColorMode=this.value;renderD3Tree()">
-            <option value="group">Color: Group</option>
-            <option value="level">Color: Level</option>
-          </select>
-        </div>
-        <div class="tree-zoom">
-          <button class="tz-btn" onclick="treeZoom(1.3)">+</button>
-          <button class="tz-btn" onclick="treeZoom(0.7)">−</button>
-          <button class="tz-btn" onclick="treeFit()">⊡</button>
-        </div>
-      </div>
-    </div>
-  </div>
-</div>
-
-<!-- ====== SIDE PANEL ====== -->
-<div class="side-panel" id="sidePanel">
-  <div class="sp-header">
-    <span class="sp-title" id="spTitle">Step Details</span>
-    <button class="btn btn-sm btn-ghost" onclick="closeSidePanel()">✕</button>
-  </div>
-  <div class="sp-body" id="spBody"></div>
-  <div class="sp-footer" id="spFooter"></div>
-</div>
-
-<!-- ====== MODAL ====== -->
-<div class="modal-overlay" id="modalOverlay">
-  <div class="modal">
-    <div class="modal-header"><div class="modal-title" id="modalTitle"></div></div>
-    <div class="modal-body" id="modalBody"></div>
-    <div class="modal-footer" id="modalFooter"></div>
-  </div>
-</div>
-
-<div class="toast-box" id="toastBox"></div>
+<div id="app"></div>
 
 <script>
 // ============================================================
 // DATA
 // ============================================================
-const ASSEMBLIES = [
-  { id:'ghost', tag:'GHOST', name:'Ghost (Full Robot)', icon:'🤖', version:'1.0', units:115, color:'green', section:'full' },
-  { id:'mobile-base', tag:'MB_assy', name:'Mobile Base', icon:'🏗️', version:'1.0', units:110, color:'green' },
-  { id:'pillar', tag:'PIL_assy', name:'Pillar', icon:'🗼', version:'1.0', units:110, color:'pink' },
-  { id:'hbd', tag:'HBD_assy', name:'Head & Body', icon:'🤖', version:'5.0', units:120, color:'orange' },
-  { id:'gripper', tag:'GRP_assy', name:'Gripper', icon:'🤏', version:'1.0', units:115, color:'cyan' },
-  { id:'arm', tag:'ARM_assy', name:'Arm', icon:'💪', version:'1.0', units:110, color:'blue' },
-  { id:'packaging', tag:'PKG_assy', name:'Packaging', icon:'📦', version:'1.0', units:90, color:'purple' },
-];
-
-const GROUPS = [
-  { id:'g1', assembly_id:'hbd', label:'Frame & Structure', color:'#4fc3f7', icon:'🏗️', sort:1 },
-  { id:'g2', assembly_id:'hbd', label:'Gearbox & Bearings', color:'#ce93d8', icon:'⚙️', sort:2 },
-  { id:'g3', assembly_id:'hbd', label:'Electronics & PCB', color:'#81c784', icon:'🔌', sort:3 },
-  { id:'g4', assembly_id:'hbd', label:'Head Mount & Camera', color:'#fff176', icon:'📸', sort:4 },
-  { id:'g5', assembly_id:'hbd', label:'Cables & Connectors', color:'#ffb74d', icon:'🔗', sort:5 },
-];
-
-const STEPS = [
-  {id:'s1',gid:'g1',label:'Head & Body Unit',seq:'1',level:1,ecn:null,sort:1},
-  {id:'s2',gid:'g1',label:'Frame Assembly',seq:'2a',level:2,ecn:null,sort:1},
-  {id:'s3',gid:'g2',label:'Gearbox Assembly',seq:'2b',level:2,ecn:'changed',sort:2},
-  {id:'s4',gid:'g3',label:'PCB Stack',seq:'2c',level:2,ecn:null,sort:3},
-  {id:'s5',gid:'g4',label:'Head Mount',seq:'2d',level:2,ecn:'changed',sort:4},
-  {id:'s6',gid:'g5',label:'Cable Harness',seq:'2e',level:2,ecn:null,sort:5},
-  {id:'s7',gid:'g1',label:'Galina Body',seq:'3a',level:3,ecn:null,sort:1},
-  {id:'s8',gid:'g1',label:'Hook Arm',seq:'3b',level:3,ecn:null,sort:2},
-  {id:'s9',gid:'g1',label:'WiFi Antenna Mount',seq:'3c',level:3,ecn:'pending',sort:3},
-  {id:'s10',gid:'g2',label:'Encoder Board',seq:'3d',level:3,ecn:'changed',sort:1},
-  {id:'s11',gid:'g2',label:'Gear Set',seq:'3e',level:3,ecn:null,sort:2},
-  {id:'s12',gid:'g2',label:'Drive Pins',seq:'3f',level:3,ecn:null,sort:3},
-  {id:'s13',gid:'g2',label:'Gearbox Cover',seq:'3g',level:3,ecn:null,sort:4},
-  {id:'s14',gid:'g3',label:'Main Controller',seq:'3h',level:3,ecn:null,sort:1},
-  {id:'s15',gid:'g3',label:'Power Board',seq:'3i',level:3,ecn:'applied',sort:2},
-  {id:'s16',gid:'g4',label:'Ring Holder',seq:'3j',level:3,ecn:'changed',sort:1},
-  {id:'s17',gid:'g4',label:'CAM Follower',seq:'3k',level:3,ecn:null,sort:2},
-  {id:'s18',gid:'g2',label:'Bearing 6001',seq:'4a',level:4,ecn:null,sort:1},
-  {id:'s19',gid:'g2',label:'Bearing 6003',seq:'4b',level:4,ecn:null,sort:2},
-  {id:'s20',gid:'g4',label:'Camera Module',seq:'4c',level:4,ecn:'changed',sort:1},
-  {id:'s21',gid:'g4',label:'LED Ring',seq:'4d',level:4,ecn:null,sort:2},
-  {id:'s22',gid:'g3',label:'Motor Driver IC',seq:'5a',level:5,ecn:null,sort:1},
-  {id:'s23',gid:'g4',label:'Lens Assembly',seq:'5b',level:5,ecn:'changed',sort:1},
-  {id:'s24',gid:'g2',label:'Motor A',seq:'6a',level:6,ecn:null,sort:1},
-  {id:'s25',gid:'g5',label:'USB-C Cable',seq:'6b',level:6,ecn:null,sort:1},
-  {id:'s26',gid:'g5',label:'FFC Ribbon',seq:'6c',level:6,ecn:null,sort:2},
-  {id:'s27',gid:'g4',label:'IR Filter',seq:'5c',level:5,ecn:null,sort:2},
-  {id:'s28',gid:'g1',label:'Loctite 648 Bond',seq:'3l',level:3,ecn:null,sort:4},
-];
-
-const LINKS = [
-  {p:'s1',c:'s2'},{p:'s1',c:'s3'},{p:'s1',c:'s4'},{p:'s1',c:'s5'},{p:'s1',c:'s6'},
-  {p:'s2',c:'s7'},{p:'s2',c:'s8'},{p:'s2',c:'s9'},{p:'s2',c:'s28'},
-  {p:'s3',c:'s10'},{p:'s3',c:'s11'},{p:'s3',c:'s12'},{p:'s3',c:'s13'},
-  {p:'s4',c:'s14'},{p:'s4',c:'s15'},
-  {p:'s5',c:'s16'},{p:'s5',c:'s17'},
-  {p:'s11',c:'s18'},{p:'s11',c:'s19'},
-  {p:'s16',c:'s20'},{p:'s16',c:'s21'},
-  {p:'s14',c:'s22'},
-  {p:'s20',c:'s23'},{p:'s20',c:'s27'},
-  {p:'s3',c:'s24'},
-  {p:'s6',c:'s25'},{p:'s6',c:'s26'},
-];
-
-const FASTENERS = [
-  {id:'f1',sid:'s7',pn:'CBBTS2-5',qty:4,lt:'222',torque:'0.315Nm'},
-  {id:'f2',sid:'s8',pn:'BSB-315CE',qty:2,lt:'222',torque:'0.65Nm'},
-  {id:'f3',sid:'s13',pn:'CSH-M3-5',qty:6,lt:'222',torque:'1.14Nm'},
-  {id:'f4',sid:'s9',pn:'CSH-M4-8',qty:2,lt:'222',torque:'2.7Nm'},
-  {id:'f5',sid:'s16',pn:'CBE6-30',qty:3,lt:'243',torque:'5.2Nm'},
-  {id:'f6',sid:'s28',pn:'CBE3-6',qty:8,lt:'425',torque:'1.14Nm'},
-];
-
-const PARTS = [
-  {sid:'s7',pn:'GAL-BODY-V3',qty:1},{sid:'s8',pn:'HOOK-ARM-V2',qty:1},
-  {sid:'s10',pn:'ENC-BOARD-R4',qty:1},{sid:'s18',pn:'BRG-6001-2RS',qty:2},
-  {sid:'s19',pn:'BRG-6003-2RS',qty:1},{sid:'s20',pn:'CAM-IMX477',qty:1},
-  {sid:'s21',pn:'LED-RING-24',qty:1},{sid:'s22',pn:'DRV8825',qty:2},
-  {sid:'s23',pn:'LENS-6MM-CS',qty:1},{sid:'s24',pn:'MOT-NEMA17',qty:1},
-  {sid:'s25',pn:'CABLE-USBC-30',qty:1},{sid:'s26',pn:'FFC-40P-150',qty:1},
-  {sid:'s27',pn:'IR-FILTER-650',qty:1},{sid:'s14',pn:'PCB-MAIN-V5',qty:1},
-  {sid:'s15',pn:'PCB-PWR-V3',qty:1},
-];
-
-const VERSIONS = [
-  {id:'vh1',assy:'hbd',ver:'1.0',date:'2024-03-15',by:'Aniket',notes:'Initial release',frozen:true},
-  {id:'vh2',assy:'hbd',ver:'2.0',date:'2024-06-01',by:'Aniket',notes:'Updated gearbox bearings',frozen:true},
-  {id:'vh3',assy:'hbd',ver:'3.0',date:'2024-09-10',by:'Aniket',notes:'New encoder, power board rev',frozen:true},
-  {id:'vh4',assy:'hbd',ver:'4.0',date:'2024-12-01',by:'Aniket',notes:'Camera module upgrade',frozen:true},
-  {id:'vh5',assy:'hbd',ver:'5.0',date:'2025-03-15',by:'Aniket',notes:'Lens + ring holder update',frozen:false},
-];
-
-const ECN_CHANGES = [
-  {id:'ec1',sid:'s3',ver:'5.0',type:'modified',field:'Encoder Board',old:'ENC-BOARD-R3',new:'ENC-BOARD-R4',disp:'rework',desc:'Updated encoder for higher resolution'},
-  {id:'ec2',sid:'s10',ver:'5.0',type:'replaced',field:'IC Package',old:'QFN-24',new:'QFN-32',disp:'replace',desc:'New package with more I/O'},
-  {id:'ec3',sid:'s5',ver:'5.0',type:'modified',field:'Head Mount',old:'HM-V3',new:'HM-V4',disp:'rework',desc:'Tighter tolerances for camera alignment'},
-  {id:'ec4',sid:'s16',ver:'5.0',type:'modified',field:'Ring Holder',old:'RH-V2',new:'RH-V3',disp:'rework',desc:'New ring holder geometry'},
-  {id:'ec5',sid:'s20',ver:'5.0',type:'replaced',field:'Camera Module',old:'CAM-IMX327',new:'CAM-IMX477',disp:'replace',desc:'Upgraded to IMX477 sensor'},
-  {id:'ec6',sid:'s23',ver:'5.0',type:'modified',field:'Lens',old:'LENS-4MM',new:'LENS-6MM-CS',disp:'replace',desc:'Wider FOV lens'},
-  {id:'ec7',sid:'s15',ver:'4.0',type:'modified',field:'Power Board',old:'PCB-PWR-V2',new:'PCB-PWR-V3',disp:'rework',desc:'Added overcurrent protection'},
-  {id:'ec8',sid:'s9',ver:'5.0',type:'modified',field:'WiFi Mount',old:'Clip',new:'Screw Mount',disp:'rework',desc:'More stable WiFi antenna mount'},
-];
-
-function generateUnits(assyId) {
-  const a = ASSEMBLIES.find(x=>x.id===assyId);
-  if(!a) return [];
-  const n = a.units, latest = a.version;
-  const vers = assyId === 'hbd' ? ['2.0','3.0','4.0','5.0'] : [latest];
-  const people = ['Aniket','David','Sarah','Mike','Elena'];
-  const units = [];
-  for(let i=1;i<=n;i++){
-    const sn = `${a.tag.replace('_assy','')}-${String(i).padStart(4,'0')}`;
-    let ver;
-    if(assyId === 'hbd'){
-      ver = i<=12?'2.0':i<=30?'3.0':i<=70?'4.0':'5.0';
-    } else { ver = latest; }
-    const isCurrent = ver === latest;
-    const status = isCurrent?'active':(i%9===0?'blocked':'outdated');
-    units.push({id:`${assyId}-u${i}`,sn,ver,latest,status,person:people[i%5],ecnDone:isCurrent?6:Math.floor(Math.random()*5),ecnTotal:6});
-  }
-  return units;
-}
-
-// ============================================================
-// STATE
-// ============================================================
-const APP = {
-  role:'admin',
-  currentAssy:null,
-  unitFilter:'all',
-  treeShowSeq:true,treeShowLevels:true,treeColorMode:'group',
+const MASTER = {
+  "GPMP-050":"DC Motor assy","GPMP-051":"Motor bracket","GPMP-010":"Drive shaft",
+  "GPMP-011":"Worm gear","GPMP-012":"Spur gear A","GPMP-013":"Spur gear B",
+  "GPMP-014":"Dowel pin 3x12","GPMP-015":"Bearing inner race","GPMP-016":"Cam follower shaft",
+  "GPMP-020":"Ball bearing 6x10","GPMP-030":"Encoder magnet","GPMP-100":"Galina plate (top)",
+  "GPMP-103":"Middle frame plate","GPMP-103-R1":"Middle frame plate (Stainless)",
+  "GPMP-106":"Arm joint plate","GPMP-107":"Hook arm","GPMP-108":"Galina bottom cover",
+  "GPMP-110":"Wifi antenna plate","GPMP-112":"FFC Cable 24pin","GPMP-200":"Encoder board",
+  "GPMP-201":"Gear set assy","GPMP-201-R2":"Gear set assy (helical)","GPMP-202":"Positioning pin",
+  "GPMP-203":"Gearbox cover plate","GPMP-300":"Main PCB","GPMP-300-R2":"Main PCB Rev C",
+  "GPMP-301":"Head mount plate","GPMP-302":"LED ring holder","GPMP-303":"CAM follower bearing",
+  "GPMP-401":"Camera module","GPMP-401-R1":"Camera module 5MP","GPMP-402":"LED ring board",
+  "GPMP-403":"Camera FFC","GPMP-404":"LED harness",
+  "CBBTS2-5":"Button head M2×5","BSB-315CE":"Bind screw M3×15",
+  "CSH-M3-5":"Cap screw hex M3×5","CSH-M4-8":"Cap screw hex M4×8",
+  "CBE3-6":"Cap bolt M3×6","CBE6-30":"Cap bolt M6×30",
 };
 
-// ============================================================
-// NAV
-// ============================================================
-function goHome(){
-  APP.currentAssy = null;
-  showPage('home');
-  setBreadcrumb([]);
+const DISP = {
+  reuse:{label:"REUSE",color:"#3b82f6",icon:"♻️",bg:"rgba(59,130,246,0.12)"},
+  scrap:{label:"SCRAP",color:"#ef4444",icon:"🗑️",bg:"rgba(239,68,68,0.12)"},
+  rework:{label:"REWORK",color:"#f59e0b",icon:"🔧",bg:"rgba(245,158,11,0.12)"},
+};
+
+const ASSEMBLIES = [
+  {id:"ghost",name:"Ghost (Full Robot)",icon:"🤖",units:115,color:"#22c55e",ver:"1.0",section:"full"},
+  {id:"MB",name:"Mobile Base",icon:"🏗️",units:110,color:"#22c55e",ver:"1.0"},
+  {id:"PIL",name:"Pillar",icon:"🗼",units:110,color:"#ec4899",ver:"1.0"},
+  {id:"HBD",name:"Head & Body",icon:"🤖",units:120,color:"#f97316",ver:"5.0"},
+  {id:"GRP",name:"Gripper",icon:"🤏",units:115,color:"#06b6d4",ver:"1.0"},
+  {id:"ARM",name:"Arm",icon:"💪",units:110,color:"#3b82f6",ver:"1.0"},
+  {id:"PKG",name:"Packaging",icon:"📦",units:90,color:"#8b5cf6",ver:"1.0"},
+];
+
+const MOCK_TREE = [
+  {id:"g1",name:"Prep (Loctite)",icon:"🧪",color:"#a855f7",level:null,steps:[
+    {id:"s1",sn:"1",name:"Motor assy",type:"STEP",parts:2,fasteners:1},
+    {id:"s2",sn:"2",name:"Loctite 648 parts",type:"PREP",parts:7,fasteners:0},
+    {id:"s3",sn:"3",name:"Ball bearing in Dovel pin",type:"STEP",parts:2,fasteners:0},
+    {id:"s4",sn:"4",name:"Loctite 425 parts",type:"PREP",parts:1,fasteners:0},
+  ]},
+  {id:"g2",name:"完了: Body",icon:"🏗",color:"#22c55e",level:1,steps:[
+    {id:"s5",sn:"1a",name:"Frame galina plate 組立",type:"STEP",parts:1,fasteners:3},
+    {id:"s6",sn:"1b",name:"Frame side plate 組立",type:"STEP",parts:0,fasteners:1},
+    {id:"s7",sn:"1c",name:"Middle frame 組立",type:"STEP",parts:1,fasteners:1},
+    {id:"s8",sn:"1d",name:"Body 組立",type:"STEP",parts:0,fasteners:1},
+    {id:"s9",sn:"1e",name:"Arm joint plate",type:"STEP",parts:1,fasteners:1},
+    {id:"s10",sn:"1da",name:"Hook arm 組立",type:"STEP",parts:1,fasteners:1},
+    {id:"s11",sn:"1e'",name:"Galina bot cover",type:"STEP",parts:1,fasteners:1},
+    {id:"s12",sn:"1f",name:"Galina 組立",type:"STEP",parts:0,fasteners:2},
+    {id:"s13",sn:"1g",name:"Wifi plate 組立",type:"STEP",parts:1,fasteners:1},
+    {id:"s14",sn:"1h",name:"Galina back cover",type:"STEP",parts:1,fasteners:1},
+    {id:"s15",sn:"1i",name:"Body",type:"STEP",parts:1,fasteners:0},
+  ]},
+  {id:"g3",name:"完了: Gearbox",icon:"⚙️",color:"#f97316",level:2,steps:[
+    {id:"s16",sn:"2a",name:"Encoder shaft 組立",type:"STEP",parts:1,fasteners:1},
+    {id:"s17",sn:"2b",name:"White gears 組立",type:"STEP",parts:4,fasteners:0},
+    {id:"s18",sn:"2c",name:"Hex and round pins",type:"STEP",parts:2,fasteners:0},
+    {id:"s19",sn:"2d",name:"Gearbox cover 組立",type:"STEP",parts:1,fasteners:2},
+  ]},
+  {id:"g4",name:"完了: Head",icon:"🦴",color:"#ef4444",level:3,steps:[
+    {id:"s20",sn:"3a",name:"Base ring sheet metal",type:"STEP",parts:2,fasteners:2},
+    {id:"s21",sn:"3b",name:"Attaching the ring holder",type:"STEP",parts:4,fasteners:1},
+    {id:"s22",sn:"3c",name:"Mounting the CAM follower",type:"STEP",parts:2,fasteners:1},
+    {id:"s23",sn:"3d",name:"Mount the head on body",type:"STEP",parts:0,fasteners:2},
+  ]},
+  {id:"g5",name:"完了: Final",icon:"✅",color:"#ec4899",level:5,steps:[
+    {id:"s24",sn:"4a",name:"Camera assy",type:"STEP",parts:1,fasteners:1},
+    {id:"s25",sn:"4b",name:"LED mounting",type:"STEP",parts:1,fasteners:1},
+    {id:"s26",sn:"4c",name:"Cable guide bracket",type:"STEP",parts:1,fasteners:1},
+    {id:"s27",sn:"4d",name:"Wire strap",type:"STEP",parts:0,fasteners:0},
+    {id:"s28",sn:"4e",name:"Final inspection",type:"CHECK",parts:0,fasteners:0},
+  ]},
+];
+
+const UNITS_HBD = [
+  {sn:"HBD-001",ver:"4.0",latestVer:"5.0",status:"outdated",line:"Line A"},
+  {sn:"HBD-002",ver:"5.0",latestVer:"5.0",status:"current",line:"Line A"},
+  {sn:"HBD-003",ver:"4.0",latestVer:"5.0",status:"outdated",line:"Line B"},
+  {sn:"HBD-004",ver:"5.0",latestVer:"5.0",status:"current",line:"Line B"},
+  {sn:"HBD-005",ver:"3.0",latestVer:"5.0",status:"outdated",line:"Line A"},
+  {sn:"HBD-006",ver:"5.0",latestVer:"5.0",status:"current",line:"Line C"},
+  {sn:"HBD-007",ver:"4.0",latestVer:"5.0",status:"outdated",line:"Line C"},
+  ...Array.from({length:30},(_,i)=>({
+    sn:`HBD-${String(i+8).padStart(3,"0")}`,ver:i%3===0?"4.0":"5.0",
+    latestVer:"5.0",status:i%3===0?"outdated":"current",line:["Line A","Line B","Line C"][i%3],
+  })),
+];
+
+const VER_CHANGES = {
+  "4.0→5.0":[
+    {step:"1c",stepName:"Middle frame 組立",type:"part_changed",field:"Part Number",old:"GPMP-103",new:"GPMP-103-R1",reason:"Upgraded to stainless frame for corrosion resistance",group:"完了: Body"},
+    {step:"1f",stepName:"Galina 組立",type:"fastener_changed",field:"Fastener",old:"CSH-M3-5 (1.14Nm)",new:"CSH-M4-8 (2.70Nm)",reason:"Higher torque spec per stress analysis",group:"完了: Body"},
+    {step:"2d",stepName:"Gearbox cover 組立",type:"part_changed",field:"Gasket",old:"GK-200-A",new:"GK-200-B",reason:"Heat-resistant material upgrade",group:"完了: Gearbox"},
+    {step:"3b",stepName:"Attaching the ring holder",type:"step_modified",field:"Torque spec",old:"1.14 Nm",new:"1.50 Nm",reason:"Updated per vibration test results",group:"完了: Head"},
+  ],
+  "3.0→5.0":[
+    {step:"1c",stepName:"Middle frame 組立",type:"part_changed",field:"Part Number",old:"GPMP-103",new:"GPMP-103-R1",reason:"Upgraded to stainless frame",group:"完了: Body"},
+    {step:"1e",stepName:"Arm joint plate",type:"part_changed",field:"Part Number",old:"GPMP-106",new:"GPMP-106-R1",reason:"Redesigned for better fit",group:"完了: Body"},
+    {step:"1f",stepName:"Galina 組立",type:"fastener_changed",field:"Fastener",old:"CSH-M3-5 (1.14Nm)",new:"CSH-M4-8 (2.70Nm)",reason:"Higher torque spec",group:"完了: Body"},
+    {step:"2d",stepName:"Gearbox cover 組立",type:"part_changed",field:"Gasket",old:"GK-200-A",new:"GK-200-B",reason:"Heat-resistant material",group:"完了: Gearbox"},
+    {step:"3b",stepName:"Attaching the ring holder",type:"step_modified",field:"Torque spec",old:"1.14 Nm",new:"1.50 Nm",reason:"Updated per vibration test",group:"完了: Head"},
+  ],
+};
+
+function getUnits(assyId){
+  if(assyId==='HBD') return UNITS_HBD;
+  const a=ASSEMBLIES.find(x=>x.id===assyId);
+  if(!a) return [];
+  return Array.from({length:a.units},(_,i)=>({
+    sn:`${assyId}-${String(i+1).padStart(3,"0")}`,ver:i%3===0?"1.0":a.ver,
+    latestVer:a.ver,status:i%3===0&&a.ver!=="1.0"?"outdated":"current",line:["Line A","Line B","Line C"][i%3],
+  }));
 }
 
-function openAssembly(id){
-  APP.currentAssy = id;
-  showPage('detail');
-  const a = ASSEMBLIES.find(x=>x.id===id);
-  setBreadcrumb([{label:a?.name||id,active:true}]);
-  renderDetail();
-}
-
-function showPage(name){
-  document.querySelectorAll('.page').forEach(p=>p.classList.remove('active'));
-  document.getElementById(`page-${name}`).classList.add('active');
-}
-
-function setBreadcrumb(items){
-  const el = document.getElementById('breadcrumb');
-  el.innerHTML = items.length ? `<span class="sep">›</span>` + items.map(i=>`<span class="crumb ${i.active?'active':''}">${i.label}</span>`).join('<span class="sep">›</span>') : '';
-}
-
-function toggleRole(){
-  APP.role = APP.role==='admin'?'viewer':'admin';
-  const badge = document.getElementById('adminBadge');
-  const btn = document.getElementById('roleToggle');
-  if(APP.role==='admin'){
-    badge.innerHTML = '<span class="icon">🔧</span> Admin · Aniket';
-    badge.style.background = 'var(--accent-glow)';badge.style.borderColor = 'rgba(245,166,35,0.25)';badge.style.color = 'var(--accent)';
-    btn.textContent = 'Switch to Viewer';
-  } else {
-    badge.innerHTML = '<span class="icon">👁</span> Viewer';
-    badge.style.background = 'rgba(107,114,128,0.1)';badge.style.borderColor = 'rgba(107,114,128,0.2)';badge.style.color = '#9ca3af';
-    btn.textContent = 'Switch to Admin';
-  }
-  updateAdminVis();
-}
-
-function updateAdminVis(){
-  const show = APP.role==='admin';
-  ['ecnAdminBtns','treeAddStepBtn','treeFreezeBtn'].forEach(id=>{
-    const el = document.getElementById(id);
-    if(el) el.style.display = show?'':'none';
+// Cascade engine
+function chainOf(sn){const m=sn.match(/^(\d+)/);return m?m[1]:sn;}
+function buildFlat(tree){const f=[];tree.forEach(g=>g.steps.forEach(s=>f.push({...s,gid:g.id,gname:g.name,gcol:g.color,chain:chainOf(s.sn)})));return f;}
+function computeCascade(tree,changes,applied,unitSn){
+  const flat=buildFlat(tree),ecnSet=new Set(changes.map(c=>c.step)),r=new Map();
+  changes.forEach(ch=>{
+    const cc=chainOf(ch.step);if(applied.has(`${unitSn}-${ch.step}`))return;
+    const ci=flat.findIndex(s=>s.sn===ch.step);if(ci===-1)return;
+    for(let i=ci+1;i<flat.length;i++){
+      if(flat[i].chain!==cc)continue;
+      const e=r.get(flat[i].sn)||{isCascade:false,from:[],isBlocked:false};
+      e.isCascade=true;if(!e.from.includes(ch.step))e.from.push(ch.step);r.set(flat[i].sn,e);
+    }
   });
+  changes.forEach(ch=>{
+    const cc=chainOf(ch.step),ci=flat.findIndex(s=>s.sn===ch.step);
+    for(let i=0;i<ci;i++){
+      if(flat[i].chain!==cc)continue;
+      if(ecnSet.has(flat[i].sn)&&!applied.has(`${unitSn}-${flat[i].sn}`)){
+        const e=r.get(ch.step)||{isCascade:false,from:[],isBlocked:false};
+        e.isBlocked=true;if(!e.from.includes(flat[i].sn))e.from.push(flat[i].sn);r.set(ch.step,e);
+      }
+    }
+  });
+  return r;
 }
 
 // ============================================================
-// HOME
+// APP STATE & RENDERING
 // ============================================================
+const STATE = {
+  page:'home', assembly:null, selectedUnits:[], avTab:'list',
+  unitFilter:'all', unitSearch:'', unitSel:new Set(),
+  applied:new Set(), modal:null,
+  // Tree editor
+  teVersions:{}, teActiveVer:'5.0', teProdVer:'5.0', teSel:null, dupModal:false, dupVer:'',
+};
+
+let ID=()=>Math.random().toString(36).slice(2,9);
+
+function mkEditorTree(){
+  return [
+    {id:ID(),name:"Prep (Loctite)",icon:"🧪",color:"#a855f7",level:null,steps:[
+      {id:ID(),sn:"1",type:"PREP",nameOverride:"",parts:[{id:ID(),pn:"GPMP-050",name:"DC Motor assy",qty:1}],fasteners:[]},
+      {id:ID(),sn:"2",type:"PREP",nameOverride:"Loctite 648 parts",parts:[],fasteners:[]},
+    ]},
+    {id:ID(),name:"完了: Body",icon:"🏗",color:"#22c55e",level:1,steps:[
+      {id:ID(),sn:"1a",type:"STEP",nameOverride:"",parts:[{id:ID(),pn:"GPMP-100",name:"Galina plate (top)",qty:1}],fasteners:[{id:ID(),code:"CSH-M3-5",torque:"1.14Nm",loctite:"222",qty:2}]},
+      {id:ID(),sn:"1b",type:"STEP",nameOverride:"Frame side plate 組立",parts:[],fasteners:[{id:ID(),code:"CBBTS2-5",torque:"0.315Nm",loctite:"222",qty:3}]},
+      {id:ID(),sn:"1c",type:"STEP",nameOverride:"",parts:[{id:ID(),pn:"GPMP-103",name:"Middle frame plate",qty:1}],fasteners:[{id:ID(),code:"CSH-M4-8",torque:"2.7Nm",loctite:"222",qty:2}]},
+      {id:ID(),sn:"1f",type:"STEP",nameOverride:"Galina 組立",parts:[],fasteners:[{id:ID(),code:"CSH-M3-5",torque:"1.14Nm",loctite:"222",qty:2},{id:ID(),code:"CBBTS2-5",torque:"0.315Nm",loctite:"222",qty:1}]},
+    ]},
+    {id:ID(),name:"完了: Gearbox",icon:"⚙️",color:"#f97316",level:2,steps:[
+      {id:ID(),sn:"2a",type:"STEP",nameOverride:"",parts:[{id:ID(),pn:"GPMP-200",name:"Encoder board",qty:1}],fasteners:[{id:ID(),code:"CBE3-6",torque:"1.14Nm",loctite:"425",qty:2}]},
+      {id:ID(),sn:"2d",type:"STEP",nameOverride:"",parts:[{id:ID(),pn:"GPMP-203",name:"Gearbox cover plate",qty:1}],fasteners:[{id:ID(),code:"CSH-M4-8",torque:"2.7Nm",loctite:"222",qty:4}]},
+    ]},
+    {id:ID(),name:"完了: Head",icon:"🦴",color:"#ef4444",level:3,steps:[
+      {id:ID(),sn:"3a",type:"STEP",nameOverride:"",parts:[{id:ID(),pn:"GPMP-301",name:"Head mount plate",qty:1}],fasteners:[{id:ID(),code:"CSH-M3-5",torque:"1.14Nm",loctite:"222",qty:4}]},
+      {id:ID(),sn:"3b",type:"STEP",nameOverride:"",parts:[{id:ID(),pn:"GPMP-302",name:"LED ring holder",qty:1},{id:ID(),pn:"GPMP-303",name:"CAM follower bearing",qty:2}],fasteners:[]},
+    ]},
+  ];
+}
+
+function initEditor(){
+  STATE.teVersions = {"5.0":{tree:mkEditorTree(),ecn:{"1c":{note:"Frame upgrade",disposition:"scrap"}},status:"frozen",frozenAt:Date.now()}};
+  STATE.teActiveVer = "5.0";
+  STATE.teProdVer = "5.0";
+  STATE.teSel = null;
+}
+initEditor();
+
+function getStepName(s){
+  if(s.nameOverride) return s.nameOverride;
+  if(s.parts.length===1&&s.parts[0].name) return s.parts[0].name;
+  if(s.parts.length>1) return s.parts.map(p=>p.name||p.pn).filter(Boolean).join(" + ");
+  return "";
+}
+
+function toast(msg){
+  const c=document.createElement('div');c.style.cssText='position:fixed;bottom:20px;left:50%;transform:translateX(-50%);padding:8px 20px;border-radius:8px;background:#22c55e;color:#000;font-weight:700;font-size:11px;z-index:999;font-family:"JetBrains Mono",monospace';
+  c.textContent=msg;document.body.appendChild(c);setTimeout(()=>c.remove(),2000);
+}
+
+// ============================================================
+// RENDER
+// ============================================================
+function render(){
+  const app=document.getElementById('app');
+  if(STATE.page==='home') app.innerHTML=renderHome();
+  else if(STATE.page==='unitSelect') app.innerHTML=renderUnitSelect();
+  else if(STATE.page==='assembly') app.innerHTML=renderAssemblyView();
+  else if(STATE.page==='editor') app.innerHTML=renderTreeEditor();
+  attachEvents();
+}
+
+// ---------- HOME ----------
 function renderHome(){
-  const grid = document.getElementById('assyGrid');
-  const majors = ASSEMBLIES.filter(a=>a.section!=='full');
-  grid.innerHTML = majors.map(a=>`
-    <div class="assy-card" data-color="${a.color}" onclick="openAssembly('${a.id}')">
-      <span class="card-icon">${a.icon}</span>
-      <div class="card-name">${a.name} <span class="ver ver-${a.color}">v${a.version}</span></div>
-      <span class="card-units units-${a.color}">${a.units} units</span>
+  const totalUnits=ASSEMBLIES.reduce((s,a)=>s+a.units,0);
+  const outdated=37+8+5+3;
+  const full=ASSEMBLIES.filter(a=>a.section==='full');
+  const majors=ASSEMBLIES.filter(a=>a.section!=='full');
+  return `
+  <div class="home-wrap">
+    <div class="home-admin">
+      <div class="admin-pill">🔧 Admin · Aniket</div>
+      <button class="btn-sm" style="background:transparent;color:var(--muted)" onclick="toast('Logout mock')">Logout</button>
+      <div style="width:24px;height:24px;border-radius:50%;background:linear-gradient(135deg,#f59e0b,#e8952e);border:2px solid var(--border)"></div>
     </div>
-  `).join('');
-}
 
-// ============================================================
-// DETAIL PAGE
-// ============================================================
-function renderDetail(){
-  const a = ASSEMBLIES.find(x=>x.id===APP.currentAssy);
-  if(!a) return;
-  document.getElementById('detailHeader').innerHTML = `
-    <div class="detail-icon">${a.icon}</div>
-    <div class="detail-title">${a.name}</div>
-    <span class="detail-ver ver-${a.color}">${a.tag} · v${a.version}</span>
-  `;
-  document.getElementById('detailSubtitle').textContent = `${a.units} production units · Latest version v${a.version}`;
+    <div class="home-hero">
+      <div class="home-logo"><span class="sym">◈</span>EagleEye</div>
+      <div class="home-sub">Assembly version tracking & ECN management</div>
+    </div>
 
-  // Populate version pickers
-  const versions = APP.currentAssy === 'hbd' ? VERSIONS : [{ver:a.version,frozen:false}];
-  const optionsHtml = versions.map(v=>`<option value="${v.ver}">v${v.ver}${v.frozen?' 🔒':''}</option>`).join('');
-  document.getElementById('ecnVersionPicker').innerHTML = `<option value="all">All Versions</option>` + optionsHtml;
-  document.getElementById('treeVersionPicker').innerHTML = optionsHtml;
-  if(APP.currentAssy==='hbd') document.getElementById('treeVersionPicker').value = '5.0';
-
-  switchDetailTab('units');
-  updateAdminVis();
-}
-
-function switchDetailTab(tab){
-  document.querySelectorAll('#detailTabs .detail-tab').forEach(t=>t.classList.toggle('active',t.dataset.tab===tab));
-  ['units','ecn','tree-editor'].forEach(t=>{
-    const el = document.getElementById(`tc-${t}`);
-    el.classList.toggle('active',t===tab);
-  });
-  if(tab==='units') renderUnitsTab();
-  if(tab==='ecn') renderEcnTab();
-  if(tab==='tree-editor') renderTreeEditor();
-}
-
-// ====== UNITS TAB ======
-function renderUnitsTab(){
-  filterUnits();
-}
-function filterUnits(){
-  if(!APP.currentAssy) return;
-  const units = generateUnits(APP.currentAssy);
-  const q = (document.getElementById('unitSearch')?.value||'').toLowerCase();
-  const f = APP.unitFilter;
-  let list = units;
-  if(f==='current') list = list.filter(u=>u.ver===u.latest);
-  else if(f==='outdated') list = list.filter(u=>u.ver!==u.latest&&u.status!=='blocked');
-  else if(f==='blocked') list = list.filter(u=>u.status==='blocked');
-  if(q) list = list.filter(u=>u.sn.toLowerCase().includes(q)||u.status.includes(q));
-
-  document.getElementById('unitTbody').innerHTML = list.slice(0,80).map(u=>{
-    const cur = u.ver===u.latest;
-    const sBadge = u.status==='blocked'?'badge-red':cur?'badge-green':'badge-yellow';
-    const sText = u.status==='blocked'?'🚫 Blocked':cur?'✅ Current':'⚠️ Outdated';
-    const pct = Math.round(u.ecnDone/u.ecnTotal*100);
-    return `<tr>
-      <td class="mono fw-700">${u.sn}</td>
-      <td><span class="badge ${cur?'badge-green':'badge-yellow'}">v${u.ver}</span></td>
-      <td><span class="badge badge-blue">v${u.latest}</span></td>
-      <td><span class="badge ${sBadge}">${sText}</span></td>
-      <td class="text-sm">${u.person}</td>
-      <td><div style="display:flex;align-items:center;gap:8px"><div style="flex:1;height:4px;background:var(--surface3);border-radius:2px;max-width:80px"><div style="width:${pct}%;height:100%;background:${pct>=100?'var(--green)':'var(--yellow)'};border-radius:2px"></div></div><span class="text-xs mono text-dim">${u.ecnDone}/${u.ecnTotal}</span></div></td>
-      <td><button class="btn btn-sm btn-ghost" onclick="openUnitEcn('${u.id}','${u.sn}','${u.ver}','${u.latest}')">ECN →</button></td>
-    </tr>`;
-  }).join('');
-}
-function setFilter(f,btn){
-  APP.unitFilter=f;
-  document.querySelectorAll('.filter-pill').forEach(b=>b.classList.remove('active'));
-  btn.classList.add('active');
-  filterUnits();
-}
-function openUnitEcn(uid,sn,ver,latest){
-  const changes = ECN_CHANGES.filter(c=>parseFloat(c.ver)>parseFloat(ver));
-  const html = `<div class="mb-3"><strong class="mono">${sn}</strong> — v${ver} → v${latest}</div>
-    ${changes.length===0?'<p class="text-sm text-muted">No pending ECN changes.</p>':
-    `<div class="table-wrap"><table><thead><tr><th>Step</th><th>Change</th><th>Disposition</th></tr></thead><tbody>
-    ${changes.map(c=>{const s=STEPS.find(x=>x.id===c.sid);return`<tr><td>${s?.label||'?'}</td><td><span class="ecn-type ${c.type}">${c.type}</span> ${c.field}</td><td><span class="badge badge-purple">${c.disp}</span></td></tr>`;}).join('')}
-    </tbody></table></div>`}`;
-  showModal(`ECN Details — ${sn}`,html,[{label:'Close',cls:'btn-ghost',fn:hideModal}]);
-}
-
-// ====== ECN TAB ======
-function renderEcnTab(){
-  const verFilter = document.getElementById('ecnVersionPicker')?.value||'all';
-  const changes = verFilter==='all'?ECN_CHANGES:ECN_CHANGES.filter(c=>c.ver===verFilter);
-
-  document.getElementById('ecnTbody').innerHTML = changes.map(c=>{
-    const s=STEPS.find(x=>x.id===c.sid);
-    return `<tr>
-      <td><span class="fw-600">${s?.label||'?'}</span><br><span class="text-xs text-dim mono">${s?.seq||''}</span></td>
-      <td><span class="ecn-type ${c.type}">${c.type.toUpperCase()}</span></td>
-      <td class="text-sm">${c.field}</td>
-      <td class="text-sm mono" style="color:var(--red);text-decoration:line-through">${c.old}</td>
-      <td class="text-sm mono" style="color:var(--green)">${c.new}</td>
-      <td><span class="badge badge-purple">${c.disp}</span></td>
-      <td><span class="badge badge-blue">v${c.ver}</span></td>
-    </tr>`;
-  }).join('');
-
-  // Cascade
-  const changedSteps = STEPS.filter(s=>s.ecn==='changed');
-  const units = generateUnits(APP.currentAssy||'hbd');
-  const affected = units.filter(u=>u.ver!==u.latest);
-  const byVer = {};
-  affected.forEach(u=>{if(!byVer[u.ver])byVer[u.ver]=[];byVer[u.ver].push(u);});
-  const box = document.getElementById('cascadeBox');
-  if(changedSteps.length>0 && affected.length>0){
-    box.innerHTML = `<div class="cascade-box">
-      <div class="cascade-title">⚠️ ECN Cascade — ${changedSteps.length} changed steps affect ${affected.length} units</div>
-      ${Object.entries(byVer).map(([v,us])=>`
-        <div style="margin-bottom:6px"><span class="badge badge-yellow" style="margin-right:6px">v${v}</span>
-        <span class="text-xs text-dim">${us.length} units:</span>
-        ${us.slice(0,6).map(u=>`<span class="cascade-unit">${u.sn}</span>`).join('')}
-        ${us.length>6?`<span class="text-xs text-dim">+${us.length-6} more</span>`:''}
-        </div>`).join('')}
-    </div>`;
-  } else { box.innerHTML=''; }
-
-  // Version history
-  const versions = APP.currentAssy==='hbd'?VERSIONS:[{ver:ASSEMBLIES.find(x=>x.id===APP.currentAssy)?.version||'1.0',date:'—',by:'—',notes:'—',frozen:false}];
-  document.getElementById('versionHistTbody').innerHTML = versions.map(v=>`<tr>
-    <td class="mono fw-700">v${v.ver}</td><td class="text-sm">${v.date}</td><td class="text-sm">${v.by}</td>
-    <td class="text-sm">${v.notes}</td>
-    <td>${v.frozen?'<span class="badge badge-blue">🔒 Frozen</span>':'<span class="badge badge-green">🔓 Active</span>'}</td>
-  </tr>`).join('');
-
-  document.getElementById('ecnVersionInfo').textContent = changes.length+' records';
-  updateAdminVis();
-}
-
-function showMarkChangedModal(){
-  const steps = STEPS.filter(s=>!s.ecn||s.ecn==='applied');
-  showModal('Mark Steps Changed',`<p class="text-sm mb-3">Select steps to mark as <strong style="color:var(--red)">changed</strong>:</p>
-    <div style="max-height:280px;overflow-y:auto">${steps.map(s=>`
-      <label style="display:flex;align-items:center;gap:8px;padding:5px 8px;cursor:pointer;font-size:12px">
-        <input type="checkbox" value="${s.id}" class="mc"><span class="mono text-dim">${s.seq}</span><span>${s.label}</span>
-      </label>`).join('')}</div>`,
-  [{label:'Cancel',cls:'btn-ghost',fn:hideModal},{label:'🔴 Mark Changed',cls:'btn-danger',fn:()=>{
-    document.querySelectorAll('.mc:checked').forEach(ch=>{const s=STEPS.find(x=>x.id===ch.value);if(s)s.ecn='changed';});
-    hideModal();toast('Steps marked as changed','warning');renderEcnTab();
-  }}]);
-}
-function showAddEcnModal(){
-  showModal('Add ECN Record',`<p class="text-sm text-muted mb-3">Mock — would save to Supabase in production.</p>
-    <div class="sp-field"><label>Step</label><select id="ecnNewStep">${STEPS.map(s=>`<option value="${s.id}">${s.seq} ${s.label}</option>`).join('')}</select></div>
-    <div class="sp-field"><label>Change Type</label><select id="ecnNewType"><option>modified</option><option>replaced</option><option>added</option><option>removed</option></select></div>
-    <div class="sp-field"><label>Description</label><textarea id="ecnNewDesc" placeholder="Change description..."></textarea></div>`,
-  [{label:'Cancel',cls:'btn-ghost',fn:hideModal},{label:'Add Record',cls:'btn-accent',fn:()=>{hideModal();toast('ECN record added (mock)','success');}}]);
-}
-
-// ====== TREE EDITOR TAB ======
-function renderTreeEditor(){
-  renderTreeList();
-  updateTreeFreezeUI();
-  updateAdminVis();
-}
-
-function switchTreeSub(sub){
-  document.querySelectorAll('[data-stab]').forEach(t=>t.classList.toggle('active',t.dataset.stab===sub));
-  document.getElementById('tree-sub-list').style.display = sub==='list'?'':'none';
-  document.getElementById('tree-sub-visual').style.display = sub==='visual'?'':'none';
-  if(sub==='visual') setTimeout(()=>renderD3Tree(),50);
-}
-
-function updateTreeFreezeUI(){
-  const ver = document.getElementById('treeVersionPicker')?.value;
-  const vh = VERSIONS.find(v=>v.ver===ver);
-  const badge = document.getElementById('treeFrozenBadge');
-  const btn = document.getElementById('treeFreezeBtn');
-  if(vh){
-    badge.style.display = vh.frozen?'':'none';
-    if(btn){btn.textContent = vh.frozen?'🔓 Unfreeze':'❄️ Freeze';}
-  }
-}
-function toggleTreeFreeze(){
-  const ver = document.getElementById('treeVersionPicker')?.value;
-  const vh = VERSIONS.find(v=>v.ver===ver);
-  if(!vh) return;
-  vh.frozen=!vh.frozen;
-  toast(vh.frozen?`v${ver} frozen 🔒`:`v${ver} unfrozen 🔓`,'info');
-  updateTreeFreezeUI();
-}
-
-function renderTreeList(){
-  const container = document.getElementById('treeListContainer');
-  const groups = GROUPS.filter(g=>g.assembly_id===(APP.currentAssy||'hbd'));
-  container.innerHTML = groups.map(g=>{
-    const steps = STEPS.filter(s=>s.gid===g.id).sort((a,b)=>a.sort-b.sort);
-    return `<div class="group-block">
-      <div class="group-header" onclick="this.nextElementSibling.style.display=this.nextElementSibling.style.display==='none'?'':'none'">
-        <div class="group-dot" style="background:${g.color}"></div>
-        <span>${g.icon}</span>
-        <span class="group-label">${g.label}</span>
-        <span class="group-count">${steps.length} steps</span>
+    <!-- Tree Editor Nav Card (Admin only) -->
+    <div class="nav-cards">
+      <div class="nav-card" style="border:2px solid rgba(139,92,246,0.25)" data-action="editor"
+        onmouseenter="this.style.borderColor='#8b5cf6';this.style.boxShadow='0 8px 32px rgba(139,92,246,0.15)'"
+        onmouseleave="this.style.borderColor='rgba(139,92,246,0.25)';this.style.boxShadow='none'">
+        <div class="nc-icon">🔧</div>
+        <div class="nc-title" style="color:#8b5cf6">Tree Editor</div>
+        <div class="nc-desc">Manage assembly steps, parts, fasteners. Version control with freeze/duplicate. Mark ECN changes & dispositions.</div>
+        <div class="nc-tags">
+          <span class="badge" style="background:rgba(139,92,246,0.12);color:#8b5cf6">Admin only</span>
+        </div>
       </div>
-      <div>${steps.map(s=>{
-        const fst=FASTENERS.filter(f=>f.sid===s.id);
-        const pts=PARTS.filter(p=>p.sid===s.id);
-        return `<div class="step-row" onclick="openStepPanel('${s.id}')">
-          <span class="step-seq">${s.seq}</span>
-          <span class="step-name">${s.label}</span>
-          ${fst.length?`<span class="badge badge-purple" style="font-size:9px">🔩${fst.length}</span>`:''}
-          ${pts.length?`<span class="badge badge-blue" style="font-size:9px">📦${pts.length}</span>`:''}
-          <span class="ecn-dot ${s.ecn||'none'}"></span>
-          <span class="text-xs text-dim">${s.ecn||'—'}</span>
+    </div>
+
+    <div style="max-width:860px;width:100%;padding:0 24px">
+      <div class="section-label">FULL ROBOT</div>
+    </div>
+    <div class="full-robot-wrap">
+      ${full.map(a=>`
+        <div class="full-robot-card" data-action="assy" data-id="${a.id}">
+          <div style="font-size:36px;margin-bottom:8px">${a.icon}</div>
+          <div style="font-size:18px;font-weight:700;display:flex;align-items:center;gap:10px">
+            ${a.name} <span class="badge" style="background:rgba(34,197,94,0.12);color:#22c55e">v${a.ver}</span>
+          </div>
+          <div style="margin-top:8px"><span class="badge" style="background:rgba(34,197,94,0.12);color:#22c55e">${a.units} units</span></div>
+        </div>
+      `).join('')}
+    </div>
+
+    <div style="max-width:860px;width:100%;padding:0 24px">
+      <div class="section-label">MAJOR ASSEMBLIES</div>
+    </div>
+    <div class="assy-grid">
+      ${majors.map(a=>{
+        const out=a.id==='HBD'?37:Math.floor(a.units*0.15);
+        return `
+        <div class="assy-card" style="border-left:3px solid ${a.color}" data-action="assy" data-id="${a.id}"
+          onmouseenter="this.style.boxShadow='0 4px 16px ${a.color}15'"
+          onmouseleave="this.style.boxShadow='none'">
+          <div class="ac-top">
+            <span class="ac-icon">${a.icon}</span>
+            <span class="ac-name">${a.name}</span>
+          </div>
+          <div class="ac-tags">
+            <span class="badge" style="background:${a.color}15;color:${a.color}">${a.units} units</span>
+            ${out>0?`<span class="badge" style="background:rgba(239,68,68,0.1);color:#ef4444">${out} outdated</span>`:''}
+            <span class="badge" style="background:${a.color}10;color:${a.color}">v${a.ver}</span>
+          </div>
         </div>`;
-      }).join('')}</div>
-    </div>`;
-  }).join('');
-}
-function filterTreeSteps(q){
-  q=q.toLowerCase();
-  document.querySelectorAll('.step-row').forEach(r=>{r.style.display=!q||r.textContent.toLowerCase().includes(q)?'':'none';});
-}
-
-function showAddStepModal(){
-  showModal('Add Step',`<p class="text-sm text-muted mb-3">Mock — would save to Supabase.</p>
-    <div class="sp-field"><label>Label</label><input placeholder="Step name"></div>
-    <div class="sp-field"><label>Seq Tag</label><input placeholder="e.g. 3m"></div>
-    <div class="sp-field"><label>Group</label><select>${GROUPS.map(g=>`<option>${g.icon} ${g.label}</option>`).join('')}</select></div>`,
-  [{label:'Cancel',cls:'btn-ghost',fn:hideModal},{label:'Add Step',cls:'btn-accent',fn:()=>{hideModal();toast('Step added (mock)','success');}}]);
-}
-
-// ====== STEP SIDE PANEL ======
-function openStepPanel(sid){
-  const s = STEPS.find(x=>x.id===sid);
-  if(!s) return;
-  const g = GROUPS.find(x=>x.id===s.gid);
-  const fst = FASTENERS.filter(f=>f.sid===sid);
-  const pts = PARTS.filter(p=>p.sid===sid);
-  const ecns = ECN_CHANGES.filter(c=>c.sid===sid);
-  const isAdmin = APP.role==='admin';
-
-  document.getElementById('spTitle').textContent = s.label;
-  document.getElementById('spBody').innerHTML = `
-    <div style="padding:10px 12px;background:${g?.color||'#666'}15;border-left:3px solid ${g?.color||'#666'};border-radius:0 6px 6px 0;margin-bottom:16px">
-      <div class="fw-700 mono" style="font-size:13px">${s.label}</div>
-      <div class="text-xs text-dim mt-2">Level ${s.level} · ${g?.label||'?'} · ${s.seq}</div>
+      }).join('')}
     </div>
+  </div>`;
+}
 
-    <div class="sp-section">
-      <div class="sp-section-title">ECN Status</div>
-      <div class="sp-field"><label>Status</label>
-        <select id="sp_ecn" ${!isAdmin?'disabled':''}>
-          <option value="" ${!s.ecn?'selected':''}>None</option>
-          <option value="changed" ${s.ecn==='changed'?'selected':''}>🔴 Changed</option>
-          <option value="pending" ${s.ecn==='pending'?'selected':''}>🟡 Pending</option>
-          <option value="applied" ${s.ecn==='applied'?'selected':''}>🟢 Applied</option>
-        </select>
+// ---------- UNIT SELECT ----------
+function renderUnitSelect(){
+  const a=STATE.assembly;
+  const units=getUnits(a.id);
+  const outCount=units.filter(u=>u.status==='outdated').length;
+  let filtered=units;
+  if(STATE.unitFilter==='outdated') filtered=filtered.filter(u=>u.status==='outdated');
+  if(STATE.unitFilter==='current') filtered=filtered.filter(u=>u.status==='current');
+  if(STATE.unitSearch) filtered=filtered.filter(u=>u.sn.toLowerCase().includes(STATE.unitSearch.toLowerCase()));
+
+  return `
+  <div style="min-height:100vh;background:var(--bg);padding:24px">
+    <div style="max-width:900px;margin:0 auto">
+      <div class="us-header">
+        <button class="us-back" data-action="goHome">← Back</button>
+        <span style="font-size:28px">${a.icon}</span>
+        <div>
+          <div style="font-size:20px;font-weight:700">${a.name}</div>
+          <div style="font-size:11px;color:var(--muted)" class="mono">${units.length} total · <span style="color:#ef4444;font-weight:700">${outCount} need updates</span> · prod v${a.ver}</div>
+        </div>
       </div>
-      ${isAdmin?`<div class="sp-field"><label>Description</label><textarea placeholder="Change description...">${ecns[0]?.desc||''}</textarea></div>
-      <div class="sp-field"><label>Disposition</label><select><option value="">— Select —</option><option ${ecns[0]?.disp==='rework'?'selected':''}>rework</option><option ${ecns[0]?.disp==='replace'?'selected':''}>replace</option><option ${ecns[0]?.disp==='scrap'?'selected':''}>scrap</option><option ${ecns[0]?.disp==='use_as_is'?'selected':''}>use_as_is</option></select></div>`:''}
+
+      <div class="us-filters">
+        <input class="inp" style="width:170px;font-size:12px" placeholder="Search S/N..." data-role="unitSearch" value="${STATE.unitSearch}">
+        ${['all','outdated','current'].map(f=>`<button class="us-filter ${STATE.unitFilter===f?'active':''}" data-f="${f}" data-action="setFilter">${f}</button>`).join('')}
+        <button class="btn-sm" style="margin-left:auto;background:transparent;color:var(--muted)" data-action="selectAll">Select all (${filtered.length})</button>
+      </div>
+
+      <div class="unit-grid">
+        ${filtered.map(u=>{
+          const sel=STATE.unitSel.has(u.sn);
+          const out=u.status==='outdated';
+          return `<div class="unit-card ${sel?'selected':''}" data-action="toggleUnit" data-sn="${u.sn}">
+            ${sel?`<div style="position:absolute;top:5px;right:7px;font-size:12px;color:var(--accent)">✓</div>`:''}
+            <div style="font-size:12px;font-weight:700" class="mono">${u.sn}</div>
+            <div style="display:flex;gap:4px;margin-top:3px">
+              <span class="badge" style="background:${out?'rgba(239,68,68,0.12)':'rgba(34,197,94,0.12)'};color:${out?'#ef4444':'#22c55e'}">v${u.ver}</span>
+              ${out?`<span style="font-size:8px;color:#ef4444">→ v${u.latestVer}</span>`:''}
+            </div>
+          </div>`;
+        }).join('')}
+      </div>
+
+      ${STATE.unitSel.size>0?`
+      <div class="proceed-bar" style="background:rgba(245,158,11,0.04);border:1px solid rgba(245,158,11,0.15)">
+        <span style="font-weight:700;font-size:13px">${STATE.unitSel.size} selected</span>
+        <button class="proceed-btn" style="background:${a.color}" data-action="proceed">Open Assembly View →</button>
+      </div>`:''}
     </div>
-
-    ${ecns.length?`<div class="sp-section"><div class="sp-section-title">Change History</div>${ecns.map(c=>`
-      <div style="padding:8px 10px;background:var(--surface2);border-radius:6px;margin-bottom:6px;font-size:12px">
-        <div class="flex items-center gap-2"><span class="ecn-type ${c.type}">${c.type}</span><span class="fw-600">${c.field}</span><span class="badge badge-blue" style="font-size:9px">v${c.ver}</span></div>
-        <div class="mt-2 text-xs"><span style="color:var(--red);text-decoration:line-through">${c.old}</span> → <span style="color:var(--green)">${c.new}</span></div>
-        <div class="mt-2 text-xs text-muted">${c.desc}</div>
-      </div>`).join('')}</div>`:''}
-
-    ${fst.length?`<div class="sp-section"><div class="sp-section-title">🔩 Fasteners</div>${fst.map(f=>`
-      <div style="padding:5px 10px;background:var(--surface2);border-radius:5px;margin-bottom:4px;font-size:12px">
-        <strong class="mono">${f.pn}</strong> ×${f.qty} <span style="color:var(--purple);margin-left:8px">LT-${f.lt}</span> <span style="color:var(--yellow);margin-left:6px">${f.torque}</span>
-      </div>`).join('')}</div>`:''}
-
-    ${pts.length?`<div class="sp-section"><div class="sp-section-title">📦 Parts</div>${pts.map(p=>`
-      <div style="padding:5px 10px;background:var(--surface2);border-radius:5px;margin-bottom:4px;font-size:12px"><strong class="mono">${p.pn}</strong> ×${p.qty}</div>`).join('')}</div>`:''}
-  `;
-
-  document.getElementById('spFooter').innerHTML = isAdmin ?
-    `<button class="btn btn-ghost" onclick="closeSidePanel()">Cancel</button><button class="btn btn-accent" onclick="saveStep('${sid}')">💾 Save</button>` :
-    `<button class="btn btn-ghost" onclick="closeSidePanel()">Close</button>`;
-  document.getElementById('sidePanel').classList.add('open');
-}
-function closeSidePanel(){document.getElementById('sidePanel').classList.remove('open');}
-function saveStep(sid){
-  const s=STEPS.find(x=>x.id===sid);if(!s)return;
-  s.ecn = document.getElementById('sp_ecn')?.value||null;
-  closeSidePanel();toast(`${s.label} updated`,'success');
-  renderTreeList();renderEcnTab();
+  </div>`;
 }
 
-// ============================================================
-// D3 TREE
-// ============================================================
-const LV_COLORS = ['#a5d6a7','#e1bee7','#b3e5fc','#c8e6c9','#fff9c4','#ffe0b2','#ffcdd2','#e8e8e8'];
-let zoom_bh = null;
+// ---------- ASSEMBLY VIEW ----------
+function renderAssemblyView(){
+  const a=STATE.assembly;
+  const unit=STATE.selectedUnits[0];
+  if(!unit) return '';
+  const isOut=unit.status==='outdated';
+  const changes=VER_CHANGES[`${unit.ver}→${unit.latestVer}`]||[];
+  const cascade=computeCascade(MOCK_TREE,changes,STATE.applied,unit.sn);
+  const appliedCount=[...STATE.applied].filter(k=>k.startsWith(unit.sn)).length;
+  const allDone=changes.length>0&&changes.every(c=>STATE.applied.has(`${unit.sn}-${c.step}`));
+  const totalParts=MOCK_TREE.reduce((s,g)=>s+g.steps.reduce((a,st)=>a+st.parts,0),0);
+  const totalFast=MOCK_TREE.reduce((s,g)=>s+g.steps.reduce((a,st)=>a+st.fasteners,0),0);
+  const totalSteps=MOCK_TREE.reduce((s,g)=>s+g.steps.length,0);
+  const tab=STATE.avTab;
 
-function renderD3Tree(){
-  const ctr = document.getElementById('treeContainer');
-  const svg = d3.select('#treeSvg'); svg.selectAll('*').remove();
-  const w=ctr.clientWidth, h=ctr.clientHeight;
-  svg.attr('width',w).attr('height',h);
-
-  const nodes = STEPS.map(s=>({...s,groupData:GROUPS.find(g=>g.id===s.gid)}));
-  if(!nodes.length) return;
-
-  // Layout
-  const nodeW=120,nodeH=34,vGap=52,topPad=70,leftPad=80;
-  const gaps=[260,220,200,180,160,140,130];
-  const levelGroups={};let maxLv=1;
-  nodes.forEach(n=>{const lv=n.level||1;if(!levelGroups[lv])levelGroups[lv]=[];levelGroups[lv].push(n);maxLv=Math.max(maxLv,lv);});
-  const levels=Object.keys(levelGroups).map(Number).sort((a,b)=>b-a);
-  const colX={};let cx=leftPad;
-  levels.forEach((lv,i)=>{colX[lv]=cx;if(i<levels.length-1)cx+=gaps[Math.min(Math.min(lv,levels[i+1])-1,6)]||140;});
-
-  const p2c={},c2p={};
-  LINKS.forEach(l=>{if(!p2c[l.p])p2c[l.p]=[];p2c[l.p].push(l.c);if(!c2p[l.c])c2p[l.c]=[];c2p[l.c].push(l.p);});
-
-  // Group subtrees from L2
-  const grps=[],vis=new Set();
-  nodes.filter(n=>n.level===2).sort((a,b)=>a.sort-b.sort).forEach(root=>{
-    if(vis.has(root.id)) return;
-    const g={ids:new Set()},q=[root.id];
-    while(q.length){const nid=q.shift();if(g.ids.has(nid))continue;g.ids.add(nid);vis.add(nid);(p2c[nid]||[]).forEach(c=>{if(!g.ids.has(c))q.push(c);});}
-    (c2p[root.id]||[]).forEach(pid=>{g.ids.add(pid);vis.add(pid);});
-    grps.push(g);
-  });
-  const unv=nodes.filter(n=>!vis.has(n.id));
-  if(unv.length&&grps.length) unv.forEach(n=>grps[grps.length-1].ids.add(n.id));
-  else if(unv.length) grps.push({ids:new Set(unv.map(n=>n.id))});
-
-  const pos={};let gStartY=topPad+40;
-  grps.forEach(group=>{
-    levels.forEach(lv=>{
-      const inLv=(levelGroups[lv]||[]).filter(n=>group.ids.has(n.id)).sort((a,b)=>a.sort-b.sort);
-      inLv.forEach((node,idx)=>{
-        const children=(p2c[node.id]||[]).filter(c=>group.ids.has(c));
-        let y=gStartY+idx*vGap;
-        if(children.length && children.some(c=>pos[c]?.y>0)){
-          const ys=children.map(c=>pos[c]?.y).filter(Boolean);y=(Math.min(...ys)+Math.max(...ys))/2;
-        }
-        pos[node.id]={x:colX[lv],y,w:nodeW-12,h:nodeH-4};
+  let tabContent='';
+  if(tab==='list'){
+    // ECN Banner + Tree
+    let banner='';
+    if(isOut&&changes.length>0){
+      const cascadeCount=[...cascade.values()].filter(v=>v.isCascade).length;
+      banner=`<div class="ecn-banner">
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:6px">
+          <span style="font-size:12px;font-weight:700;color:#ef4444">⚠ ${changes.length} ECN changes · ${cascadeCount} cascade</span>
+          <span style="font-size:10px;color:var(--muted)" class="mono">${appliedCount}/${changes.length}</span>
+        </div>
+        <div class="ecn-progress"><div class="ecn-progress-fill" style="width:${(appliedCount/changes.length)*100}%;background:${allDone?'#22c55e':'#f59e0b'}"></div></div>
+        ${changes.map((c,i)=>{
+          const done=STATE.applied.has(`${unit.sn}-${c.step}`);
+          const info=cascade.get(c.step);
+          const blocked=info?.isBlocked&&!done;
+          return `<div class="ecn-item ${done?'done':''} ${blocked?'blocked':''}" data-action="openChange" data-idx="${i}">
+            <span class="ecn-tag" style="color:${done?'#22c55e':blocked?'var(--dim)':'#ef4444'};background:${done?'rgba(34,197,94,0.12)':'rgba(239,68,68,0.1)'}">${c.step}</span>
+            <span style="flex:1;font-size:11px;font-weight:500;${done?'opacity:0.5;text-decoration:line-through':''}">${c.stepName}</span>
+            <span style="font-size:9px;color:var(--muted)" class="mono">${c.field}</span>
+            ${blocked?'<span style="font-size:10px">🔒</span>':''}
+            <span style="font-size:12px;color:${done?'#22c55e':'var(--dim)'}">${done?'✓':'○'}</span>
+          </div>`;
+        }).join('')}
+        ${allDone?`<div class="ecn-all-done">
+          <div><div style="font-size:13px;font-weight:700;color:#22c55e">✅ All changes applied</div><div style="font-size:10px;color:var(--muted);margin-top:2px">Ready to upgrade ${unit.sn}</div></div>
+          <button style="padding:8px 22px;border-radius:9px;font-size:12px;font-weight:700;background:#22c55e;border:none;color:#000;cursor:pointer;box-shadow:0 4px 16px rgba(34,197,94,0.3)">✓ Upgrade to v${unit.latestVer}</button>
+        </div>`:''}
+      </div>`;
+    }
+    // Tree list
+    let treeHtml='<div class="tree-list">';
+    MOCK_TREE.forEach(g=>{
+      treeHtml+=`<div class="grp-block"><div class="grp-hdr" style="background:${g.color}08;border-left:3px solid ${g.color}">
+        <span style="font-size:13px">${g.icon}</span>
+        <span style="font-weight:700;color:${g.color};flex:1;font-size:12px">${g.name}</span>
+        ${g.level!==null?`<span class="badge" style="background:${g.color}15;color:${g.color}">L${g.level}</span>`:''}
+        <span style="color:var(--muted);font-size:9px" class="mono">${g.steps.length}</span>
+      </div>`;
+      g.steps.forEach(s=>{
+        const hasEcn=changes.some(c=>c.step===s.sn);
+        const done=STATE.applied.has(`${unit.sn}-${s.sn}`);
+        treeHtml+=`<div class="step-row" style="${done?'opacity:0.4':''}">
+          ${hasEcn?`<span style="font-size:9px">${done?'✅':'🔴'}</span>`:'<span style="width:14px"></span>'}
+          <span class="sn-tag" style="background:${g.color}12;color:${g.color}">${s.sn}</span>
+          <span class="s-type" style="color:${s.type==='PREP'?'#a855f7':s.type==='CHECK'?'#ec4899':'#3b82f6'}">${s.type}</span>
+          <span class="s-name" style="color:var(--text)">${s.name}</span>
+          ${s.parts>0?`<span style="font-size:8px;color:#22c55e" class="mono">${s.parts}P</span>`:''}
+          ${s.fasteners>0?`<span style="font-size:8px;color:#ef4444" class="mono">${s.fasteners}F</span>`:''}
+        </div>`;
       });
-      inLv.sort((a,b)=>(pos[a.id]?.y||0)-(pos[b.id]?.y||0));
-      let lastY=gStartY-vGap;
-      inLv.forEach(n=>{if(pos[n.id].y<lastY+vGap)pos[n.id].y=lastY+vGap;lastY=pos[n.id].y;});
+      treeHtml+='</div>';
     });
-    const maxY=Math.max(...nodes.filter(n=>group.ids.has(n.id)).map(n=>pos[n.id]?.y||0));
-    gStartY=maxY+vGap+30;
-  });
-
-  // 3 centering passes
-  for(let p=0;p<3;p++){
-    [...levels].reverse().forEach(lv=>{
-      (levelGroups[lv]||[]).forEach(node=>{
-        const ch=(p2c[node.id]||[]).filter(c=>pos[c]);
-        if(ch.length){const ys=ch.map(c=>pos[c].y);pos[node.id].y=(Math.min(...ys)+Math.max(...ys))/2;}
-      });
-      const inLv=(levelGroups[lv]||[]).sort((a,b)=>(pos[a.id]?.y||0)-(pos[b.id]?.y||0));
-      let lastY=topPad;
-      inLv.forEach(n=>{if(pos[n.id].y<lastY+vGap)pos[n.id].y=lastY+vGap;lastY=pos[n.id].y;});
-    });
+    treeHtml+='</div>';
+    tabContent=banner+treeHtml;
+  } else {
+    tabContent=`<div class="placeholder-tab"><div class="ph-icon">🔧</div><div class="ph-title">${tab==='graph'?'Graph View':'Kanban View'}</div><div class="ph-desc">Coming soon — visual ${tab} layout for assembly steps.</div></div>`;
   }
 
-  nodes.forEach(n=>{const p2=pos[n.id];if(p2){n.tx=p2.x;n.ty=p2.y;n.tw=p2.w;n.th=p2.h;}});
+  return `
+  <div style="min-height:100vh;background:var(--bg)">
+    <div class="av-header">
+      <button class="us-back" data-action="backToUnits">← Units</button>
+      <span style="font-size:18px;font-weight:800;color:var(--accent)" class="mono">◈</span>
+      <select class="inp" style="padding:5px 10px;font-size:12px;font-weight:600" data-role="unitPicker">
+        ${STATE.selectedUnits.map(u=>`<option value="${u.sn}" ${u.sn===unit.sn?'selected':''}>${u.sn} — v${u.ver} ${u.status==='outdated'?'⚠':'✓'}</option>`).join('')}
+      </select>
+      <div style="display:flex;align-items:center;gap:4px;padding:3px 10px;background:${isOut?'rgba(239,68,68,0.1)':'rgba(34,197,94,0.1)'};border:1px solid ${isOut?'rgba(239,68,68,0.25)':'rgba(34,197,94,0.25)'};border-radius:16px;font-size:10px;font-weight:700;color:${isOut?'#ef4444':'#22c55e'}" class="mono">
+        <span style="width:5px;height:5px;border-radius:50%;background:${isOut?'#ef4444':'#22c55e'}"></span>
+        v${unit.ver}${isOut?` <span style="font-weight:400;opacity:0.7">→ v${unit.latestVer}</span>`:''}
+      </div>
+    </div>
+    <div class="av-tabs">
+      <button class="av-tab ${tab==='list'?'active':''}" data-action="avTab" data-tab="list">
+        <span style="font-size:13px;opacity:${tab==='list'?1:0.5}">☰</span> List View
+        ${changes.length-appliedCount>0?`<span class="count">${changes.length-appliedCount}</span>`:''}
+      </button>
+      <button class="av-tab ${tab==='graph'?'active':''}" data-action="avTab" data-tab="graph">
+        <span style="font-size:13px;opacity:${tab==='graph'?1:0.5}">◈</span> Graph <span class="soon">SOON</span>
+      </button>
+      <button class="av-tab ${tab==='kanban'?'active':''}" data-action="avTab" data-tab="kanban">
+        <span style="font-size:13px;opacity:${tab==='kanban'?1:0.5}">▦</span> Kanban <span class="soon">SOON</span>
+      </button>
+      <div style="margin-left:auto;display:flex;gap:10px;font-size:10px;color:var(--muted)" class="mono">
+        <span><span style="color:#22c55e;font-weight:700">${totalParts}</span>P</span>
+        <span><span style="color:#ef4444;font-weight:700">${totalFast}</span>F</span>
+        <span><span style="font-weight:700">${totalSteps}</span> steps</span>
+      </div>
+    </div>
+    ${tabContent}
+  </div>
+  ${STATE.modal!==null?renderChangeModal():''}`;
+}
 
-  const g=svg.append('g');
-  zoom_bh=d3.zoom().scaleExtent([0.1,3]).on('zoom',e=>g.attr('transform',e.transform));
-  svg.call(zoom_bh);
+function renderChangeModal(){
+  const unit=STATE.selectedUnits[0];
+  const changes=VER_CHANGES[`${unit.ver}→${unit.latestVer}`]||[];
+  const ch=changes[STATE.modal];if(!ch) return '';
+  const cascade=computeCascade(MOCK_TREE,changes,STATE.applied,unit.sn);
+  const isDone=STATE.applied.has(`${unit.sn}-${ch.step}`);
+  const info=cascade.get(ch.step);
+  const blocked=info?.isBlocked&&!isDone;
+  const tc={part_changed:{bg:"rgba(59,130,246,0.08)",c:"#3b82f6",l:"Part Changed"},fastener_changed:{bg:"rgba(239,68,68,0.08)",c:"#ef4444",l:"Fastener Changed"},step_modified:{bg:"rgba(168,85,247,0.08)",c:"#a855f7",l:"Step Modified"}}[ch.type]||{bg:"rgba(168,85,247,0.08)",c:"#a855f7",l:"Modified"};
 
-  // Level headers
-  if(APP.treeShowLevels){
-    levels.forEach(lv=>{
-      g.append('rect').attr('x',colX[lv]-40).attr('y',topPad-4).attr('width',80).attr('height',24).attr('rx',4).attr('fill','#2563eb').attr('opacity',0.85);
-      g.append('text').attr('x',colX[lv]).attr('y',topPad+12).attr('text-anchor','middle').attr('fill','white').attr('font-size','11px').attr('font-weight','700').attr('font-family','JetBrains Mono,monospace').text(`L${lv}`);
-    });
+  return `<div class="cm-overlay" data-action="closeModal">
+    <div class="cm-box" onclick="event.stopPropagation()">
+      <div class="cm-header">
+        <span class="mono" style="font-size:12px;font-weight:700;color:${tc.c};background:${tc.bg};padding:3px 8px;border-radius:5px">${ch.step}</span>
+        <div style="flex:1"><div style="font-size:14px;font-weight:700">${ch.stepName}</div><div style="font-size:10px;color:var(--muted)">${ch.group} · ${unit.sn}</div></div>
+        <button style="background:none;border:none;color:var(--muted);font-size:16px;cursor:pointer" data-action="closeModal">✕</button>
+      </div>
+      <div class="cm-body">
+        <span class="badge" style="background:${tc.bg};color:${tc.c};align-self:flex-start">${tc.l}</span>
+        <div class="cm-box-pair">
+          ${ch.old?`<div style="background:rgba(239,68,68,0.04);border:1px solid rgba(239,68,68,0.08)"><div style="font-size:8px;font-weight:700;color:#ef4444;text-transform:uppercase;letter-spacing:1px;margin-bottom:4px">Before</div><div style="font-size:12px;font-weight:600" class="mono">${ch.old}</div></div>`:''}
+          <div style="background:rgba(34,197,94,0.04);border:1px solid rgba(34,197,94,0.08)"><div style="font-size:8px;font-weight:700;color:#22c55e;text-transform:uppercase;letter-spacing:1px;margin-bottom:4px">${ch.old?'After':'New'}</div><div style="font-size:12px;font-weight:600" class="mono">${ch.new}</div></div>
+        </div>
+        <div style="padding:10px;border-radius:8px;background:rgba(245,158,11,0.04);border:1px solid rgba(245,158,11,0.08)"><div style="font-size:8px;font-weight:700;color:var(--accent);text-transform:uppercase;letter-spacing:1px;margin-bottom:3px">Reason</div><div style="font-size:11px">${ch.reason}</div></div>
+      </div>
+      <div class="cm-footer">
+        ${isDone?'<span style="font-size:10px;color:#22c55e;margin-right:auto">✅ Applied</span>':''}
+        ${blocked?'<span style="font-size:10px;color:var(--dim);margin-right:auto">🔒 Resolve upstream first</span>':''}
+        <button class="btn-sm" style="background:transparent;color:var(--muted);padding:6px 14px" data-action="closeModal">Close</button>
+        <button style="padding:6px 18px;border-radius:6px;font-size:11px;font-weight:700;border:none;cursor:${blocked?'not-allowed':'pointer'};background:${isDone?'rgba(239,68,68,0.12)':blocked?'var(--card-hover)':'#22c55e'};color:${isDone?'#ef4444':blocked?'var(--dim)':'#000'};opacity:${blocked?0.5:1}" data-action="toggleApply" data-step="${ch.step}" ${blocked?'disabled':''}>${isDone?'↩ Undo':blocked?'🔒 Blocked':'✓ Mark Applied'}</button>
+      </div>
+    </div>
+  </div>`;
+}
+
+// ---------- TREE EDITOR ----------
+function renderTreeEditor(){
+  const v=STATE.teVersions[STATE.teActiveVer];
+  if(!v) return '<div>No version data</div>';
+  const tree=v.tree||[];
+  const ecn=v.ecn||{};
+  const locked=v.status==='frozen';
+  const sel=STATE.teSel;
+
+  // Find selected step
+  let selStep=null;
+  if(sel){for(const g of tree){const s=g.steps.find(x=>x.id===sel.sid);if(s){selStep={g,s,gi:tree.indexOf(g),si:g.steps.indexOf(s)};break;}}}
+
+  let rightPanel='';
+  if(selStep){
+    const{g,s,si}=selStep;
+    const hasE=!!ecn[s.sn];
+    const ec=ecn[s.sn];
+    const lDim=locked?'opacity:0.5':'';
+    rightPanel=`
+      <div style="font-size:14px;font-weight:700;margin-bottom:10px">${getStepName(s)||'Untitled Step'}</div>
+      <div style="display:flex;gap:8px;align-items:center;margin-bottom:10px">
+        <div><div class="dp-label">TAG</div><input class="inp" style="width:50px;font-weight:700;${lDim}" value="${s.sn}" ${locked?'disabled':''} data-role="teStepSn"></div>
+        <div><div class="dp-label">TYPE</div><select class="inp" style="${lDim}" ${locked?'disabled':''} data-role="teStepType"><option ${s.type==='STEP'?'selected':''}>STEP</option><option ${s.type==='PREP'?'selected':''}>PREP</option><option ${s.type==='CHECK'?'selected':''}>CHECK</option></select></div>
+      </div>
+      <div class="dp-ecn-box" style="background:${hasE?'rgba(239,68,68,0.04)':'rgba(139,92,246,0.02)'};border:1px solid ${hasE?'rgba(239,68,68,0.12)':'var(--border)'}">
+        <div style="display:flex;align-items:center;gap:6px;${hasE?'margin-bottom:6px':''}">
+          <span style="font-size:10px;font-weight:700;color:${hasE?'#ef4444':'var(--muted)'}">${hasE?'🔴 ECN Marked':'No ECN'}</span>
+          ${!locked?`<button class="btn-sm" style="margin-left:auto;background:${hasE?'rgba(239,68,68,0.12)':'rgba(34,197,94,0.12)'};color:${hasE?'#ef4444':'#22c55e'};border:none;font-size:9px;padding:2px 8px" data-action="toggleEcn">${hasE?'✕ Remove':'+ Mark ECN'}</button>`:''}
+        </div>
+        ${hasE?`
+          <div class="dp-label">DISPOSITION</div>
+          <div style="display:flex;gap:3px;margin-bottom:6px">
+            ${Object.entries(DISP).map(([k,d])=>`<button class="disp-btn" style="border:${ec?.disposition===k?`2px solid ${d.color}`:`1px solid var(--border)`};background:${ec?.disposition===k?d.bg:'transparent'};color:${d.color};${locked&&ec?.disposition!==k?'opacity:0.3':''}" data-action="setDisp" data-disp="${k}" ${locked?'disabled':''}>${d.icon} ${d.label}</button>`).join('')}
+          </div>
+          ${!locked?`<textarea class="inp" style="width:100%;resize:vertical;line-height:1.3;min-height:40px" placeholder="ECN note..." data-role="teEcnNote">${ec?.note||''}</textarea>`:''}
+        `:''}
+      </div>
+      <div class="dp-section">
+        <div style="display:flex;align-items:center;margin-bottom:5px"><span class="dp-label" style="flex:1;margin:0">PARTS (${s.parts.length})</span>${!locked?`<button class="btn-sm" style="background:rgba(34,197,94,0.12);color:#22c55e;border:none;font-size:9px;padding:2px 8px" data-action="addPart">+ Part</button>`:''}</div>
+        ${s.parts.map((p,pi)=>`
+          <div class="dp-row" style="${s.parts.length===1?'background:rgba(14,165,233,0.03)':''}">
+            <input class="inp" style="width:76px;font-weight:700;color:#0ea5e9;${lDim}" value="${p.pn}" ${locked?'disabled':''} placeholder="P/N" data-role="partPn" data-pi="${pi}">
+            <input class="inp" style="flex:1;${lDim}" value="${p.name}" ${locked?'disabled':''} placeholder="name" data-role="partName" data-pi="${pi}">
+            <input class="inp" type="number" style="width:28px;text-align:center;${lDim}" value="${p.qty}" ${locked?'disabled':''} data-role="partQty" data-pi="${pi}">
+            ${!locked?`<button style="background:none;border:none;color:#ef4444;font-size:9px;cursor:pointer" data-action="delPart" data-pi="${pi}">✕</button>`:''}
+          </div>`).join('')}
+        ${s.parts.length===0?'<div style="font-size:9px;color:var(--dim);font-style:italic;margin-bottom:6px">Add a part → its name becomes the step name</div>':''}
+      </div>
+      <div class="dp-section">
+        <div style="display:flex;align-items:center;margin-bottom:5px"><span class="dp-label" style="flex:1;margin:0">FASTENERS (${s.fasteners.length})</span>${!locked?`<button class="btn-sm" style="background:rgba(245,158,11,0.12);color:#f59e0b;border:none;font-size:9px;padding:2px 8px" data-action="addFastener">+ Fastener</button>`:''}</div>
+        ${s.fasteners.map((f,fi)=>`
+          <div style="display:flex;gap:3px;align-items:center;margin-bottom:2px">
+            <input class="inp" style="width:70px;font-weight:700;color:#f59e0b;${lDim}" value="${f.code}" ${locked?'disabled':''} placeholder="Code" data-role="fastCode" data-fi="${fi}">
+            <input class="inp" style="flex:1;${lDim}" value="${f.torque}" ${locked?'disabled':''} placeholder="Torque" data-role="fastTorque" data-fi="${fi}">
+            <input class="inp" style="width:32px;${lDim}" value="${f.loctite}" ${locked?'disabled':''} placeholder="Loc" data-role="fastLoc" data-fi="${fi}">
+            <input class="inp" type="number" style="width:28px;text-align:center;${lDim}" value="${f.qty}" ${locked?'disabled':''} data-role="fastQty" data-fi="${fi}">
+            ${!locked?`<button style="background:none;border:none;color:#ef4444;font-size:9px;cursor:pointer" data-action="delFast" data-fi="${fi}">✕</button>`:''}
+          </div>`).join('')}
+      </div>
+    `;
+  } else {
+    rightPanel='<div style="display:flex;flex-direction:column;align-items:center;justify-content:center;height:100%;color:var(--dim);font-size:12px"><div style="font-size:28px;margin-bottom:10px;opacity:0.3">🔧</div><div>Select a step to edit</div></div>';
   }
 
-  // Links
-  LINKS.forEach(ld=>{
-    const src=nodes.find(n=>n.id===ld.c),tgt=nodes.find(n=>n.id===ld.p);
-    if(!src||!tgt||!src.tx||!tgt.tx) return;
-    const sx=src.tx+src.tw/2,sy=src.ty,tx=tgt.tx-tgt.tw/2,ty=tgt.ty,mx=(sx+tx)/2;
-    g.append('path').attr('d',`M${sx} ${sy} C${mx} ${sy},${mx} ${ty},${tx} ${ty}`)
-      .attr('stroke','#475569').attr('stroke-width',1.4).attr('fill','none');
+  return `
+  <div class="te-wrap">
+    <div class="te-left">
+      <div class="te-verbar">
+        <button class="us-back" data-action="goHome" style="padding:3px 10px;font-size:10px">← Home</button>
+        <span style="font-size:14px;font-weight:800;color:#8b5cf6">🔧</span>
+        <span style="font-weight:700;color:#8b5cf6;font-size:12px" class="mono">Tree Editor</span>
+        <div style="width:1px;height:16px;background:var(--border);margin:0 4px"></div>
+        ${Object.entries(STATE.teVersions).map(([vn,vd])=>`
+          <button class="te-ver-pill" style="border:${vn===STATE.teActiveVer?`2px solid ${vd.status==='frozen'?'#ef4444':'#8b5cf6'}`:`1px solid var(--border)`};background:${vn===STATE.teActiveVer?(vd.status==='frozen'?'rgba(239,68,68,0.08)':'rgba(139,92,246,0.08)'):'transparent'};color:${vn===STATE.teActiveVer?(vd.status==='frozen'?'#ef4444':'#8b5cf6'):'var(--muted)'}" data-action="switchVer" data-ver="${vn}">
+            ${vd.status==='frozen'?'🔒':'✏️'} v${vn} ${vn===STATE.teProdVer?'<span style="font-size:8px;padding:0 4px;border-radius:3px;background:rgba(34,197,94,0.15);color:#22c55e;margin-left:3px">PROD</span>':''}
+          </button>`).join('')}
+        <button class="btn-sm" style="background:rgba(139,92,246,0.12);color:#8b5cf6;border:none" data-action="openDup">📋 Duplicate</button>
+        <div style="margin-left:auto;display:flex;gap:6px">
+          <button class="btn-sm" style="background:${locked?'rgba(34,197,94,0.12)':'rgba(239,68,68,0.12)'};color:${locked?'#22c55e':'#ef4444'};border:none" data-action="toggleFreeze">${locked?'✏️ Mark draft':'🔒 Freeze'}</button>
+          ${locked&&STATE.teActiveVer!==STATE.teProdVer?`<button class="btn-sm" style="background:rgba(34,197,94,0.12);color:#22c55e;border:none" data-action="setProd">🚀 Set as PROD</button>`:''}
+        </div>
+      </div>
+      ${locked?'<div class="te-frozen-banner">🔒 Tree locked — mark draft to edit</div>':''}
+      <div class="te-tree">
+        ${tree.map((g,gi)=>`
+          <div style="margin-bottom:6px">
+            <div class="te-grp-hdr" style="background:${g.color}08;border-left:3px solid ${g.color}">
+              <span style="font-size:13px">${g.icon}</span>
+              <span style="font-weight:700;color:${g.color};flex:1;font-size:11px" class="mono">${g.name}</span>
+              ${g.level!==null?`<span class="badge" style="background:${g.color}15;color:${g.color}">L${g.level}</span>`:''}
+              <span style="color:var(--muted);font-size:9px">${g.steps.length}</span>
+              ${!locked?`<button style="background:none;border:none;color:#22c55e;cursor:pointer;font-size:12px;padding:0" data-action="addStep" data-gi="${gi}">+</button>`:''}
+            </div>
+            ${g.steps.map(s=>{
+              const sn=getStepName(s);
+              const hasEcn=!!ecn[s.sn];
+              const isSel=sel?.sid===s.id;
+              return `<div class="te-step ${isSel?'sel':''}" data-action="selStep" data-gid="${g.id}" data-sid="${s.id}" style="${isSel?'':'border:1px solid transparent'}">
+                ${hasEcn?'<span style="font-size:9px">🔴</span>':''}
+                <span style="font-weight:700;color:${g.color};min-width:24px;text-align:center;font-size:10px;background:${g.color}12;padding:1px 4px;border-radius:3px" class="mono">${s.sn||'—'}</span>
+                <span style="font-size:9px;font-weight:600;color:${s.type==='PREP'?'#a855f7':s.type==='CHECK'?'#ec4899':'#3b82f6'}">${s.type}</span>
+                <span style="flex:1;color:${sn?'var(--text)':'var(--dim)'};font-size:10px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${sn||'untitled'}</span>
+                ${s.parts.length>0?`<span style="font-size:8px;color:#22c55e">${s.parts.length}P</span>`:''}
+                ${s.fasteners.length>0?`<span style="font-size:8px;color:#ef4444">${s.fasteners.length}F</span>`:''}
+              </div>`;
+            }).join('')}
+          </div>`).join('')}
+        ${!locked?`<button class="btn-sm" style="width:100%;margin-top:8px;padding:8px;background:rgba(99,102,241,0.12);color:#6366f1;border:none" data-action="addGroup">+ Add Group</button>`:''}
+      </div>
+    </div>
+    <div class="te-right">${rightPanel}</div>
+  </div>
+  ${STATE.dupModal?renderDupModal():''}`;
+}
+
+function renderDupModal(){
+  return `<div class="dup-overlay" data-action="closeDup">
+    <div class="dup-box" onclick="event.stopPropagation()">
+      <div style="font-size:14px;font-weight:700;margin-bottom:10px" class="mono">📋 Duplicate v${STATE.teActiveVer}</div>
+      <div style="font-size:10px;color:var(--muted);margin-bottom:12px">New version number:</div>
+      <input class="inp" style="width:100%;margin-bottom:12px;font-size:14px;padding:8px 10px" placeholder="e.g. 6.0" data-role="dupVerInput" value="${STATE.dupVer}" autofocus>
+      <div style="display:flex;gap:8px;justify-content:flex-end">
+        <button class="btn-sm" style="background:transparent;color:var(--muted)" data-action="closeDup">Cancel</button>
+        <button style="padding:6px 16px;border-radius:6px;font-size:11px;font-weight:700;background:#8b5cf6;border:none;color:#fff;cursor:pointer" data-action="doDuplicate">Create v${STATE.dupVer||'?'}</button>
+      </div>
+    </div>
+  </div>`;
+}
+
+// ============================================================
+// EVENT HANDLING
+// ============================================================
+function attachEvents(){
+  document.querySelectorAll('[data-action]').forEach(el=>{
+    el.onclick=e=>{
+      const action=el.dataset.action;
+      if(action==='editor'){STATE.page='editor';render();}
+      else if(action==='assy'){const id=el.dataset.id;STATE.assembly=ASSEMBLIES.find(a=>a.id===id);STATE.page='unitSelect';STATE.unitSel=new Set();STATE.unitFilter='all';STATE.unitSearch='';render();}
+      else if(action==='goHome'){STATE.page='home';render();}
+      else if(action==='setFilter'){STATE.unitFilter=el.dataset.f;render();}
+      else if(action==='selectAll'){const units=getUnits(STATE.assembly.id);let filtered=units;if(STATE.unitFilter==='outdated')filtered=filtered.filter(u=>u.status==='outdated');if(STATE.unitFilter==='current')filtered=filtered.filter(u=>u.status==='current');filtered.forEach(u=>STATE.unitSel.add(u.sn));render();}
+      else if(action==='toggleUnit'){const sn=el.dataset.sn;STATE.unitSel.has(sn)?STATE.unitSel.delete(sn):STATE.unitSel.add(sn);render();}
+      else if(action==='proceed'){const units=getUnits(STATE.assembly.id);STATE.selectedUnits=[...STATE.unitSel].map(sn=>units.find(u=>u.sn===sn)).filter(Boolean);STATE.applied=new Set();STATE.avTab='list';STATE.page='assembly';render();}
+      else if(action==='backToUnits'){STATE.page='unitSelect';render();}
+      else if(action==='avTab'){STATE.avTab=el.dataset.tab;render();}
+      else if(action==='openChange'){STATE.modal=parseInt(el.dataset.idx);render();}
+      else if(action==='closeModal'){STATE.modal=null;render();}
+      else if(action==='toggleApply'){
+        const unit=STATE.selectedUnits[0];const step=el.dataset.step;
+        const k=`${unit.sn}-${step}`;STATE.applied.has(k)?STATE.applied.delete(k):STATE.applied.add(k);
+        STATE.modal=null;render();
+      }
+      // Tree editor actions
+      else if(action==='switchVer'){STATE.teActiveVer=el.dataset.ver;STATE.teSel=null;render();}
+      else if(action==='toggleFreeze'){
+        const v=STATE.teVersions[STATE.teActiveVer];
+        v.status=v.status==='frozen'?'draft':'frozen';
+        v.frozenAt=v.status==='frozen'?Date.now():null;
+        toast(v.status==='frozen'?'🔒 Frozen':'✏️ Unlocked');render();
+      }
+      else if(action==='setProd'){STATE.teProdVer=STATE.teActiveVer;toast(`🚀 Production → v${STATE.teActiveVer}`);render();}
+      else if(action==='openDup'){STATE.dupModal=true;STATE.dupVer='';render();}
+      else if(action==='closeDup'){STATE.dupModal=false;render();}
+      else if(action==='doDuplicate'){
+        if(!STATE.dupVer||STATE.teVersions[STATE.dupVer])return;
+        const cloned=JSON.parse(JSON.stringify(STATE.teVersions[STATE.teActiveVer]));
+        const reID=t=>t.forEach(g=>{g.id=ID();g.steps.forEach(s=>{s.id=ID();s.parts.forEach(p=>p.id=ID());s.fasteners.forEach(f=>f.id=ID());});});
+        reID(cloned.tree);
+        STATE.teVersions[STATE.dupVer]={...cloned,status:'draft',frozenAt:null,createdFrom:STATE.teActiveVer};
+        STATE.teActiveVer=STATE.dupVer;STATE.dupModal=false;STATE.teSel=null;
+        toast(`📋 Created v${STATE.dupVer}`);render();
+      }
+      else if(action==='selStep'){STATE.teSel={gid:el.dataset.gid,sid:el.dataset.sid};render();}
+      else if(action==='addStep'){
+        const gi=parseInt(el.dataset.gi);
+        STATE.teVersions[STATE.teActiveVer].tree[gi].steps.push({id:ID(),sn:'',type:'STEP',nameOverride:'',parts:[],fasteners:[]});render();
+      }
+      else if(action==='addGroup'){
+        STATE.teVersions[STATE.teActiveVer].tree.push({id:ID(),name:'New Group',icon:'📦',color:'#6366f1',level:null,steps:[]});render();
+      }
+      else if(action==='toggleEcn'){
+        const v=STATE.teVersions[STATE.teActiveVer];const sel=STATE.teSel;if(!sel)return;
+        for(const g of v.tree){const s=g.steps.find(x=>x.id===sel.sid);if(s){
+          const e={...v.ecn};if(e[s.sn])delete e[s.sn];else e[s.sn]={note:'',disposition:'scrap'};v.ecn=e;break;
+        }}render();
+      }
+      else if(action==='setDisp'){
+        const v=STATE.teVersions[STATE.teActiveVer];const sel=STATE.teSel;if(!sel)return;
+        for(const g of v.tree){const s=g.steps.find(x=>x.id===sel.sid);if(s&&v.ecn[s.sn]){v.ecn[s.sn]={...v.ecn[s.sn],disposition:el.dataset.disp};break;}}render();
+      }
+      else if(action==='addPart'){
+        const v=STATE.teVersions[STATE.teActiveVer];const sel=STATE.teSel;if(!sel)return;
+        for(const g of v.tree){const s=g.steps.find(x=>x.id===sel.sid);if(s){s.parts.push({id:ID(),pn:'',name:'',qty:1});break;}}render();
+      }
+      else if(action==='delPart'){
+        const pi=parseInt(el.dataset.pi);const v=STATE.teVersions[STATE.teActiveVer];const sel=STATE.teSel;if(!sel)return;
+        for(const g of v.tree){const s=g.steps.find(x=>x.id===sel.sid);if(s){s.parts.splice(pi,1);break;}}render();
+      }
+      else if(action==='addFastener'){
+        const v=STATE.teVersions[STATE.teActiveVer];const sel=STATE.teSel;if(!sel)return;
+        for(const g of v.tree){const s=g.steps.find(x=>x.id===sel.sid);if(s){s.fasteners.push({id:ID(),code:'',torque:'',loctite:'',qty:1});break;}}render();
+      }
+      else if(action==='delFast'){
+        const fi=parseInt(el.dataset.fi);const v=STATE.teVersions[STATE.teActiveVer];const sel=STATE.teSel;if(!sel)return;
+        for(const g of v.tree){const s=g.steps.find(x=>x.id===sel.sid);if(s){s.fasteners.splice(fi,1);break;}}render();
+      }
+      e.stopPropagation();
+    };
   });
 
-  // Nodes
-  const nodeEls=g.selectAll('.node').data(nodes,d=>d.id).enter().append('g').attr('class','node').attr('transform',d=>`translate(${d.tx},${d.ty})`);
-  nodeEls.each(function(d){
-    const el=d3.select(this);
-    const color=APP.treeColorMode==='group'&&d.groupData?d.groupData.color:LV_COLORS[Math.min((d.level||1)-1,7)];
-    const hw=d.tw/2,hh=d.th/2;
-    el.append('rect').attr('x',-hw).attr('y',-hh).attr('width',d.tw).attr('height',d.th).attr('rx',hh>16?hh:5).attr('fill',color).attr('stroke',darken(color)).attr('stroke-width',1.5);
-    const ecnC={changed:'#ef4444',pending:'#eab308',applied:'#22c55e'};
-    if(d.ecn) el.append('circle').attr('cx',-hw+8).attr('cy',-hh+8).attr('r',4).attr('fill',ecnC[d.ecn]||'#5c6080').attr('stroke','white').attr('stroke-width',1.2);
-    el.append('text').attr('text-anchor','middle').attr('y',3).attr('font-size',Math.min(11-(d.level-1)*0.5,10)+'px')
-      .attr('font-weight',d.level<=2?700:500).attr('fill','#0c0e1a').attr('font-family','DM Sans,sans-serif').text(d.label);
-    if(d.seq&&APP.treeShowSeq) el.append('text').attr('x',hw+5).attr('y',-hh+4).attr('font-size','10px').attr('font-weight',700).attr('fill','#e8eaf0').attr('font-family','JetBrains Mono,monospace').text(d.seq);
+  // Input handlers
+  document.querySelectorAll('[data-role]').forEach(el=>{
+    const role=el.dataset.role;
+    if(role==='unitSearch'){el.oninput=()=>{STATE.unitSearch=el.value;render();};}
+    if(role==='unitPicker'){el.onchange=()=>{const u=STATE.selectedUnits.find(x=>x.sn===el.value);if(u)STATE.selectedUnits=[u,...STATE.selectedUnits.filter(x=>x.sn!==u.sn)];render();};}
+    if(role==='dupVerInput'){el.oninput=()=>{STATE.dupVer=el.value;/* Don't re-render fully, just update button text */};}
+    // Tree editor inputs
+    if(role==='teStepSn'){el.oninput=()=>{const v=STATE.teVersions[STATE.teActiveVer];const sel=STATE.teSel;if(!sel)return;for(const g of v.tree){const s=g.steps.find(x=>x.id===sel.sid);if(s){s.sn=el.value;break;}}};}
+    if(role==='teStepType'){el.onchange=()=>{const v=STATE.teVersions[STATE.teActiveVer];const sel=STATE.teSel;if(!sel)return;for(const g of v.tree){const s=g.steps.find(x=>x.id===sel.sid);if(s){s.type=el.value;break;}}};}
+    if(role==='teEcnNote'){el.oninput=()=>{const v=STATE.teVersions[STATE.teActiveVer];const sel=STATE.teSel;if(!sel)return;for(const g of v.tree){const s=g.steps.find(x=>x.id===sel.sid);if(s&&v.ecn[s.sn]){v.ecn[s.sn]={...v.ecn[s.sn],note:el.value};break;}}};}
+    // Part/fastener inline edits
+    if(role?.startsWith('part')||role?.startsWith('fast')){
+      el.oninput=()=>{
+        const v=STATE.teVersions[STATE.teActiveVer];const sel=STATE.teSel;if(!sel)return;
+        for(const g of v.tree){const s=g.steps.find(x=>x.id===sel.sid);if(s){
+          if(role==='partPn'){const pi=parseInt(el.dataset.pi);s.parts[pi].pn=el.value;const n=MASTER[el.value.toUpperCase().trim()];if(n)s.parts[pi].name=n;}
+          if(role==='partName'){s.parts[parseInt(el.dataset.pi)].name=el.value;}
+          if(role==='partQty'){s.parts[parseInt(el.dataset.pi)].qty=parseInt(el.value)||1;}
+          if(role==='fastCode'){s.fasteners[parseInt(el.dataset.fi)].code=el.value;}
+          if(role==='fastTorque'){s.fasteners[parseInt(el.dataset.fi)].torque=el.value;}
+          if(role==='fastLoc'){s.fasteners[parseInt(el.dataset.fi)].loctite=el.value;}
+          if(role==='fastQty'){s.fasteners[parseInt(el.dataset.fi)].qty=parseInt(el.value)||1;}
+          break;
+        }}
+      };
+    }
   });
-  nodeEls.on('click',(e,d)=>{e.stopPropagation();openStepPanel(d.id);});
-
-  setTimeout(()=>treeFit(),200);
 }
 
-function darken(hex,pct=30){
-  hex=hex.replace('#','');
-  let r=parseInt(hex.substring(0,2),16),g=parseInt(hex.substring(2,4),16),b=parseInt(hex.substring(4,6),16);
-  return `#${Math.max(0,Math.floor(r*(100-pct)/100)).toString(16).padStart(2,'0')}${Math.max(0,Math.floor(g*(100-pct)/100)).toString(16).padStart(2,'0')}${Math.max(0,Math.floor(b*(100-pct)/100)).toString(16).padStart(2,'0')}`;
-}
-
-function toggleTreeOpt(opt){
-  if(opt==='seq'){APP.treeShowSeq=!APP.treeShowSeq;document.getElementById('tcSeq').classList.toggle('active');}
-  if(opt==='levels'){APP.treeShowLevels=!APP.treeShowLevels;document.getElementById('tcLvl').classList.toggle('active');}
-  renderD3Tree();
-}
-function treeZoom(factor){d3.select('#treeSvg').transition().duration(300).call(zoom_bh.scaleBy,factor);}
-function treeFit(){
-  if(!zoom_bh) return;
-  const c=document.getElementById('treeContainer');
-  let mnX=Infinity,mxX=-Infinity,mnY=Infinity,mxY=-Infinity;
-  STEPS.forEach(n=>{if(n.tx==null)return;mnX=Math.min(mnX,n.tx-70);mxX=Math.max(mxX,n.tx+70);mnY=Math.min(mnY,n.ty-25);mxY=Math.max(mxY,n.ty+25);});
-  if(mnX===Infinity)return;
-  const cw=c.clientWidth-40,ch=c.clientHeight-40;
-  const scale=Math.min(cw/(mxX-mnX),ch/(mxY-mnY),1.4)*0.85;
-  const cx2=(mnX+mxX)/2,cy2=(mnY+mxY)/2;
-  d3.select('#treeSvg').transition().duration(400).call(zoom_bh.transform,d3.zoomIdentity.translate(cw/2-cx2*scale+20,ch/2-cy2*scale+20).scale(scale));
-}
-
-// ============================================================
-// UI HELPERS
-// ============================================================
-function toast(msg,type='info'){
-  const c=document.getElementById('toastBox');
-  const t=document.createElement('div');t.className=`toast ${type}`;t.textContent=msg;c.appendChild(t);
-  setTimeout(()=>{t.style.opacity='0';t.style.transform='translateY(-20px)';setTimeout(()=>t.remove(),300);},3000);
-}
-function showModal(title,html,btns=[]){
-  document.getElementById('modalTitle').textContent=title;
-  document.getElementById('modalBody').innerHTML=html;
-  const f=document.getElementById('modalFooter');
-  f.innerHTML=btns.map(b=>`<button class="btn ${b.cls||'btn-primary'}">${b.label}</button>`).join('');
-  f.querySelectorAll('button').forEach((el,i)=>{if(btns[i]?.fn)el.onclick=btns[i].fn;});
-  document.getElementById('modalOverlay').classList.add('show');
-}
-function hideModal(){document.getElementById('modalOverlay').classList.remove('show');}
-
-// ============================================================
-// INIT
-// ============================================================
-document.addEventListener('DOMContentLoaded',()=>{renderHome();});
+// Initial render
+render();
 </script>
 </body>
 </html>

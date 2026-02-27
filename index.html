@@ -383,9 +383,10 @@ function renderHome(){
   return `
   <div class="home-wrap">
     <div class="home-admin">
-      <div class="admin-pill" data-action="editor" style="cursor:pointer" title="Open Tree Editor"
-        onmouseenter="this.style.background='rgba(245,158,11,0.18)';this.style.borderColor='rgba(245,158,11,0.4)'"
-        onmouseleave="this.style.background='rgba(245,158,11,0.08)';this.style.borderColor='rgba(245,158,11,0.2)'">🔧 Admin · Aniket</div>
+      <div class="admin-pill">🔧 Admin · Aniket</div>
+      <button class="btn-sm" style="background:rgba(139,92,246,0.12);color:#8b5cf6;border:1px solid rgba(139,92,246,0.25);cursor:pointer;padding:5px 12px;font-size:11px" data-action="editor"
+        onmouseenter="this.style.background='rgba(139,92,246,0.22)';this.style.borderColor='#8b5cf6'"
+        onmouseleave="this.style.background='rgba(139,92,246,0.12)';this.style.borderColor='rgba(139,92,246,0.25)'">🔧 Tree Editor</button>
       <button class="btn-sm" style="background:transparent;color:var(--muted)" onclick="toast('Logout mock')">Logout</button>
       <div style="width:24px;height:24px;border-radius:50%;background:linear-gradient(135deg,#f59e0b,#e8952e);border:2px solid var(--border)"></div>
     </div>

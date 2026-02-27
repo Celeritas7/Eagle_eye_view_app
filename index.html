@@ -3,1448 +3,1113 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Eagle Eye — Assembly Tracking</title>
+<title>EagleEye — Assembly Tracking</title>
 <script src="https://d3js.org/d3.v7.min.js"></script>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600;700&family=DM+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
 <style>
-/* ============================================
-   EAGLE EYE — Global Styles
-   ============================================ */
 *{margin:0;padding:0;box-sizing:border-box}
 :root{
-  --bg:#0d1117;--surface:#161b22;--surface2:#1c2333;--border:#30363d;
-  --text:#e6edf3;--text2:#8b949e;--text3:#6e7681;
-  --accent:#00d9ff;--accent2:#00ff88;--green:#059669;--red:#dc2626;
-  --yellow:#d97706;--purple:#7c3aed;--blue:#2563eb;
-  --lv1:#a5d6a7;--lv2:#e1bee7;--lv3:#b3e5fc;--lv4:#c8e6c9;--lv5:#fff9c4;--lv6:#ffe0b2;
+  --bg:#0c0e1a;--surface:#141627;--surface2:#1a1d32;--surface3:#22263e;
+  --border:#2a2e4a;--border-hover:#3d4270;
+  --text:#e8eaf0;--text2:#8b8fa8;--text3:#5c6080;
+  --accent:#f5a623;--accent2:#e8952e;--accent-glow:rgba(245,166,35,0.15);
+  --green:#22c55e;--green-bg:rgba(34,197,94,0.12);--green-border:rgba(34,197,94,0.3);
+  --red:#ef4444;--red-bg:rgba(239,68,68,0.12);--red-border:rgba(239,68,68,0.3);
+  --yellow:#eab308;--yellow-bg:rgba(234,179,8,0.12);--yellow-border:rgba(234,179,8,0.3);
+  --blue:#3b82f6;--blue-bg:rgba(59,130,246,0.12);--blue-border:rgba(59,130,246,0.3);
+  --purple:#8b5cf6;--purple-bg:rgba(139,92,246,0.12);
+  --pink:#ec4899;--pink-border:rgba(236,72,153,0.4);
+  --cyan:#06b6d4;--cyan-border:rgba(6,182,212,0.4);
+  --orange:#f97316;--orange-border:rgba(249,115,22,0.4);
 }
-body{font-family:'DM Sans',system-ui,sans-serif;background:var(--bg);color:var(--text);min-height:100vh;overflow-x:hidden}
-a{color:var(--accent);text-decoration:none}
+body{font-family:'DM Sans',system-ui,sans-serif;background:var(--bg);color:var(--text);min-height:100vh}
 .mono{font-family:'JetBrains Mono',monospace}
 
-/* --- NAV BAR --- */
-.navbar{
-  background:linear-gradient(135deg,#0a0b0f 0%,#131420 50%,#0d1117 100%);
-  padding:10px 20px;display:flex;align-items:center;gap:16px;
-  border-bottom:1px solid rgba(0,210,255,0.15);position:sticky;top:0;z-index:100;
+/* ====== TOP BAR ====== */
+.topbar{
+  height:48px;padding:0 24px;display:flex;align-items:center;justify-content:space-between;
+  background:var(--surface);border-bottom:1px solid var(--border);position:sticky;top:0;z-index:100;
 }
-.nav-logo{
-  font-family:'JetBrains Mono',monospace;font-size:16px;font-weight:700;
-  background:linear-gradient(90deg,var(--accent),var(--accent2));
-  -webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;
-  cursor:pointer;letter-spacing:0.5px;
+.topbar-left{display:flex;align-items:center;gap:12px}
+.topbar-logo{font-family:'JetBrains Mono',monospace;font-size:14px;font-weight:700;color:var(--accent);cursor:pointer;display:flex;align-items:center;gap:6px}
+.topbar-logo span{color:var(--text)}
+.topbar-breadcrumb{display:flex;align-items:center;gap:6px;font-size:12px;color:var(--text3)}
+.topbar-breadcrumb .sep{color:var(--text3)}
+.topbar-breadcrumb .crumb{color:var(--text2);cursor:pointer;padding:2px 6px;border-radius:4px}
+.topbar-breadcrumb .crumb:hover{color:var(--text);background:var(--surface2)}
+.topbar-breadcrumb .crumb.active{color:var(--accent)}
+.topbar-right{display:flex;align-items:center;gap:10px}
+.admin-badge{
+  display:flex;align-items:center;gap:6px;padding:4px 12px;border-radius:6px;
+  background:var(--accent-glow);border:1px solid rgba(245,166,35,0.25);
+  font-size:12px;font-weight:600;color:var(--accent);
 }
-.nav-links{display:flex;gap:4px;margin-left:16px}
-.nav-link{
-  padding:6px 14px;border-radius:6px;font-size:12px;font-weight:500;cursor:pointer;
-  color:var(--text2);transition:all 0.2s;border:1px solid transparent;
+.admin-badge .icon{font-size:14px}
+.topbar-btn{
+  padding:4px 10px;border-radius:5px;font-size:11px;border:1px solid var(--border);
+  background:transparent;color:var(--text2);cursor:pointer;font-family:'DM Sans',sans-serif;
 }
-.nav-link:hover{color:var(--text);background:var(--surface)}
-.nav-link.active{color:var(--accent);background:rgba(0,217,255,0.08);border-color:rgba(0,217,255,0.2)}
-.nav-right{margin-left:auto;display:flex;align-items:center;gap:12px}
-.nav-badge{
-  padding:3px 10px;border-radius:12px;font-size:10px;font-weight:600;
+.topbar-btn:hover{border-color:var(--text3);color:var(--text)}
+.theme-dot{width:24px;height:24px;border-radius:50%;background:linear-gradient(135deg,#f5a623,#e8952e);cursor:pointer;border:2px solid var(--border)}
+
+/* ====== PAGE SYSTEM ====== */
+.page{display:none;padding:32px 40px;max-width:1300px;margin:0 auto}
+.page.active{display:block}
+
+/* ====== HOME PAGE ====== */
+.home-header{text-align:center;padding:48px 0 36px}
+.home-icon{font-size:36px;margin-bottom:8px;display:inline-block}
+.home-title{font-family:'JetBrains Mono',monospace;font-size:40px;font-weight:700;letter-spacing:-1px;margin-bottom:8px}
+.home-title .e{color:var(--accent)}
+.home-subtitle{font-size:15px;color:var(--text2)}
+
+.section-label{
+  font-family:'JetBrains Mono',monospace;font-size:11px;font-weight:600;
+  letter-spacing:1.5px;text-transform:uppercase;color:var(--text3);margin-bottom:16px;
+}
+
+/* Assembly Cards */
+.assy-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:14px;margin-bottom:40px}
+.assy-card{
+  background:var(--surface);border:2px solid var(--border);border-radius:12px;
+  padding:20px;cursor:pointer;transition:all 0.2s;position:relative;overflow:hidden;
+}
+.assy-card:hover{border-color:var(--border-hover);transform:translateY(-2px);box-shadow:0 8px 24px rgba(0,0,0,0.3)}
+.assy-card .card-icon{font-size:40px;margin-bottom:12px;display:block}
+.assy-card .card-name{font-size:16px;font-weight:700;margin-bottom:4px;display:flex;align-items:center;gap:8px}
+.assy-card .card-name .ver{
+  font-family:'JetBrains Mono',monospace;font-size:11px;font-weight:600;
+  padding:2px 8px;border-radius:4px;
+}
+.assy-card .card-units{font-size:12px;font-weight:600;margin-top:6px;padding:2px 10px;border-radius:4px;display:inline-block}
+
+/* Card border colors */
+.assy-card[data-color="green"]{border-color:var(--green-border)}.assy-card[data-color="green"]:hover{border-color:var(--green);box-shadow:0 8px 24px rgba(34,197,94,0.1)}
+.assy-card[data-color="pink"]{border-color:var(--pink-border)}.assy-card[data-color="pink"]:hover{border-color:var(--pink);box-shadow:0 8px 24px rgba(236,72,153,0.1)}
+.assy-card[data-color="orange"]{border-color:var(--orange-border)}.assy-card[data-color="orange"]:hover{border-color:var(--orange);box-shadow:0 8px 24px rgba(249,115,22,0.1)}
+.assy-card[data-color="cyan"]{border-color:var(--cyan-border)}.assy-card[data-color="cyan"]:hover{border-color:var(--cyan);box-shadow:0 8px 24px rgba(6,182,212,0.1)}
+.assy-card[data-color="blue"]{border-color:var(--blue-border)}.assy-card[data-color="blue"]:hover{border-color:var(--blue);box-shadow:0 8px 24px rgba(59,130,246,0.1)}
+.assy-card[data-color="purple"]{border-color:rgba(139,92,246,0.4)}.assy-card[data-color="purple"]:hover{border-color:var(--purple);box-shadow:0 8px 24px rgba(139,92,246,0.1)}
+
+.ver-green{background:var(--green-bg);color:var(--green)}
+.ver-pink{background:rgba(236,72,153,0.12);color:var(--pink)}
+.ver-orange{background:rgba(249,115,22,0.12);color:var(--orange)}
+.ver-cyan{background:rgba(6,182,212,0.12);color:var(--cyan)}
+.ver-blue{background:var(--blue-bg);color:var(--blue)}
+.ver-purple{background:var(--purple-bg);color:var(--purple)}
+.units-green{background:var(--green-bg);color:var(--green)}
+.units-pink{background:rgba(236,72,153,0.12);color:var(--pink)}
+.units-orange{background:rgba(249,115,22,0.12);color:var(--orange)}
+.units-cyan{background:rgba(6,182,212,0.12);color:var(--cyan)}
+.units-blue{background:var(--blue-bg);color:var(--blue)}
+.units-purple{background:var(--purple-bg);color:var(--purple)}
+
+/* Full robot card */
+.full-robot-card{
+  background:var(--surface);border:2px solid var(--green-border);border-radius:12px;
+  padding:24px;cursor:pointer;transition:all 0.2s;max-width:320px;
+}
+.full-robot-card:hover{border-color:var(--green);transform:translateY(-2px);box-shadow:0 8px 24px rgba(34,197,94,0.12)}
+
+/* ====== ASSEMBLY DETAIL PAGE — TABS ====== */
+.detail-header{display:flex;align-items:center;gap:16px;margin-bottom:4px}
+.detail-icon{font-size:32px}
+.detail-title{font-size:22px;font-weight:700;font-family:'JetBrains Mono',monospace}
+.detail-ver{font-size:12px;padding:3px 10px;border-radius:5px;font-family:'JetBrains Mono',monospace;font-weight:600}
+.detail-subtitle{font-size:13px;color:var(--text2);margin-bottom:20px}
+
+.detail-tabs{display:flex;gap:0;border-bottom:1px solid var(--border);margin-bottom:20px}
+.detail-tab{
+  padding:10px 20px;font-size:13px;font-weight:600;cursor:pointer;
+  border-bottom:2px solid transparent;color:var(--text3);transition:all 0.15s;
   font-family:'JetBrains Mono',monospace;
 }
-.nav-badge.admin{background:rgba(5,150,105,0.15);color:#34d399}
-.nav-role-toggle{
-  padding:4px 10px;border-radius:6px;font-size:11px;cursor:pointer;
-  border:1px solid var(--border);background:var(--surface);color:var(--text2);
-}
-.nav-role-toggle:hover{border-color:var(--accent);color:var(--text)}
+.detail-tab:hover{color:var(--text2)}
+.detail-tab.active{color:var(--accent);border-bottom-color:var(--accent)}
+.tab-content{display:none}.tab-content.active{display:block}
 
-/* --- PAGE CONTAINER --- */
-.page{display:none;padding:20px 24px;max-width:1400px;margin:0 auto}
-.page.active{display:block}
-.page-title{font-size:22px;font-weight:700;font-family:'JetBrains Mono',monospace;margin-bottom:4px}
-.page-subtitle{font-size:13px;color:var(--text2);margin-bottom:20px}
-
-/* --- CARDS --- */
-.card-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(280px,1fr));gap:14px;margin-bottom:24px}
-.card{
-  background:var(--surface);border:1px solid var(--border);border-radius:10px;
-  padding:16px;cursor:pointer;transition:all 0.2s;position:relative;overflow:hidden;
-}
-.card:hover{border-color:var(--accent);transform:translateY(-2px);box-shadow:0 4px 20px rgba(0,217,255,0.08)}
-.card-icon{font-size:28px;margin-bottom:8px}
-.card-title{font-size:15px;font-weight:600;margin-bottom:4px}
-.card-desc{font-size:12px;color:var(--text2);line-height:1.5}
-.card-stats{display:flex;gap:12px;margin-top:12px;flex-wrap:wrap}
-.stat{padding:4px 10px;border-radius:6px;background:var(--surface2);font-size:11px;font-family:'JetBrains Mono',monospace}
-.stat.green{color:#34d399;background:rgba(5,150,105,0.1)}
-.stat.red{color:#f87171;background:rgba(220,38,38,0.1)}
-.stat.yellow{color:#fbbf24;background:rgba(217,119,6,0.1)}
-.stat.blue{color:#60a5fa;background:rgba(37,99,235,0.1)}
-
-/* --- TABLES --- */
+/* ====== UNIT TABLE ====== */
 .table-wrap{overflow-x:auto;border:1px solid var(--border);border-radius:10px;background:var(--surface)}
 table{width:100%;border-collapse:collapse;font-size:13px}
-th{background:var(--surface2);padding:10px 14px;text-align:left;font-size:11px;font-weight:600;
-  font-family:'JetBrains Mono',monospace;text-transform:uppercase;letter-spacing:0.3px;color:var(--text2);
+th{background:var(--surface2);padding:10px 14px;text-align:left;font-size:10px;font-weight:600;
+  font-family:'JetBrains Mono',monospace;text-transform:uppercase;letter-spacing:0.5px;color:var(--text3);
   border-bottom:1px solid var(--border);position:sticky;top:0}
-td{padding:10px 14px;border-bottom:1px solid var(--border);vertical-align:middle}
-tr:hover{background:rgba(255,255,255,0.02)}
+td{padding:10px 14px;border-bottom:1px solid rgba(42,46,74,0.5);vertical-align:middle}
+tr:hover td{background:rgba(255,255,255,0.015)}
 tr:last-child td{border-bottom:none}
+
 .badge{padding:2px 8px;border-radius:4px;font-size:10px;font-weight:600;font-family:'JetBrains Mono',monospace;display:inline-block}
-.badge-green{background:rgba(5,150,105,0.15);color:#34d399}
-.badge-red{background:rgba(220,38,38,0.15);color:#f87171}
-.badge-yellow{background:rgba(217,119,6,0.15);color:#fbbf24}
-.badge-blue{background:rgba(37,99,235,0.15);color:#60a5fa}
-.badge-purple{background:rgba(124,58,237,0.15);color:#a78bfa}
+.badge-green{background:var(--green-bg);color:var(--green)}
+.badge-red{background:var(--red-bg);color:var(--red)}
+.badge-yellow{background:var(--yellow-bg);color:var(--yellow)}
+.badge-blue{background:var(--blue-bg);color:var(--blue)}
+.badge-purple{background:var(--purple-bg);color:var(--purple)}
 .badge-gray{background:rgba(107,114,128,0.15);color:#9ca3af}
 
-/* --- BUTTONS --- */
+/* ====== BUTTONS ====== */
 .btn{
   padding:7px 14px;border:none;border-radius:6px;cursor:pointer;font-size:12px;
   font-weight:600;transition:all 0.15s;font-family:'DM Sans',sans-serif;
   display:inline-flex;align-items:center;gap:6px;
 }
 .btn-primary{background:var(--blue);color:#fff}.btn-primary:hover{filter:brightness(1.15)}
+.btn-accent{background:var(--accent);color:#000}.btn-accent:hover{filter:brightness(1.1)}
 .btn-success{background:var(--green);color:#fff}.btn-success:hover{filter:brightness(1.15)}
 .btn-danger{background:var(--red);color:#fff}.btn-danger:hover{filter:brightness(1.15)}
-.btn-secondary{background:var(--surface2);color:var(--text2);border:1px solid var(--border)}
-.btn-secondary:hover{color:var(--text);border-color:var(--text2)}
+.btn-ghost{background:transparent;color:var(--text2);border:1px solid var(--border)}
+.btn-ghost:hover{color:var(--text);border-color:var(--text3)}
 .btn-sm{padding:4px 10px;font-size:11px}
-.btn-icon{width:32px;height:32px;padding:0;justify-content:center;border-radius:6px;background:var(--surface2);border:1px solid var(--border);color:var(--text2);cursor:pointer}
-.btn-icon:hover{color:var(--text);border-color:var(--accent)}
 
-/* --- TABS --- */
-.tabs{display:flex;gap:2px;margin-bottom:16px;border-bottom:1px solid var(--border);padding-bottom:0}
-.tab{
-  padding:8px 16px;font-size:12px;font-weight:600;cursor:pointer;
-  border-bottom:2px solid transparent;color:var(--text2);transition:all 0.15s;
-  font-family:'JetBrains Mono',monospace;
+/* ====== SEARCH / FILTER ====== */
+.search-bar{display:flex;align-items:center;gap:8px;margin-bottom:14px;flex-wrap:wrap}
+.search-input{
+  padding:8px 12px;border:1px solid var(--border);border-radius:6px;
+  background:var(--surface2);color:var(--text);font-size:12px;flex:1;max-width:280px;
 }
-.tab:hover{color:var(--text)}
-.tab.active{color:var(--accent);border-bottom-color:var(--accent)}
+.search-input:focus{outline:none;border-color:var(--accent)}
+.filter-pill{
+  padding:5px 12px;font-size:11px;border:1px solid var(--border);border-radius:20px;
+  background:transparent;color:var(--text3);cursor:pointer;font-family:'DM Sans',sans-serif;font-weight:500;
+}
+.filter-pill:hover,.filter-pill.active{border-color:var(--accent);color:var(--accent);background:var(--accent-glow)}
 
-/* --- VERSION SELECTOR --- */
-.version-bar{display:flex;align-items:center;gap:12px;margin-bottom:16px;flex-wrap:wrap}
+/* ====== VERSION SELECTOR BAR ====== */
+.version-bar{display:flex;align-items:center;gap:12px;margin-bottom:16px;flex-wrap:wrap;padding:10px 14px;background:var(--surface);border:1px solid var(--border);border-radius:8px}
 .version-select{
-  padding:6px 12px;border-radius:6px;background:var(--surface2);border:1px solid var(--border);
+  padding:5px 10px;border-radius:5px;background:var(--surface2);border:1px solid var(--border);
   color:var(--text);font-size:12px;font-family:'JetBrains Mono',monospace;cursor:pointer;
 }
 .version-select:focus{outline:none;border-color:var(--accent)}
-.version-info{font-size:11px;color:var(--text2);font-family:'JetBrains Mono',monospace}
-.version-frozen{padding:3px 10px;border-radius:4px;background:rgba(59,130,246,0.1);color:#60a5fa;font-size:10px;font-weight:600;font-family:'JetBrains Mono',monospace}
+.version-info{font-size:11px;color:var(--text3);font-family:'JetBrains Mono',monospace}
+.version-frozen{padding:3px 10px;border-radius:4px;background:var(--blue-bg);border:1px solid var(--blue-border);color:var(--blue);font-size:10px;font-weight:600;font-family:'JetBrains Mono',monospace}
 
-/* --- ASSEMBLY TREE LIST VIEW --- */
-.tree-list{margin-top:12px}
-.group-block{margin-bottom:16px;border:1px solid var(--border);border-radius:8px;overflow:hidden;background:var(--surface)}
+/* ====== TREE LIST VIEW ====== */
+.group-block{margin-bottom:14px;border:1px solid var(--border);border-radius:8px;overflow:hidden;background:var(--surface)}
 .group-header{
   padding:10px 14px;display:flex;align-items:center;gap:10px;cursor:pointer;
   background:var(--surface2);border-bottom:1px solid var(--border);
 }
-.group-header:hover{background:rgba(255,255,255,0.03)}
-.group-color-dot{width:10px;height:10px;border-radius:3px;flex-shrink:0}
+.group-header:hover{background:var(--surface3)}
+.group-dot{width:10px;height:10px;border-radius:3px;flex-shrink:0}
 .group-label{font-weight:600;font-size:13px}
-.group-icon{font-size:14px}
 .group-count{font-size:10px;color:var(--text3);font-family:'JetBrains Mono',monospace;margin-left:auto}
-.step-list{padding:4px 0}
 .step-row{
-  display:flex;align-items:center;gap:10px;padding:8px 14px 8px 28px;
+  display:flex;align-items:center;gap:10px;padding:8px 14px 8px 32px;
   font-size:12px;cursor:pointer;transition:background 0.1s;
 }
-.step-row:hover{background:rgba(255,255,255,0.03)}
-.step-seq{font-family:'JetBrains Mono',monospace;font-weight:600;color:var(--text2);min-width:28px}
+.step-row:hover{background:rgba(255,255,255,0.02)}
+.step-seq{font-family:'JetBrains Mono',monospace;font-weight:600;color:var(--text3);min-width:30px;font-size:11px}
 .step-name{flex:1}
-.step-ecn{display:flex;align-items:center;gap:4px}
 .ecn-dot{width:8px;height:8px;border-radius:50%;flex-shrink:0}
-.ecn-dot.changed{background:var(--red)}
-.ecn-dot.pending{background:var(--yellow)}
-.ecn-dot.applied{background:var(--green)}
-.ecn-dot.none{background:var(--text3);opacity:0.5}
+.ecn-dot.changed{background:var(--red)}.ecn-dot.pending{background:var(--yellow)}.ecn-dot.applied{background:var(--green)}.ecn-dot.none{background:var(--text3);opacity:0.3}
 
-/* --- ECN PANEL --- */
-.ecn-panel{
-  position:fixed;right:0;top:48px;width:420px;height:calc(100vh - 48px);
+/* ====== ECN CHANGE TYPE ====== */
+.ecn-type{font-size:10px;padding:2px 7px;border-radius:3px;font-weight:600;font-family:'JetBrains Mono',monospace}
+.ecn-type.added{background:var(--green-bg);color:var(--green)}
+.ecn-type.removed{background:var(--red-bg);color:var(--red)}
+.ecn-type.modified{background:var(--yellow-bg);color:var(--yellow)}
+.ecn-type.replaced{background:var(--purple-bg);color:var(--purple)}
+
+/* ====== CASCADE WARNING ====== */
+.cascade-box{
+  padding:14px;border-radius:8px;background:var(--red-bg);border:1px solid var(--red-border);margin-top:16px;
+}
+.cascade-title{font-size:13px;font-weight:700;color:var(--red);margin-bottom:8px;display:flex;align-items:center;gap:6px}
+.cascade-unit{
+  display:inline-flex;padding:2px 8px;border-radius:4px;
+  background:rgba(239,68,68,0.08);font-family:'JetBrains Mono',monospace;font-size:10px;margin:2px 3px;color:var(--text2);
+}
+
+/* ====== SIDE PANEL ====== */
+.side-panel{
+  position:fixed;right:0;top:48px;width:400px;height:calc(100vh - 48px);
   background:var(--surface);border-left:1px solid var(--border);
-  transform:translateX(100%);transition:transform 0.3s ease;z-index:50;
+  transform:translateX(100%);transition:transform 0.25s ease;z-index:50;
   display:flex;flex-direction:column;
 }
-.ecn-panel.open{transform:translateX(0)}
-.ecn-panel-header{
-  padding:14px 16px;border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between;
-  background:var(--surface2);
-}
-.ecn-panel-title{font-weight:700;font-size:14px;font-family:'JetBrains Mono',monospace}
-.ecn-panel-body{flex:1;overflow-y:auto;padding:16px}
-.ecn-panel-footer{padding:12px 16px;border-top:1px solid var(--border);display:flex;gap:8px;justify-content:flex-end}
-.ecn-section{margin-bottom:16px}
-.ecn-section-title{font-size:11px;font-weight:600;color:var(--text2);font-family:'JetBrains Mono',monospace;text-transform:uppercase;letter-spacing:0.3px;margin-bottom:8px}
-.ecn-field{margin-bottom:12px}
-.ecn-field label{display:block;font-size:11px;font-weight:600;color:var(--text2);margin-bottom:4px;font-family:'JetBrains Mono',monospace}
-.ecn-field input,.ecn-field select,.ecn-field textarea{
-  width:100%;padding:8px 10px;border:1px solid var(--border);border-radius:6px;
+.side-panel.open{transform:translateX(0)}
+.sp-header{padding:14px 16px;border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between;background:var(--surface2)}
+.sp-title{font-weight:700;font-size:14px;font-family:'JetBrains Mono',monospace}
+.sp-body{flex:1;overflow-y:auto;padding:16px}
+.sp-footer{padding:12px 16px;border-top:1px solid var(--border);display:flex;gap:8px;justify-content:flex-end}
+.sp-section{margin-bottom:16px}
+.sp-section-title{font-size:10px;font-weight:600;color:var(--text3);font-family:'JetBrains Mono',monospace;text-transform:uppercase;letter-spacing:0.5px;margin-bottom:8px}
+.sp-field{margin-bottom:10px}
+.sp-field label{display:block;font-size:11px;font-weight:600;color:var(--text3);margin-bottom:4px;font-family:'JetBrains Mono',monospace}
+.sp-field input,.sp-field select,.sp-field textarea{
+  width:100%;padding:7px 10px;border:1px solid var(--border);border-radius:5px;
   background:var(--surface2);color:var(--text);font-size:12px;font-family:'DM Sans',sans-serif;
 }
-.ecn-field input:focus,.ecn-field select:focus,.ecn-field textarea:focus{outline:none;border-color:var(--accent)}
-.ecn-field textarea{resize:vertical;min-height:60px}
+.sp-field input:focus,.sp-field select:focus,.sp-field textarea:focus{outline:none;border-color:var(--accent)}
+.sp-field textarea{resize:vertical;min-height:56px}
 
-/* --- CASCADE WARNING --- */
-.cascade-warn{
-  padding:12px;border-radius:8px;background:rgba(220,38,38,0.08);border:1px solid rgba(220,38,38,0.2);
-  margin-top:12px;
-}
-.cascade-warn-title{font-size:12px;font-weight:700;color:#f87171;margin-bottom:6px;display:flex;align-items:center;gap:6px}
-.cascade-warn-list{font-size:11px;color:var(--text2);line-height:1.8}
-.cascade-unit{
-  display:inline-flex;align-items:center;gap:4px;padding:2px 8px;border-radius:4px;
-  background:rgba(220,38,38,0.1);margin:2px 3px;font-family:'JetBrains Mono',monospace;font-size:10px;
-}
-
-/* --- ECN MAP TABLE --- */
-.ecn-map-table td{font-size:12px}
-.ecn-change-type{font-size:10px;padding:2px 6px;border-radius:3px;font-weight:600;font-family:'JetBrains Mono',monospace}
-.ecn-change-type.added{background:rgba(5,150,105,0.15);color:#34d399}
-.ecn-change-type.removed{background:rgba(220,38,38,0.15);color:#f87171}
-.ecn-change-type.modified{background:rgba(217,119,6,0.15);color:#fbbf24}
-.ecn-change-type.replaced{background:rgba(124,58,237,0.15);color:#a78bfa}
-
-/* --- TREE VIEW (D3) --- */
+/* ====== D3 TREE ====== */
 .tree-container{
-  width:100%;height:calc(100vh - 200px);min-height:500px;position:relative;
-  background:#0d1117;border-radius:10px;border:1px solid var(--border);overflow:hidden;
-  background-image:radial-gradient(circle at 1px 1px,rgba(255,255,255,0.03) 1px,transparent 0);
+  width:100%;height:calc(100vh - 220px);min-height:480px;position:relative;
+  background:var(--bg);border-radius:10px;border:1px solid var(--border);overflow:hidden;
+  background-image:radial-gradient(circle at 1px 1px,rgba(255,255,255,0.025) 1px,transparent 0);
   background-size:24px 24px;
 }
 .tree-container svg{display:block;width:100%;height:100%}
-.tree-controls{
-  position:absolute;top:10px;left:10px;display:flex;gap:6px;z-index:10;flex-wrap:wrap;
-}
-.tree-ctrl-btn{
-  padding:5px 10px;font-size:11px;border:1px solid var(--border);border-radius:6px;
-  background:rgba(22,27,34,0.9);backdrop-filter:blur(8px);color:var(--text2);cursor:pointer;
+.tree-controls{position:absolute;top:10px;left:10px;display:flex;gap:5px;z-index:10;flex-wrap:wrap}
+.tc-btn{
+  padding:4px 10px;font-size:11px;border:1px solid var(--border);border-radius:5px;
+  background:rgba(20,22,39,0.9);backdrop-filter:blur(6px);color:var(--text3);cursor:pointer;
   font-family:'DM Sans',sans-serif;font-weight:500;transition:all 0.15s;
 }
-.tree-ctrl-btn:hover{border-color:var(--accent);color:var(--text)}
-.tree-ctrl-btn.active{background:rgba(0,217,255,0.1);border-color:var(--accent);color:var(--accent)}
-.tree-zoom-controls{
-  position:absolute;bottom:12px;right:12px;display:flex;flex-direction:column;gap:4px;z-index:10;
+.tc-btn:hover{border-color:var(--accent);color:var(--text)}
+.tc-btn.active{background:var(--accent-glow);border-color:rgba(245,166,35,0.3);color:var(--accent)}
+.tree-zoom{position:absolute;bottom:12px;right:12px;display:flex;flex-direction:column;gap:4px;z-index:10}
+.tz-btn{
+  width:32px;height:32px;border:1px solid var(--border);border-radius:5px;
+  background:rgba(20,22,39,0.9);cursor:pointer;font-size:15px;color:var(--text3);
+  display:flex;align-items:center;justify-content:center;
 }
-.tree-zoom-btn{
-  width:34px;height:34px;border:1px solid var(--border);border-radius:6px;
-  background:rgba(22,27,34,0.9);backdrop-filter:blur(8px);cursor:pointer;
-  font-size:16px;color:var(--text2);display:flex;align-items:center;justify-content:center;
-}
-.tree-zoom-btn:hover{color:var(--text);border-color:var(--accent)}
-.tree-legend{
-  position:absolute;top:10px;right:10px;z-index:10;
-  background:rgba(22,27,34,0.92);backdrop-filter:blur(8px);border:1px solid var(--border);
-  border-radius:8px;padding:8px 12px;display:flex;gap:10px;align-items:center;font-size:10px;color:var(--text2);
-}
-.legend-swatch{width:10px;height:10px;border-radius:2px;display:inline-block;margin-right:3px}
+.tz-btn:hover{color:var(--text);border-color:var(--accent)}
 
-/* --- NODE STYLES (SVG) --- */
-.node{cursor:pointer;transition:filter 0.15s}
-.node:hover{filter:brightness(1.1) drop-shadow(0 2px 6px rgba(0,217,255,0.2))}
-.node-label{fill:var(--bg);font-family:'DM Sans',sans-serif}
-.link{fill:none;stroke-linecap:round}
-.sequence-number{font-weight:700;fill:var(--text);font-family:'JetBrains Mono',monospace}
-
-/* --- MODAL --- */
-.modal-overlay{
-  position:fixed;inset:0;background:rgba(0,0,0,0.6);z-index:200;
-  display:none;align-items:center;justify-content:center;backdrop-filter:blur(3px);
-}
+/* ====== MODAL ====== */
+.modal-overlay{position:fixed;inset:0;background:rgba(0,0,0,0.6);z-index:200;display:none;align-items:center;justify-content:center;backdrop-filter:blur(3px)}
 .modal-overlay.show{display:flex}
-.modal{background:var(--surface);border:1px solid var(--border);border-radius:12px;min-width:400px;max-width:520px;box-shadow:0 8px 40px rgba(0,0,0,0.4)}
+.modal{background:var(--surface);border:1px solid var(--border);border-radius:12px;min-width:380px;max-width:500px;box-shadow:0 8px 40px rgba(0,0,0,0.5)}
 .modal-header{padding:16px 20px;border-bottom:1px solid var(--border)}
-.modal-title{font-size:16px;font-weight:700;font-family:'JetBrains Mono',monospace}
+.modal-title{font-size:15px;font-weight:700;font-family:'JetBrains Mono',monospace}
 .modal-body{padding:16px 20px}
 .modal-footer{padding:12px 20px;border-top:1px solid var(--border);display:flex;gap:8px;justify-content:flex-end}
 
-/* --- TOAST --- */
-.toast-container{position:fixed;top:56px;right:16px;z-index:999;display:flex;flex-direction:column;gap:6px}
-.toast{
-  padding:10px 16px;border-radius:8px;font-size:12px;font-weight:500;
-  box-shadow:0 4px 16px rgba(0,0,0,0.3);transition:all 0.3s;max-width:320px;
-}
-.toast.success{background:var(--green);color:#fff}
-.toast.error{background:var(--red);color:#fff}
-.toast.info{background:var(--blue);color:#fff}
-.toast.warning{background:var(--yellow);color:#fff}
+/* ====== TOAST ====== */
+.toast-box{position:fixed;top:56px;right:16px;z-index:999;display:flex;flex-direction:column;gap:6px}
+.toast{padding:10px 16px;border-radius:8px;font-size:12px;font-weight:500;box-shadow:0 4px 16px rgba(0,0,0,0.3);transition:all 0.3s;max-width:300px}
+.toast.success{background:var(--green);color:#fff}.toast.error{background:var(--red);color:#fff}
+.toast.info{background:var(--blue);color:#fff}.toast.warning{background:var(--yellow);color:#000}
 
-/* --- SEARCH & FILTER --- */
-.search-bar{
-  display:flex;align-items:center;gap:8px;margin-bottom:16px;
-}
-.search-input{
-  padding:8px 12px;border:1px solid var(--border);border-radius:6px;
-  background:var(--surface2);color:var(--text);font-size:12px;flex:1;max-width:300px;
-}
-.search-input:focus{outline:none;border-color:var(--accent)}
-.filter-btn{
-  padding:6px 12px;font-size:11px;border:1px solid var(--border);border-radius:6px;
-  background:var(--surface2);color:var(--text2);cursor:pointer;
-}
-.filter-btn:hover,.filter-btn.active{border-color:var(--accent);color:var(--accent);background:rgba(0,217,255,0.05)}
-
-/* --- RESPONSIVE --- */
-@media(max-width:768px){
-  .card-grid{grid-template-columns:1fr}
-  .page{padding:16px}
-  .ecn-panel{width:100%}
-}
-
-/* --- UTILITY --- */
+/* ====== UTILITY ====== */
 .flex{display:flex}.items-center{align-items:center}.gap-2{gap:8px}.gap-3{gap:12px}
-.mt-2{margin-top:8px}.mt-3{margin-top:12px}.mt-4{margin-top:16px}
-.mb-2{margin-bottom:8px}.mb-3{margin-bottom:12px}
-.text-sm{font-size:12px}.text-xs{font-size:10px}.text-muted{color:var(--text2)}
+.mt-2{margin-top:8px}.mt-3{margin-top:12px}.mt-4{margin-top:16px}.mb-2{margin-bottom:8px}.mb-3{margin-bottom:12px}
+.text-sm{font-size:12px}.text-xs{font-size:10px}.text-muted{color:var(--text2)}.text-dim{color:var(--text3)}
 .fw-600{font-weight:600}.fw-700{font-weight:700}
-.w-full{width:100%}
+
+@media(max-width:768px){.page{padding:16px}.side-panel{width:100%}.assy-grid{grid-template-columns:repeat(auto-fill,minmax(160px,1fr))}}
 </style>
 </head>
 <body>
 
-<!-- ===================== NAV BAR ===================== -->
-<nav class="navbar">
-  <span class="nav-logo" onclick="goTo('home')">◈ Eagle Eye</span>
-  <div class="nav-links">
-    <div class="nav-link active" data-page="home" onclick="goTo('home')">🏠 Home</div>
-    <div class="nav-link" data-page="units" onclick="goTo('units')">🔨 Units</div>
-    <div class="nav-link" data-page="assembly" onclick="goTo('assembly')">🌲 Assembly</div>
-    <div class="nav-link" data-page="tree" onclick="goTo('tree')">🔬 Tree View</div>
+<!-- ====== TOP BAR ====== -->
+<div class="topbar">
+  <div class="topbar-left">
+    <div class="topbar-logo" onclick="goHome()">◈ <span>Eagle</span>Eye</div>
+    <div class="topbar-breadcrumb" id="breadcrumb"></div>
   </div>
-  <div class="nav-right">
-    <button class="nav-role-toggle" id="roleToggle" onclick="toggleRole()">🔑 Admin</button>
-    <span class="nav-badge admin" id="roleBadge">🔑 ADMIN</span>
+  <div class="topbar-right">
+    <div class="admin-badge" id="adminBadge"><span class="icon">🔧</span> Admin · Aniket</div>
+    <button class="topbar-btn" id="roleToggle" onclick="toggleRole()">Switch to Viewer</button>
+    <div class="theme-dot" title="Theme"></div>
   </div>
-</nav>
+</div>
 
-<!-- ===================== HOME PAGE ===================== -->
+<!-- ====== HOME PAGE ====== -->
 <div class="page active" id="page-home">
-  <h1 class="page-title">Assembly Dashboard</h1>
-  <p class="page-subtitle">Track production units, manage versions, and monitor ECN changes</p>
+  <div class="home-header">
+    <div class="home-icon">◈</div>
+    <div class="home-title"><span class="e">Eagle</span>Eye</div>
+    <div class="home-subtitle">Assembly version tracking & ECN management</div>
+  </div>
 
-  <div class="card-grid" id="assemblyCards"></div>
-
-  <h2 style="font-size:16px;font-weight:600;margin-bottom:12px" class="mono">📊 Overview</h2>
-  <div class="card-grid">
-    <div class="card" style="cursor:default">
-      <div class="card-title mono">Production Status</div>
-      <div class="card-stats mt-2">
-        <span class="stat green" id="stat-current">0 Current</span>
-        <span class="stat yellow" id="stat-outdated">0 Outdated</span>
-        <span class="stat red" id="stat-blocked">0 Blocked</span>
+  <div class="section-label">FULL ROBOT</div>
+  <div style="margin-bottom:40px">
+    <div class="full-robot-card" onclick="openAssembly('ghost')">
+      <div style="font-size:36px;margin-bottom:8px">🤖</div>
+      <div style="font-size:18px;font-weight:700;display:flex;align-items:center;gap:10px">
+        Ghost (Full Robot) <span class="badge badge-green" style="font-size:11px">v1.0</span>
       </div>
-    </div>
-    <div class="card" style="cursor:default">
-      <div class="card-title mono">ECN Activity</div>
-      <div class="card-stats mt-2">
-        <span class="stat red" id="stat-ecn-changed">0 Changed</span>
-        <span class="stat yellow" id="stat-ecn-pending">0 Pending</span>
-        <span class="stat green" id="stat-ecn-applied">0 Applied</span>
-      </div>
-    </div>
-    <div class="card" style="cursor:default">
-      <div class="card-title mono">Version Info</div>
-      <div class="card-stats mt-2" id="stat-versions"></div>
+      <div style="margin-top:8px"><span style="font-size:12px;font-weight:600;padding:3px 10px;border-radius:4px;background:var(--green-bg);color:var(--green)">115 units</span></div>
     </div>
   </div>
+
+  <div class="section-label">MAJOR ASSEMBLIES</div>
+  <div class="assy-grid" id="assyGrid"></div>
 </div>
 
-<!-- ===================== UNITS PAGE ===================== -->
-<div class="page" id="page-units">
-  <h1 class="page-title">Unit Tracking</h1>
-  <p class="page-subtitle" id="units-subtitle">Head & Body Assembly — 120 units</p>
+<!-- ====== ASSEMBLY DETAIL PAGE ====== -->
+<div class="page" id="page-detail">
+  <div class="detail-header" id="detailHeader"></div>
+  <div class="detail-subtitle" id="detailSubtitle"></div>
 
-  <div class="search-bar">
-    <input class="search-input" id="unitSearch" placeholder="Search by S/N or status..." oninput="filterUnits()">
-    <button class="filter-btn" data-filter="all" onclick="setUnitFilter('all',this)">All</button>
-    <button class="filter-btn" data-filter="current" onclick="setUnitFilter('current',this)">✅ Current</button>
-    <button class="filter-btn" data-filter="outdated" onclick="setUnitFilter('outdated',this)">⚠️ Outdated</button>
-    <button class="filter-btn" data-filter="blocked" onclick="setUnitFilter('blocked',this)">🚫 Blocked</button>
+  <div class="detail-tabs" id="detailTabs">
+    <div class="detail-tab active" data-tab="units" onclick="switchDetailTab('units')">📋 Unit Tracking</div>
+    <div class="detail-tab" data-tab="ecn" onclick="switchDetailTab('ecn')">🔴 ECN Management</div>
+    <div class="detail-tab" data-tab="tree-editor" onclick="switchDetailTab('tree-editor')">🌲 Tree Editor</div>
   </div>
 
-  <div class="table-wrap">
-    <table>
-      <thead>
-        <tr><th>S/N</th><th>Version</th><th>Latest</th><th>Status</th><th>Assigned To</th><th>ECN Progress</th><th>Actions</th></tr>
-      </thead>
-      <tbody id="unitTableBody"></tbody>
-    </table>
-  </div>
-</div>
-
-<!-- ===================== ASSEMBLY PAGE ===================== -->
-<div class="page" id="page-assembly">
-  <h1 class="page-title">Assembly View</h1>
-
-  <div class="version-bar">
-    <label class="mono text-xs text-muted">Assembly:</label>
-    <select class="version-select" id="assemblyPicker" onchange="onAssemblyPickerChange()"></select>
-    <label class="mono text-xs text-muted" style="margin-left:12px">Version:</label>
-    <select class="version-select" id="versionPicker" onchange="onVersionChange()"></select>
-    <span class="version-info" id="versionInfo"></span>
-    <span class="version-frozen" id="frozenBadge" style="display:none">🔒 FROZEN</span>
-    <button class="btn btn-sm btn-secondary" id="freezeBtn" onclick="toggleFreeze()" style="display:none">❄️ Freeze</button>
-  </div>
-
-  <div class="tabs">
-    <div class="tab active" data-tab="versions" onclick="switchAssemblyTab('versions')">📋 Versions</div>
-    <div class="tab" data-tab="tree-list" onclick="switchAssemblyTab('tree-list')">🌲 Assembly Tree</div>
-    <div class="tab" data-tab="ecn-map" onclick="switchAssemblyTab('ecn-map')">🗺️ ECN Map</div>
-  </div>
-
-  <!-- Versions Sub-tab -->
-  <div id="tab-versions">
-    <div class="tabs" style="border-bottom:none;margin-bottom:8px">
-      <div class="tab active text-xs" data-subtab="unit-versions" onclick="switchVersionSubTab('unit-versions')">Unit Versions</div>
-      <div class="tab text-xs" data-subtab="version-history" onclick="switchVersionSubTab('version-history')">Version History</div>
-    </div>
-    <div id="subtab-unit-versions">
-      <div class="table-wrap" style="max-height:500px;overflow-y:auto">
-        <table><thead><tr><th>S/N</th><th>Current Ver</th><th>Latest Ver</th><th>Status</th><th>Steps Changed</th></tr></thead>
-        <tbody id="unitVersionsBody"></tbody></table>
-      </div>
-    </div>
-    <div id="subtab-version-history" style="display:none">
-      <div class="table-wrap">
-        <table><thead><tr><th>Version</th><th>Created</th><th>Created By</th><th>Notes</th><th>Status</th></tr></thead>
-        <tbody id="versionHistoryBody"></tbody></table>
-      </div>
-    </div>
-  </div>
-
-  <!-- Assembly Tree List -->
-  <div id="tab-tree-list" style="display:none">
+  <!-- ===== TAB: Unit Tracking ===== -->
+  <div class="tab-content active" id="tc-units">
     <div class="search-bar">
-      <input class="search-input" placeholder="Search steps..." oninput="filterTreeList(this.value)">
-      <button class="btn btn-sm btn-primary" id="addStepBtn" onclick="showAddStepModal()" style="display:none">➕ Add Step</button>
-    </div>
-    <div class="tree-list" id="treeListContainer"></div>
-  </div>
-
-  <!-- ECN Map -->
-  <div id="tab-ecn-map" style="display:none">
-    <div class="flex items-center gap-3 mb-3">
-      <h3 class="mono" style="font-size:14px">ECN Change Records</h3>
-      <button class="btn btn-sm btn-danger" id="markChangedBtn" onclick="showMarkChangedModal()" style="display:none">🔴 Mark Steps Changed</button>
+      <input class="search-input" id="unitSearch" placeholder="Search S/N, status..." oninput="filterUnits()">
+      <div class="filter-pill active" onclick="setFilter('all',this)">All</div>
+      <div class="filter-pill" onclick="setFilter('current',this)">✅ Current</div>
+      <div class="filter-pill" onclick="setFilter('outdated',this)">⚠️ Outdated</div>
+      <div class="filter-pill" onclick="setFilter('blocked',this)">🚫 Blocked</div>
     </div>
     <div class="table-wrap">
-      <table><thead><tr><th>Step</th><th>Change Type</th><th>Field</th><th>Old Value</th><th>New Value</th><th>Disposition</th><th>Version</th></tr></thead>
-      <tbody id="ecnMapBody"></tbody></table>
+      <table>
+        <thead><tr><th>S/N</th><th>Assembly Version</th><th>Latest</th><th>Status</th><th>Assigned To</th><th>ECN Progress</th><th></th></tr></thead>
+        <tbody id="unitTbody"></tbody>
+      </table>
     </div>
-    <div id="cascadeContainer" style="margin-top:16px"></div>
   </div>
-</div>
 
-<!-- ===================== TREE VIEW PAGE ===================== -->
-<div class="page" id="page-tree">
-  <h1 class="page-title" style="margin-bottom:12px">Tree Visualization</h1>
-  <div class="tree-container" id="treeContainer">
-    <svg id="treeSvg"></svg>
-    <div class="tree-controls">
-      <button class="tree-ctrl-btn active" id="treeSeqBtn" onclick="toggleTreeSeq()">🔢 Seq</button>
-      <button class="tree-ctrl-btn active" id="treeLevelBtn" onclick="toggleTreeLevels()">📊 Levels</button>
-      <button class="tree-ctrl-btn" id="treeSepBtn" onclick="toggleTreeSep()">─ Sep</button>
-      <select class="version-select" style="font-size:11px" onchange="switchTreeColorMode(this.value)">
-        <option value="group">Color: Group</option>
-        <option value="level">Color: Level</option>
+  <!-- ===== TAB: ECN Management ===== -->
+  <div class="tab-content" id="tc-ecn">
+    <div class="flex items-center gap-3 mb-3" style="justify-content:space-between">
+      <div>
+        <h3 class="mono fw-700" style="font-size:15px">ECN Change Records</h3>
+        <p class="text-xs text-muted mt-2">Track all engineering change notices and their cascade impact</p>
+      </div>
+      <div class="flex gap-2" id="ecnAdminBtns">
+        <button class="btn btn-sm btn-danger" onclick="showMarkChangedModal()">🔴 Mark Steps Changed</button>
+        <button class="btn btn-sm btn-accent" onclick="showAddEcnModal()">➕ Add ECN Record</button>
+      </div>
+    </div>
+
+    <div class="version-bar mb-3">
+      <span class="text-xs mono text-dim">Version:</span>
+      <select class="version-select" id="ecnVersionPicker" onchange="renderEcnTab()">
       </select>
+      <span class="version-info" id="ecnVersionInfo"></span>
     </div>
-    <div class="tree-legend" id="treeLegend"></div>
-    <div class="tree-zoom-controls">
-      <button class="tree-zoom-btn" onclick="treeZoomIn()">+</button>
-      <button class="tree-zoom-btn" onclick="treeZoomOut()">−</button>
-      <button class="tree-zoom-btn" onclick="treeFit()">⊡</button>
+
+    <div class="table-wrap">
+      <table>
+        <thead><tr><th>Step</th><th>Change Type</th><th>Field</th><th>Old Value</th><th>New Value</th><th>Disposition</th><th>Version</th></tr></thead>
+        <tbody id="ecnTbody"></tbody>
+      </table>
+    </div>
+    <div id="cascadeBox"></div>
+
+    <h4 class="mono fw-600 mt-4 mb-2" style="font-size:13px">📊 Version History</h4>
+    <div class="table-wrap">
+      <table>
+        <thead><tr><th>Version</th><th>Created</th><th>By</th><th>Notes</th><th>Status</th></tr></thead>
+        <tbody id="versionHistTbody"></tbody>
+      </table>
+    </div>
+  </div>
+
+  <!-- ===== TAB: Tree Editor (Admin) ===== -->
+  <div class="tab-content" id="tc-tree-editor">
+    <div class="flex items-center gap-3 mb-3" style="justify-content:space-between">
+      <div>
+        <h3 class="mono fw-700" style="font-size:15px">Assembly Tree</h3>
+        <p class="text-xs text-muted mt-2">View and manage the assembly step hierarchy</p>
+      </div>
+      <div class="flex gap-2">
+        <select class="version-select" id="treeVersionPicker" onchange="renderTreeEditor()">
+        </select>
+        <span class="version-frozen" id="treeFrozenBadge" style="display:none">🔒 FROZEN</span>
+        <button class="btn btn-sm btn-ghost" id="treeFreezeBtn" onclick="toggleTreeFreeze()">❄️ Freeze</button>
+        <button class="btn btn-sm btn-accent" id="treeAddStepBtn" onclick="showAddStepModal()">➕ Add Step</button>
+      </div>
+    </div>
+
+    <!-- Sub-tabs: List vs D3 Visual -->
+    <div style="display:flex;gap:0;border-bottom:1px solid var(--border);margin-bottom:14px">
+      <div class="detail-tab active" style="font-size:11px" data-stab="list" onclick="switchTreeSub('list')">📋 List View</div>
+      <div class="detail-tab" style="font-size:11px" data-stab="visual" onclick="switchTreeSub('visual')">🔬 Visual Tree</div>
+    </div>
+
+    <div id="tree-sub-list">
+      <div class="search-bar"><input class="search-input" placeholder="Search steps..." oninput="filterTreeSteps(this.value)"></div>
+      <div id="treeListContainer"></div>
+    </div>
+
+    <div id="tree-sub-visual" style="display:none">
+      <div class="tree-container" id="treeContainer">
+        <svg id="treeSvg"></svg>
+        <div class="tree-controls">
+          <button class="tc-btn active" id="tcSeq" onclick="toggleTreeOpt('seq')">🔢 Seq</button>
+          <button class="tc-btn active" id="tcLvl" onclick="toggleTreeOpt('levels')">📊 Levels</button>
+          <select class="version-select" style="font-size:11px" onchange="APP.treeColorMode=this.value;renderD3Tree()">
+            <option value="group">Color: Group</option>
+            <option value="level">Color: Level</option>
+          </select>
+        </div>
+        <div class="tree-zoom">
+          <button class="tz-btn" onclick="treeZoom(1.3)">+</button>
+          <button class="tz-btn" onclick="treeZoom(0.7)">−</button>
+          <button class="tz-btn" onclick="treeFit()">⊡</button>
+        </div>
+      </div>
     </div>
   </div>
 </div>
 
-<!-- ===================== ECN EDIT PANEL ===================== -->
-<div class="ecn-panel" id="ecnPanel">
-  <div class="ecn-panel-header">
-    <span class="ecn-panel-title" id="ecnPanelTitle">Edit Step ECN</span>
-    <button class="btn-icon" onclick="closeEcnPanel()">✕</button>
+<!-- ====== SIDE PANEL ====== -->
+<div class="side-panel" id="sidePanel">
+  <div class="sp-header">
+    <span class="sp-title" id="spTitle">Step Details</span>
+    <button class="btn btn-sm btn-ghost" onclick="closeSidePanel()">✕</button>
   </div>
-  <div class="ecn-panel-body" id="ecnPanelBody"></div>
-  <div class="ecn-panel-footer" id="ecnPanelFooter"></div>
+  <div class="sp-body" id="spBody"></div>
+  <div class="sp-footer" id="spFooter"></div>
 </div>
 
-<!-- ===================== MODAL ===================== -->
+<!-- ====== MODAL ====== -->
 <div class="modal-overlay" id="modalOverlay">
   <div class="modal">
-    <div class="modal-header"><div class="modal-title" id="modalTitle">Confirm</div></div>
+    <div class="modal-header"><div class="modal-title" id="modalTitle"></div></div>
     <div class="modal-body" id="modalBody"></div>
     <div class="modal-footer" id="modalFooter"></div>
   </div>
 </div>
 
-<!-- ===================== TOAST ===================== -->
-<div class="toast-container" id="toastContainer"></div>
+<div class="toast-box" id="toastBox"></div>
 
 <script>
 // ============================================================
-// MOCK DATA — Head & Body Assembly
+// DATA
 // ============================================================
 const ASSEMBLIES = [
-  { id: 'asm-hbd', tag: 'HBD_assy', name: 'Head & Body', icon: '🤖', version: '6.0', description: 'Head & Body assembly unit', unitCount: 120 },
-  { id: 'asm-arm', tag: 'ARM_assy', name: 'Arm', icon: '💪', version: '3.0', description: 'Robotic arm assembly', unitCount: 85 },
-  { id: 'asm-grp', tag: 'GRP_assy', name: 'Gripper', icon: '🤏', version: '2.0', description: 'End effector gripper', unitCount: 60 },
-  { id: 'asm-bas', tag: 'BAS_assy', name: 'Base Unit', icon: '🏗️', version: '4.0', description: 'Mobile base platform', unitCount: 45 },
+  { id:'ghost', tag:'GHOST', name:'Ghost (Full Robot)', icon:'🤖', version:'1.0', units:115, color:'green', section:'full' },
+  { id:'mobile-base', tag:'MB_assy', name:'Mobile Base', icon:'🏗️', version:'1.0', units:110, color:'green' },
+  { id:'pillar', tag:'PIL_assy', name:'Pillar', icon:'🗼', version:'1.0', units:110, color:'pink' },
+  { id:'hbd', tag:'HBD_assy', name:'Head & Body', icon:'🤖', version:'5.0', units:120, color:'orange' },
+  { id:'gripper', tag:'GRP_assy', name:'Gripper', icon:'🤏', version:'1.0', units:115, color:'cyan' },
+  { id:'arm', tag:'ARM_assy', name:'Arm', icon:'💪', version:'1.0', units:110, color:'blue' },
+  { id:'packaging', tag:'PKG_assy', name:'Packaging', icon:'📦', version:'1.0', units:90, color:'purple' },
 ];
 
 const GROUPS = [
-  { id: 'g1', assembly_id: 'asm-hbd', label: 'Frame & Structure', color: '#4fc3f7', icon: '🏗️', sort_order: 1 },
-  { id: 'g2', assembly_id: 'asm-hbd', label: 'Gearbox & Bearings', color: '#ce93d8', icon: '⚙️', sort_order: 2 },
-  { id: 'g3', assembly_id: 'asm-hbd', label: 'Electronics & PCB', color: '#81c784', icon: '🔌', sort_order: 3 },
-  { id: 'g4', assembly_id: 'asm-hbd', label: 'Head Mount & Camera', color: '#fff176', icon: '📸', sort_order: 4 },
-  { id: 'g5', assembly_id: 'asm-hbd', label: 'Cables & Connectors', color: '#ffb74d', icon: '🔗', sort_order: 5 },
+  { id:'g1', assembly_id:'hbd', label:'Frame & Structure', color:'#4fc3f7', icon:'🏗️', sort:1 },
+  { id:'g2', assembly_id:'hbd', label:'Gearbox & Bearings', color:'#ce93d8', icon:'⚙️', sort:2 },
+  { id:'g3', assembly_id:'hbd', label:'Electronics & PCB', color:'#81c784', icon:'🔌', sort:3 },
+  { id:'g4', assembly_id:'hbd', label:'Head Mount & Camera', color:'#fff176', icon:'📸', sort:4 },
+  { id:'g5', assembly_id:'hbd', label:'Cables & Connectors', color:'#ffb74d', icon:'🔗', sort:5 },
 ];
 
-// Steps (BOM-like): L1=root, L2=major sub-assemblies, L3-L6=components
 const STEPS = [
-  // L1 root
-  { id: 's1', group_id: 'g1', label: 'Head & Body Unit', seq_tag: '1', level: 1, ecn_status: null, sort_order: 1 },
-  // L2 branches
-  { id: 's2', group_id: 'g1', label: 'Frame Assembly', seq_tag: '2a', level: 2, ecn_status: null, sort_order: 1 },
-  { id: 's3', group_id: 'g2', label: 'Gearbox Assembly', seq_tag: '2b', level: 2, ecn_status: 'changed', sort_order: 2 },
-  { id: 's4', group_id: 'g3', label: 'PCB Stack', seq_tag: '2c', level: 2, ecn_status: null, sort_order: 3 },
-  { id: 's5', group_id: 'g4', label: 'Head Mount', seq_tag: '2d', level: 2, ecn_status: 'changed', sort_order: 4 },
-  { id: 's6', group_id: 'g5', label: 'Cable Harness', seq_tag: '2e', level: 2, ecn_status: null, sort_order: 5 },
-  // L3 under Frame
-  { id: 's7', group_id: 'g1', label: 'Galina Body', seq_tag: '3a', level: 3, ecn_status: null, sort_order: 1 },
-  { id: 's8', group_id: 'g1', label: 'Hook Arm', seq_tag: '3b', level: 3, ecn_status: null, sort_order: 2 },
-  { id: 's9', group_id: 'g1', label: 'WiFi Antenna Mount', seq_tag: '3c', level: 3, ecn_status: 'pending', sort_order: 3 },
-  // L3 under Gearbox
-  { id: 's10', group_id: 'g2', label: 'Encoder Board', seq_tag: '3d', level: 3, ecn_status: 'changed', sort_order: 1 },
-  { id: 's11', group_id: 'g2', label: 'Gear Set', seq_tag: '3e', level: 3, ecn_status: null, sort_order: 2 },
-  { id: 's12', group_id: 'g2', label: 'Drive Pins', seq_tag: '3f', level: 3, ecn_status: null, sort_order: 3 },
-  { id: 's13', group_id: 'g2', label: 'Gearbox Cover', seq_tag: '3g', level: 3, ecn_status: null, sort_order: 4 },
-  // L3 under PCB
-  { id: 's14', group_id: 'g3', label: 'Main Controller', seq_tag: '3h', level: 3, ecn_status: null, sort_order: 1 },
-  { id: 's15', group_id: 'g3', label: 'Power Board', seq_tag: '3i', level: 3, ecn_status: 'applied', sort_order: 2 },
-  // L3 under Head
-  { id: 's16', group_id: 'g4', label: 'Ring Holder', seq_tag: '3j', level: 3, ecn_status: 'changed', sort_order: 1 },
-  { id: 's17', group_id: 'g4', label: 'CAM Follower', seq_tag: '3k', level: 3, ecn_status: null, sort_order: 2 },
-  // L4 deeper
-  { id: 's18', group_id: 'g2', label: 'Bearing 6001', seq_tag: '4a', level: 4, ecn_status: null, sort_order: 1 },
-  { id: 's19', group_id: 'g2', label: 'Bearing 6003', seq_tag: '4b', level: 4, ecn_status: null, sort_order: 2 },
-  { id: 's20', group_id: 'g4', label: 'Camera Module', seq_tag: '4c', level: 4, ecn_status: 'changed', sort_order: 1 },
-  { id: 's21', group_id: 'g4', label: 'LED Ring', seq_tag: '4d', level: 4, ecn_status: null, sort_order: 2 },
-  // L5
-  { id: 's22', group_id: 'g3', label: 'Motor Driver IC', seq_tag: '5a', level: 5, ecn_status: null, sort_order: 1 },
-  { id: 's23', group_id: 'g4', label: 'Lens Assembly', seq_tag: '5b', level: 5, ecn_status: 'changed', sort_order: 1 },
-  // L6
-  { id: 's24', group_id: 'g2', label: 'Motor A', seq_tag: '6a', level: 6, ecn_status: null, sort_order: 1 },
-  { id: 's25', group_id: 'g5', label: 'USB-C Cable', seq_tag: '6b', level: 6, ecn_status: null, sort_order: 1 },
-  { id: 's26', group_id: 'g5', label: 'FFC Ribbon', seq_tag: '6c', level: 6, ecn_status: null, sort_order: 2 },
-  { id: 's27', group_id: 'g4', label: 'IR Filter', seq_tag: '5c', level: 5, ecn_status: null, sort_order: 2 },
-  { id: 's28', group_id: 'g1', label: 'Loctite 648 Bond', seq_tag: '3l', level: 3, ecn_status: null, sort_order: 4 },
+  {id:'s1',gid:'g1',label:'Head & Body Unit',seq:'1',level:1,ecn:null,sort:1},
+  {id:'s2',gid:'g1',label:'Frame Assembly',seq:'2a',level:2,ecn:null,sort:1},
+  {id:'s3',gid:'g2',label:'Gearbox Assembly',seq:'2b',level:2,ecn:'changed',sort:2},
+  {id:'s4',gid:'g3',label:'PCB Stack',seq:'2c',level:2,ecn:null,sort:3},
+  {id:'s5',gid:'g4',label:'Head Mount',seq:'2d',level:2,ecn:'changed',sort:4},
+  {id:'s6',gid:'g5',label:'Cable Harness',seq:'2e',level:2,ecn:null,sort:5},
+  {id:'s7',gid:'g1',label:'Galina Body',seq:'3a',level:3,ecn:null,sort:1},
+  {id:'s8',gid:'g1',label:'Hook Arm',seq:'3b',level:3,ecn:null,sort:2},
+  {id:'s9',gid:'g1',label:'WiFi Antenna Mount',seq:'3c',level:3,ecn:'pending',sort:3},
+  {id:'s10',gid:'g2',label:'Encoder Board',seq:'3d',level:3,ecn:'changed',sort:1},
+  {id:'s11',gid:'g2',label:'Gear Set',seq:'3e',level:3,ecn:null,sort:2},
+  {id:'s12',gid:'g2',label:'Drive Pins',seq:'3f',level:3,ecn:null,sort:3},
+  {id:'s13',gid:'g2',label:'Gearbox Cover',seq:'3g',level:3,ecn:null,sort:4},
+  {id:'s14',gid:'g3',label:'Main Controller',seq:'3h',level:3,ecn:null,sort:1},
+  {id:'s15',gid:'g3',label:'Power Board',seq:'3i',level:3,ecn:'applied',sort:2},
+  {id:'s16',gid:'g4',label:'Ring Holder',seq:'3j',level:3,ecn:'changed',sort:1},
+  {id:'s17',gid:'g4',label:'CAM Follower',seq:'3k',level:3,ecn:null,sort:2},
+  {id:'s18',gid:'g2',label:'Bearing 6001',seq:'4a',level:4,ecn:null,sort:1},
+  {id:'s19',gid:'g2',label:'Bearing 6003',seq:'4b',level:4,ecn:null,sort:2},
+  {id:'s20',gid:'g4',label:'Camera Module',seq:'4c',level:4,ecn:'changed',sort:1},
+  {id:'s21',gid:'g4',label:'LED Ring',seq:'4d',level:4,ecn:null,sort:2},
+  {id:'s22',gid:'g3',label:'Motor Driver IC',seq:'5a',level:5,ecn:null,sort:1},
+  {id:'s23',gid:'g4',label:'Lens Assembly',seq:'5b',level:5,ecn:'changed',sort:1},
+  {id:'s24',gid:'g2',label:'Motor A',seq:'6a',level:6,ecn:null,sort:1},
+  {id:'s25',gid:'g5',label:'USB-C Cable',seq:'6b',level:6,ecn:null,sort:1},
+  {id:'s26',gid:'g5',label:'FFC Ribbon',seq:'6c',level:6,ecn:null,sort:2},
+  {id:'s27',gid:'g4',label:'IR Filter',seq:'5c',level:5,ecn:null,sort:2},
+  {id:'s28',gid:'g1',label:'Loctite 648 Bond',seq:'3l',level:3,ecn:null,sort:4},
 ];
 
 const LINKS = [
-  { id:'l1', parent_step_id:'s1', child_step_id:'s2' },
-  { id:'l2', parent_step_id:'s1', child_step_id:'s3' },
-  { id:'l3', parent_step_id:'s1', child_step_id:'s4' },
-  { id:'l4', parent_step_id:'s1', child_step_id:'s5' },
-  { id:'l5', parent_step_id:'s1', child_step_id:'s6' },
-  { id:'l6', parent_step_id:'s2', child_step_id:'s7' },
-  { id:'l7', parent_step_id:'s2', child_step_id:'s8' },
-  { id:'l8', parent_step_id:'s2', child_step_id:'s9' },
-  { id:'l9', parent_step_id:'s2', child_step_id:'s28' },
-  { id:'l10', parent_step_id:'s3', child_step_id:'s10' },
-  { id:'l11', parent_step_id:'s3', child_step_id:'s11' },
-  { id:'l12', parent_step_id:'s3', child_step_id:'s12' },
-  { id:'l13', parent_step_id:'s3', child_step_id:'s13' },
-  { id:'l14', parent_step_id:'s4', child_step_id:'s14' },
-  { id:'l15', parent_step_id:'s4', child_step_id:'s15' },
-  { id:'l16', parent_step_id:'s5', child_step_id:'s16' },
-  { id:'l17', parent_step_id:'s5', child_step_id:'s17' },
-  { id:'l18', parent_step_id:'s11', child_step_id:'s18' },
-  { id:'l19', parent_step_id:'s11', child_step_id:'s19' },
-  { id:'l20', parent_step_id:'s16', child_step_id:'s20' },
-  { id:'l21', parent_step_id:'s16', child_step_id:'s21' },
-  { id:'l22', parent_step_id:'s14', child_step_id:'s22' },
-  { id:'l23', parent_step_id:'s20', child_step_id:'s23' },
-  { id:'l24', parent_step_id:'s3', child_step_id:'s24' },
-  { id:'l25', parent_step_id:'s6', child_step_id:'s25' },
-  { id:'l26', parent_step_id:'s6', child_step_id:'s26' },
-  { id:'l27', parent_step_id:'s20', child_step_id:'s27' },
+  {p:'s1',c:'s2'},{p:'s1',c:'s3'},{p:'s1',c:'s4'},{p:'s1',c:'s5'},{p:'s1',c:'s6'},
+  {p:'s2',c:'s7'},{p:'s2',c:'s8'},{p:'s2',c:'s9'},{p:'s2',c:'s28'},
+  {p:'s3',c:'s10'},{p:'s3',c:'s11'},{p:'s3',c:'s12'},{p:'s3',c:'s13'},
+  {p:'s4',c:'s14'},{p:'s4',c:'s15'},
+  {p:'s5',c:'s16'},{p:'s5',c:'s17'},
+  {p:'s11',c:'s18'},{p:'s11',c:'s19'},
+  {p:'s16',c:'s20'},{p:'s16',c:'s21'},
+  {p:'s14',c:'s22'},
+  {p:'s20',c:'s23'},{p:'s20',c:'s27'},
+  {p:'s3',c:'s24'},
+  {p:'s6',c:'s25'},{p:'s6',c:'s26'},
 ];
 
 const FASTENERS = [
-  { id:'f1', step_id:'s7', pn:'CBBTS2-5', qty:4, loctite:'222', torque:0.315 },
-  { id:'f2', step_id:'s8', pn:'BSB-315CE', qty:2, loctite:'222', torque:0.65 },
-  { id:'f3', step_id:'s13', pn:'CSH-M3-5', qty:6, loctite:'222', torque:1.14 },
-  { id:'f4', step_id:'s9', pn:'CSH-M4-8', qty:2, loctite:'222', torque:2.7 },
-  { id:'f5', step_id:'s16', pn:'CBE6-30', qty:3, loctite:'243', torque:5.2 },
-  { id:'f6', step_id:'s28', pn:'CBE3-6', qty:8, loctite:'425', torque:1.14 },
+  {id:'f1',sid:'s7',pn:'CBBTS2-5',qty:4,lt:'222',torque:'0.315Nm'},
+  {id:'f2',sid:'s8',pn:'BSB-315CE',qty:2,lt:'222',torque:'0.65Nm'},
+  {id:'f3',sid:'s13',pn:'CSH-M3-5',qty:6,lt:'222',torque:'1.14Nm'},
+  {id:'f4',sid:'s9',pn:'CSH-M4-8',qty:2,lt:'222',torque:'2.7Nm'},
+  {id:'f5',sid:'s16',pn:'CBE6-30',qty:3,lt:'243',torque:'5.2Nm'},
+  {id:'f6',sid:'s28',pn:'CBE3-6',qty:8,lt:'425',torque:'1.14Nm'},
 ];
 
 const PARTS = [
-  { id:'p1', step_id:'s7', pn:'GAL-BODY-V3', qty:1 },
-  { id:'p2', step_id:'s8', pn:'HOOK-ARM-V2', qty:1 },
-  { id:'p3', step_id:'s10', pn:'ENC-BOARD-R4', qty:1 },
-  { id:'p4', step_id:'s18', pn:'BRG-6001-2RS', qty:2 },
-  { id:'p5', step_id:'s19', pn:'BRG-6003-2RS', qty:1 },
-  { id:'p6', step_id:'s20', pn:'CAM-IMX477', qty:1 },
-  { id:'p7', step_id:'s21', pn:'LED-RING-24', qty:1 },
-  { id:'p8', step_id:'s22', pn:'DRV8825', qty:2 },
-  { id:'p9', step_id:'s23', pn:'LENS-6MM-CS', qty:1 },
-  { id:'p10', step_id:'s24', pn:'MOT-NEMA17', qty:1 },
-  { id:'p11', step_id:'s25', pn:'CABLE-USBC-30', qty:1 },
-  { id:'p12', step_id:'s26', pn:'FFC-40P-150', qty:1 },
-  { id:'p13', step_id:'s27', pn:'IR-FILTER-650', qty:1 },
-  { id:'p14', step_id:'s14', pn:'PCB-MAIN-V5', qty:1 },
-  { id:'p15', step_id:'s15', pn:'PCB-PWR-V3', qty:1 },
+  {sid:'s7',pn:'GAL-BODY-V3',qty:1},{sid:'s8',pn:'HOOK-ARM-V2',qty:1},
+  {sid:'s10',pn:'ENC-BOARD-R4',qty:1},{sid:'s18',pn:'BRG-6001-2RS',qty:2},
+  {sid:'s19',pn:'BRG-6003-2RS',qty:1},{sid:'s20',pn:'CAM-IMX477',qty:1},
+  {sid:'s21',pn:'LED-RING-24',qty:1},{sid:'s22',pn:'DRV8825',qty:2},
+  {sid:'s23',pn:'LENS-6MM-CS',qty:1},{sid:'s24',pn:'MOT-NEMA17',qty:1},
+  {sid:'s25',pn:'CABLE-USBC-30',qty:1},{sid:'s26',pn:'FFC-40P-150',qty:1},
+  {sid:'s27',pn:'IR-FILTER-650',qty:1},{sid:'s14',pn:'PCB-MAIN-V5',qty:1},
+  {sid:'s15',pn:'PCB-PWR-V3',qty:1},
 ];
 
-const VERSION_HISTORY = [
-  { id:'vh1', assembly_id:'asm-hbd', version:'1.0', created_at:'2024-03-15', created_by:'Aniket', notes:'Initial release', frozen:true },
-  { id:'vh2', assembly_id:'asm-hbd', version:'2.0', created_at:'2024-06-01', created_by:'Aniket', notes:'Updated gearbox bearings', frozen:true },
-  { id:'vh3', assembly_id:'asm-hbd', version:'3.0', created_at:'2024-09-10', created_by:'Aniket', notes:'New encoder board, power board revision', frozen:true },
-  { id:'vh4', assembly_id:'asm-hbd', version:'4.0', created_at:'2024-12-01', created_by:'Aniket', notes:'Camera module upgrade, head mount redesign', frozen:true },
-  { id:'vh5', assembly_id:'asm-hbd', version:'5.0', created_at:'2025-03-15', created_by:'Aniket', notes:'Lens assembly change, ring holder update', frozen:true },
-  { id:'vh6', assembly_id:'asm-hbd', version:'6.0', created_at:'2025-06-20', created_by:'Aniket', notes:'Current — camera + encoder changes', frozen:false },
+const VERSIONS = [
+  {id:'vh1',assy:'hbd',ver:'1.0',date:'2024-03-15',by:'Aniket',notes:'Initial release',frozen:true},
+  {id:'vh2',assy:'hbd',ver:'2.0',date:'2024-06-01',by:'Aniket',notes:'Updated gearbox bearings',frozen:true},
+  {id:'vh3',assy:'hbd',ver:'3.0',date:'2024-09-10',by:'Aniket',notes:'New encoder, power board rev',frozen:true},
+  {id:'vh4',assy:'hbd',ver:'4.0',date:'2024-12-01',by:'Aniket',notes:'Camera module upgrade',frozen:true},
+  {id:'vh5',assy:'hbd',ver:'5.0',date:'2025-03-15',by:'Aniket',notes:'Lens + ring holder update',frozen:false},
 ];
 
 const ECN_CHANGES = [
-  { id:'ec1', step_id:'s3', version:'6.0', change_type:'modified', field:'Encoder Board', old_value:'ENC-BOARD-R3', new_value:'ENC-BOARD-R4', disposition:'rework', description:'Updated encoder for higher resolution' },
-  { id:'ec2', step_id:'s10', version:'6.0', change_type:'replaced', field:'IC Package', old_value:'QFN-24', new_value:'QFN-32', disposition:'replace', description:'New package with more I/O' },
-  { id:'ec3', step_id:'s5', version:'6.0', change_type:'modified', field:'Head Mount', old_value:'HM-V3', new_value:'HM-V4', disposition:'rework', description:'Tighter tolerances for camera alignment' },
-  { id:'ec4', step_id:'s16', version:'6.0', change_type:'modified', field:'Ring Holder', old_value:'RH-V2', new_value:'RH-V3', disposition:'rework', description:'New ring holder geometry' },
-  { id:'ec5', step_id:'s20', version:'6.0', change_type:'replaced', field:'Camera Module', old_value:'CAM-IMX327', new_value:'CAM-IMX477', disposition:'replace', description:'Upgraded to IMX477 sensor' },
-  { id:'ec6', step_id:'s23', version:'6.0', change_type:'modified', field:'Lens', old_value:'LENS-4MM', new_value:'LENS-6MM-CS', disposition:'replace', description:'Wider FOV lens' },
-  { id:'ec7', step_id:'s15', version:'5.0', change_type:'modified', field:'Power Board', old_value:'PCB-PWR-V2', new_value:'PCB-PWR-V3', disposition:'rework', description:'Added overcurrent protection' },
-  { id:'ec8', step_id:'s9', version:'6.0', change_type:'modified', field:'Mount Type', old_value:'Clip', new_value:'Screw Mount', disposition:'rework', description:'More stable WiFi antenna mount' },
+  {id:'ec1',sid:'s3',ver:'5.0',type:'modified',field:'Encoder Board',old:'ENC-BOARD-R3',new:'ENC-BOARD-R4',disp:'rework',desc:'Updated encoder for higher resolution'},
+  {id:'ec2',sid:'s10',ver:'5.0',type:'replaced',field:'IC Package',old:'QFN-24',new:'QFN-32',disp:'replace',desc:'New package with more I/O'},
+  {id:'ec3',sid:'s5',ver:'5.0',type:'modified',field:'Head Mount',old:'HM-V3',new:'HM-V4',disp:'rework',desc:'Tighter tolerances for camera alignment'},
+  {id:'ec4',sid:'s16',ver:'5.0',type:'modified',field:'Ring Holder',old:'RH-V2',new:'RH-V3',disp:'rework',desc:'New ring holder geometry'},
+  {id:'ec5',sid:'s20',ver:'5.0',type:'replaced',field:'Camera Module',old:'CAM-IMX327',new:'CAM-IMX477',disp:'replace',desc:'Upgraded to IMX477 sensor'},
+  {id:'ec6',sid:'s23',ver:'5.0',type:'modified',field:'Lens',old:'LENS-4MM',new:'LENS-6MM-CS',disp:'replace',desc:'Wider FOV lens'},
+  {id:'ec7',sid:'s15',ver:'4.0',type:'modified',field:'Power Board',old:'PCB-PWR-V2',new:'PCB-PWR-V3',disp:'rework',desc:'Added overcurrent protection'},
+  {id:'ec8',sid:'s9',ver:'5.0',type:'modified',field:'WiFi Mount',old:'Clip',new:'Screw Mount',disp:'rework',desc:'More stable WiFi antenna mount'},
 ];
 
-// Generate 120 production units
-function generateUnits() {
-  const units = [];
-  const versions = ['3.0','4.0','5.0','6.0'];
-  const statuses = ['active','in_progress','completed','blocked'];
+function generateUnits(assyId) {
+  const a = ASSEMBLIES.find(x=>x.id===assyId);
+  if(!a) return [];
+  const n = a.units, latest = a.version;
+  const vers = assyId === 'hbd' ? ['2.0','3.0','4.0','5.0'] : [latest];
   const people = ['Aniket','David','Sarah','Mike','Elena'];
-  for (let i = 1; i <= 120; i++) {
-    const sn = `HBD-${String(i).padStart(4,'0')}`;
-    const vi = i <= 15 ? 0 : i <= 40 ? 1 : i <= 80 ? 2 : 3;
-    const ver = versions[vi];
-    const latest = '6.0';
+  const units = [];
+  for(let i=1;i<=n;i++){
+    const sn = `${a.tag.replace('_assy','')}-${String(i).padStart(4,'0')}`;
+    let ver;
+    if(assyId === 'hbd'){
+      ver = i<=12?'2.0':i<=30?'3.0':i<=70?'4.0':'5.0';
+    } else { ver = latest; }
     const isCurrent = ver === latest;
-    const status = isCurrent ? 'active' : (i % 7 === 0 ? 'blocked' : 'in_progress');
-    units.push({
-      id: `u${i}`, sn, version: ver, latest_version: latest, status,
-      assigned_to: people[i % people.length],
-      ecn_applied: isCurrent ? 6 : Math.floor(Math.random() * 4),
-      ecn_total: 6,
-    });
+    const status = isCurrent?'active':(i%9===0?'blocked':'outdated');
+    units.push({id:`${assyId}-u${i}`,sn,ver,latest,status,person:people[i%5],ecnDone:isCurrent?6:Math.floor(Math.random()*5),ecnTotal:6});
   }
   return units;
 }
-const UNITS = generateUnits();
 
 // ============================================================
-// APP STATE
+// STATE
 // ============================================================
 const APP = {
-  currentPage: 'home',
-  role: 'admin', // admin | viewer
-  currentAssembly: 'asm-hbd',
-  currentVersion: '6.0',
-  treeShowSeq: true,
-  treeShowLevels: true,
-  treeShowSep: false,
-  treeColorMode: 'group',
-  unitFilter: 'all',
+  role:'admin',
+  currentAssy:null,
+  unitFilter:'all',
+  treeShowSeq:true,treeShowLevels:true,treeColorMode:'group',
 };
 
 // ============================================================
-// NAVIGATION
+// NAV
 // ============================================================
-function goTo(page) {
-  APP.currentPage = page;
-  document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
-  document.getElementById(`page-${page}`).classList.add('active');
-  document.querySelectorAll('.nav-link').forEach(l => l.classList.toggle('active', l.dataset.page === page));
-  if (page === 'home') renderHome();
-  if (page === 'units') renderUnits();
-  if (page === 'assembly') renderAssembly();
-  if (page === 'tree') renderTreePage();
+function goHome(){
+  APP.currentAssy = null;
+  showPage('home');
+  setBreadcrumb([]);
 }
 
-function toggleRole() {
-  APP.role = APP.role === 'admin' ? 'viewer' : 'admin';
+function openAssembly(id){
+  APP.currentAssy = id;
+  showPage('detail');
+  const a = ASSEMBLIES.find(x=>x.id===id);
+  setBreadcrumb([{label:a?.name||id,active:true}]);
+  renderDetail();
+}
+
+function showPage(name){
+  document.querySelectorAll('.page').forEach(p=>p.classList.remove('active'));
+  document.getElementById(`page-${name}`).classList.add('active');
+}
+
+function setBreadcrumb(items){
+  const el = document.getElementById('breadcrumb');
+  el.innerHTML = items.length ? `<span class="sep">›</span>` + items.map(i=>`<span class="crumb ${i.active?'active':''}">${i.label}</span>`).join('<span class="sep">›</span>') : '';
+}
+
+function toggleRole(){
+  APP.role = APP.role==='admin'?'viewer':'admin';
+  const badge = document.getElementById('adminBadge');
   const btn = document.getElementById('roleToggle');
-  const badge = document.getElementById('roleBadge');
-  btn.textContent = APP.role === 'admin' ? '🔑 Admin' : '👁 Viewer';
-  badge.textContent = APP.role === 'admin' ? '🔑 ADMIN' : '👁 VIEWER';
-  badge.className = `nav-badge ${APP.role === 'admin' ? 'admin' : ''}`;
-  badge.style.background = APP.role === 'admin' ? 'rgba(5,150,105,0.15)' : 'rgba(107,114,128,0.15)';
-  badge.style.color = APP.role === 'admin' ? '#34d399' : '#9ca3af';
-  updateAdminUI();
+  if(APP.role==='admin'){
+    badge.innerHTML = '<span class="icon">🔧</span> Admin · Aniket';
+    badge.style.background = 'var(--accent-glow)';badge.style.borderColor = 'rgba(245,166,35,0.25)';badge.style.color = 'var(--accent)';
+    btn.textContent = 'Switch to Viewer';
+  } else {
+    badge.innerHTML = '<span class="icon">👁</span> Viewer';
+    badge.style.background = 'rgba(107,114,128,0.1)';badge.style.borderColor = 'rgba(107,114,128,0.2)';badge.style.color = '#9ca3af';
+    btn.textContent = 'Switch to Admin';
+  }
+  updateAdminVis();
 }
 
-function updateAdminUI() {
-  const isAdmin = APP.role === 'admin';
-  document.querySelectorAll('#addStepBtn,#markChangedBtn,#freezeBtn').forEach(el => {
-    el.style.display = isAdmin ? '' : 'none';
+function updateAdminVis(){
+  const show = APP.role==='admin';
+  ['ecnAdminBtns','treeAddStepBtn','treeFreezeBtn'].forEach(id=>{
+    const el = document.getElementById(id);
+    if(el) el.style.display = show?'':'none';
   });
 }
 
 // ============================================================
-// HOME PAGE
+// HOME
 // ============================================================
-function renderHome() {
-  const grid = document.getElementById('assemblyCards');
-  grid.innerHTML = ASSEMBLIES.map(a => {
-    const units = a.id === 'asm-hbd' ? UNITS : [];
-    const current = units.filter(u => u.version === u.latest_version).length;
-    const outdated = units.filter(u => u.version !== u.latest_version && u.status !== 'blocked').length;
-    return `<div class="card" onclick="APP.currentAssembly='${a.id}';goTo('units')">
-      <div class="card-icon">${a.icon}</div>
-      <div class="card-title">${a.name}</div>
-      <div class="card-desc">${a.description}</div>
-      <div class="card-stats">
-        <span class="stat blue">${a.unitCount} units</span>
-        <span class="stat">v${a.version}</span>
-        ${a.id === 'asm-hbd' ? `<span class="stat green">${current} current</span><span class="stat yellow">${outdated} outdated</span>` : ''}
-      </div>
-    </div>`;
-  }).join('');
-
-  // Stats
-  const current = UNITS.filter(u => u.version === u.latest_version).length;
-  const outdated = UNITS.filter(u => u.version !== u.latest_version && u.status !== 'blocked').length;
-  const blocked = UNITS.filter(u => u.status === 'blocked').length;
-  document.getElementById('stat-current').textContent = `${current} Current`;
-  document.getElementById('stat-outdated').textContent = `${outdated} Outdated`;
-  document.getElementById('stat-blocked').textContent = `${blocked} Blocked`;
-
-  const ecnChanged = STEPS.filter(s => s.ecn_status === 'changed').length;
-  const ecnPending = STEPS.filter(s => s.ecn_status === 'pending').length;
-  const ecnApplied = STEPS.filter(s => s.ecn_status === 'applied').length;
-  document.getElementById('stat-ecn-changed').textContent = `${ecnChanged} Changed`;
-  document.getElementById('stat-ecn-pending').textContent = `${ecnPending} Pending`;
-  document.getElementById('stat-ecn-applied').textContent = `${ecnApplied} Applied`;
-
-  document.getElementById('stat-versions').innerHTML = VERSION_HISTORY.map(v =>
-    `<span class="stat ${v.frozen?'':'blue'}">${v.frozen?'🔒':'🔓'} v${v.version}</span>`
-  ).join('');
+function renderHome(){
+  const grid = document.getElementById('assyGrid');
+  const majors = ASSEMBLIES.filter(a=>a.section!=='full');
+  grid.innerHTML = majors.map(a=>`
+    <div class="assy-card" data-color="${a.color}" onclick="openAssembly('${a.id}')">
+      <span class="card-icon">${a.icon}</span>
+      <div class="card-name">${a.name} <span class="ver ver-${a.color}">v${a.version}</span></div>
+      <span class="card-units units-${a.color}">${a.units} units</span>
+    </div>
+  `).join('');
 }
 
 // ============================================================
-// UNITS PAGE
+// DETAIL PAGE
 // ============================================================
-function renderUnits() {
+function renderDetail(){
+  const a = ASSEMBLIES.find(x=>x.id===APP.currentAssy);
+  if(!a) return;
+  document.getElementById('detailHeader').innerHTML = `
+    <div class="detail-icon">${a.icon}</div>
+    <div class="detail-title">${a.name}</div>
+    <span class="detail-ver ver-${a.color}">${a.tag} · v${a.version}</span>
+  `;
+  document.getElementById('detailSubtitle').textContent = `${a.units} production units · Latest version v${a.version}`;
+
+  // Populate version pickers
+  const versions = APP.currentAssy === 'hbd' ? VERSIONS : [{ver:a.version,frozen:false}];
+  const optionsHtml = versions.map(v=>`<option value="${v.ver}">v${v.ver}${v.frozen?' 🔒':''}</option>`).join('');
+  document.getElementById('ecnVersionPicker').innerHTML = `<option value="all">All Versions</option>` + optionsHtml;
+  document.getElementById('treeVersionPicker').innerHTML = optionsHtml;
+  if(APP.currentAssy==='hbd') document.getElementById('treeVersionPicker').value = '5.0';
+
+  switchDetailTab('units');
+  updateAdminVis();
+}
+
+function switchDetailTab(tab){
+  document.querySelectorAll('#detailTabs .detail-tab').forEach(t=>t.classList.toggle('active',t.dataset.tab===tab));
+  ['units','ecn','tree-editor'].forEach(t=>{
+    const el = document.getElementById(`tc-${t}`);
+    el.classList.toggle('active',t===tab);
+  });
+  if(tab==='units') renderUnitsTab();
+  if(tab==='ecn') renderEcnTab();
+  if(tab==='tree-editor') renderTreeEditor();
+}
+
+// ====== UNITS TAB ======
+function renderUnitsTab(){
   filterUnits();
 }
-function filterUnits() {
-  const query = (document.getElementById('unitSearch')?.value || '').toLowerCase();
-  const filter = APP.unitFilter;
-  let filtered = UNITS;
-  if (filter === 'current') filtered = filtered.filter(u => u.version === u.latest_version);
-  else if (filter === 'outdated') filtered = filtered.filter(u => u.version !== u.latest_version && u.status !== 'blocked');
-  else if (filter === 'blocked') filtered = filtered.filter(u => u.status === 'blocked');
-  if (query) filtered = filtered.filter(u => u.sn.toLowerCase().includes(query) || u.status.includes(query));
+function filterUnits(){
+  if(!APP.currentAssy) return;
+  const units = generateUnits(APP.currentAssy);
+  const q = (document.getElementById('unitSearch')?.value||'').toLowerCase();
+  const f = APP.unitFilter;
+  let list = units;
+  if(f==='current') list = list.filter(u=>u.ver===u.latest);
+  else if(f==='outdated') list = list.filter(u=>u.ver!==u.latest&&u.status!=='blocked');
+  else if(f==='blocked') list = list.filter(u=>u.status==='blocked');
+  if(q) list = list.filter(u=>u.sn.toLowerCase().includes(q)||u.status.includes(q));
 
-  const body = document.getElementById('unitTableBody');
-  body.innerHTML = filtered.slice(0, 60).map(u => {
-    const isCurrent = u.version === u.latest_version;
-    const statusBadge = u.status === 'blocked' ? 'badge-red' : isCurrent ? 'badge-green' : 'badge-yellow';
-    const statusText = u.status === 'blocked' ? '🚫 Blocked' : isCurrent ? '✅ Current' : '⚠️ Outdated';
-    const pct = Math.round((u.ecn_applied / u.ecn_total) * 100);
+  document.getElementById('unitTbody').innerHTML = list.slice(0,80).map(u=>{
+    const cur = u.ver===u.latest;
+    const sBadge = u.status==='blocked'?'badge-red':cur?'badge-green':'badge-yellow';
+    const sText = u.status==='blocked'?'🚫 Blocked':cur?'✅ Current':'⚠️ Outdated';
+    const pct = Math.round(u.ecnDone/u.ecnTotal*100);
     return `<tr>
-      <td class="mono fw-600">${u.sn}</td>
-      <td><span class="badge ${isCurrent ? 'badge-green' : 'badge-yellow'}">v${u.version}</span></td>
-      <td><span class="badge badge-blue">v${u.latest_version}</span></td>
-      <td><span class="badge ${statusBadge}">${statusText}</span></td>
-      <td>${u.assigned_to}</td>
-      <td>
-        <div style="display:flex;align-items:center;gap:8px">
-          <div style="flex:1;height:4px;background:var(--surface2);border-radius:2px;max-width:100px">
-            <div style="width:${pct}%;height:100%;background:${pct===100?'var(--green)':'var(--yellow)'};border-radius:2px"></div>
-          </div>
-          <span class="text-xs mono text-muted">${u.ecn_applied}/${u.ecn_total}</span>
-        </div>
-      </td>
-      <td><button class="btn btn-sm btn-secondary" onclick="openUnitEcn('${u.id}')">View ECN</button></td>
+      <td class="mono fw-700">${u.sn}</td>
+      <td><span class="badge ${cur?'badge-green':'badge-yellow'}">v${u.ver}</span></td>
+      <td><span class="badge badge-blue">v${u.latest}</span></td>
+      <td><span class="badge ${sBadge}">${sText}</span></td>
+      <td class="text-sm">${u.person}</td>
+      <td><div style="display:flex;align-items:center;gap:8px"><div style="flex:1;height:4px;background:var(--surface3);border-radius:2px;max-width:80px"><div style="width:${pct}%;height:100%;background:${pct>=100?'var(--green)':'var(--yellow)'};border-radius:2px"></div></div><span class="text-xs mono text-dim">${u.ecnDone}/${u.ecnTotal}</span></div></td>
+      <td><button class="btn btn-sm btn-ghost" onclick="openUnitEcn('${u.id}','${u.sn}','${u.ver}','${u.latest}')">ECN →</button></td>
     </tr>`;
   }).join('');
 }
-function setUnitFilter(f, btn) {
-  APP.unitFilter = f;
-  document.querySelectorAll('.filter-btn').forEach(b => b.classList.remove('active'));
+function setFilter(f,btn){
+  APP.unitFilter=f;
+  document.querySelectorAll('.filter-pill').forEach(b=>b.classList.remove('active'));
   btn.classList.add('active');
   filterUnits();
 }
-function openUnitEcn(unitId) {
-  const unit = UNITS.find(u => u.id === unitId);
-  if (!unit) return;
-  const changes = ECN_CHANGES.filter(c => parseFloat(c.version) > parseFloat(unit.version));
-  const html = `<div style="margin-bottom:12px"><strong class="mono">${unit.sn}</strong> — v${unit.version} → v${unit.latest_version}</div>
-    ${changes.length === 0 ? '<p class="text-muted text-sm">No pending ECN changes for this unit.</p>' :
+function openUnitEcn(uid,sn,ver,latest){
+  const changes = ECN_CHANGES.filter(c=>parseFloat(c.ver)>parseFloat(ver));
+  const html = `<div class="mb-3"><strong class="mono">${sn}</strong> — v${ver} → v${latest}</div>
+    ${changes.length===0?'<p class="text-sm text-muted">No pending ECN changes.</p>':
     `<div class="table-wrap"><table><thead><tr><th>Step</th><th>Change</th><th>Disposition</th></tr></thead><tbody>
-    ${changes.map(c => {
-      const step = STEPS.find(s => s.id === c.step_id);
-      return `<tr><td>${step?.label || '?'}</td><td><span class="ecn-change-type ${c.change_type}">${c.change_type}</span> ${c.field}</td><td><span class="badge badge-purple">${c.disposition}</span></td></tr>`;
-    }).join('')}
+    ${changes.map(c=>{const s=STEPS.find(x=>x.id===c.sid);return`<tr><td>${s?.label||'?'}</td><td><span class="ecn-type ${c.type}">${c.type}</span> ${c.field}</td><td><span class="badge badge-purple">${c.disp}</span></td></tr>`;}).join('')}
     </tbody></table></div>`}`;
-  showModal(`ECN Details — ${unit.sn}`, html, [{ label: 'Close', cls: 'btn-secondary', action: hideModal }]);
+  showModal(`ECN Details — ${sn}`,html,[{label:'Close',cls:'btn-ghost',fn:hideModal}]);
 }
 
-// ============================================================
-// ASSEMBLY PAGE
-// ============================================================
-function renderAssembly() {
-  // Populate assembly picker
-  const ap = document.getElementById('assemblyPicker');
-  ap.innerHTML = ASSEMBLIES.map(a => `<option value="${a.id}" ${a.id===APP.currentAssembly?'selected':''}>${a.icon} ${a.name} (${a.tag})</option>`).join('');
-  // Populate version picker
-  const vp = document.getElementById('versionPicker');
-  const versions = VERSION_HISTORY.filter(v => v.assembly_id === APP.currentAssembly);
-  vp.innerHTML = versions.map(v => `<option value="${v.version}" ${v.version===APP.currentVersion?'selected':''}>v${v.version}${v.frozen?' 🔒':' (active)'}</option>`).join('');
-  updateVersionInfo();
-  renderCurrentAssemblyTab();
-  updateAdminUI();
-}
+// ====== ECN TAB ======
+function renderEcnTab(){
+  const verFilter = document.getElementById('ecnVersionPicker')?.value||'all';
+  const changes = verFilter==='all'?ECN_CHANGES:ECN_CHANGES.filter(c=>c.ver===verFilter);
 
-function onAssemblyPickerChange() {
-  APP.currentAssembly = document.getElementById('assemblyPicker').value;
-  renderAssembly();
-}
-function onVersionChange() {
-  APP.currentVersion = document.getElementById('versionPicker').value;
-  updateVersionInfo();
-  renderCurrentAssemblyTab();
-}
-function updateVersionInfo() {
-  const vh = VERSION_HISTORY.find(v => v.version === APP.currentVersion && v.assembly_id === APP.currentAssembly);
-  document.getElementById('versionInfo').textContent = vh ? `${vh.created_at} by ${vh.created_by}` : '';
-  document.getElementById('frozenBadge').style.display = vh?.frozen ? '' : 'none';
-  const freezeBtn = document.getElementById('freezeBtn');
-  if (vh) {
-    freezeBtn.textContent = vh.frozen ? '🔓 Unfreeze' : '❄️ Freeze';
-    freezeBtn.style.display = APP.role === 'admin' ? '' : 'none';
-  }
-}
-
-function toggleFreeze() {
-  const vh = VERSION_HISTORY.find(v => v.version === APP.currentVersion && v.assembly_id === APP.currentAssembly);
-  if (!vh) return;
-  vh.frozen = !vh.frozen;
-  toast(vh.frozen ? `v${vh.version} frozen 🔒` : `v${vh.version} unfrozen 🔓`, 'info');
-  updateVersionInfo();
-  renderAssembly();
-}
-
-function switchAssemblyTab(tab) {
-  document.querySelectorAll('#page-assembly .tabs:first-of-type .tab').forEach(t => t.classList.toggle('active', t.dataset.tab === tab));
-  ['versions','tree-list','ecn-map'].forEach(t => {
-    document.getElementById(`tab-${t}`).style.display = t === tab ? '' : 'none';
-  });
-  renderCurrentAssemblyTab();
-}
-
-function renderCurrentAssemblyTab() {
-  const activeTab = document.querySelector('#page-assembly .tabs:first-of-type .tab.active')?.dataset.tab;
-  if (activeTab === 'versions') renderVersionsTab();
-  if (activeTab === 'tree-list') renderTreeList();
-  if (activeTab === 'ecn-map') renderEcnMap();
-}
-
-function switchVersionSubTab(sub) {
-  document.querySelectorAll('[data-subtab]').forEach(t => t.classList.toggle('active', t.dataset.subtab === sub));
-  document.getElementById('subtab-unit-versions').style.display = sub === 'unit-versions' ? '' : 'none';
-  document.getElementById('subtab-version-history').style.display = sub === 'version-history' ? '' : 'none';
-}
-
-function renderVersionsTab() {
-  // Unit versions
-  const body = document.getElementById('unitVersionsBody');
-  const outdated = UNITS.filter(u => u.version !== u.latest_version).slice(0, 40);
-  body.innerHTML = outdated.map(u => {
-    const changedSteps = ECN_CHANGES.filter(c => parseFloat(c.version) > parseFloat(u.version));
+  document.getElementById('ecnTbody').innerHTML = changes.map(c=>{
+    const s=STEPS.find(x=>x.id===c.sid);
     return `<tr>
-      <td class="mono fw-600">${u.sn}</td>
-      <td><span class="badge badge-yellow">v${u.version}</span></td>
-      <td><span class="badge badge-blue">v${u.latest_version}</span></td>
-      <td><span class="badge ${u.status==='blocked'?'badge-red':'badge-yellow'}">${u.status==='blocked'?'🚫 Blocked':'⚠️ Outdated'}</span></td>
-      <td class="text-sm text-muted">${changedSteps.length} changes</td>
+      <td><span class="fw-600">${s?.label||'?'}</span><br><span class="text-xs text-dim mono">${s?.seq||''}</span></td>
+      <td><span class="ecn-type ${c.type}">${c.type.toUpperCase()}</span></td>
+      <td class="text-sm">${c.field}</td>
+      <td class="text-sm mono" style="color:var(--red);text-decoration:line-through">${c.old}</td>
+      <td class="text-sm mono" style="color:var(--green)">${c.new}</td>
+      <td><span class="badge badge-purple">${c.disp}</span></td>
+      <td><span class="badge badge-blue">v${c.ver}</span></td>
     </tr>`;
   }).join('');
 
+  // Cascade
+  const changedSteps = STEPS.filter(s=>s.ecn==='changed');
+  const units = generateUnits(APP.currentAssy||'hbd');
+  const affected = units.filter(u=>u.ver!==u.latest);
+  const byVer = {};
+  affected.forEach(u=>{if(!byVer[u.ver])byVer[u.ver]=[];byVer[u.ver].push(u);});
+  const box = document.getElementById('cascadeBox');
+  if(changedSteps.length>0 && affected.length>0){
+    box.innerHTML = `<div class="cascade-box">
+      <div class="cascade-title">⚠️ ECN Cascade — ${changedSteps.length} changed steps affect ${affected.length} units</div>
+      ${Object.entries(byVer).map(([v,us])=>`
+        <div style="margin-bottom:6px"><span class="badge badge-yellow" style="margin-right:6px">v${v}</span>
+        <span class="text-xs text-dim">${us.length} units:</span>
+        ${us.slice(0,6).map(u=>`<span class="cascade-unit">${u.sn}</span>`).join('')}
+        ${us.length>6?`<span class="text-xs text-dim">+${us.length-6} more</span>`:''}
+        </div>`).join('')}
+    </div>`;
+  } else { box.innerHTML=''; }
+
   // Version history
-  const hBody = document.getElementById('versionHistoryBody');
-  const versions = VERSION_HISTORY.filter(v => v.assembly_id === APP.currentAssembly);
-  hBody.innerHTML = versions.map(v => `<tr>
-    <td class="mono fw-700">v${v.version}</td>
-    <td class="text-sm">${v.created_at}</td>
-    <td class="text-sm">${v.created_by}</td>
+  const versions = APP.currentAssy==='hbd'?VERSIONS:[{ver:ASSEMBLIES.find(x=>x.id===APP.currentAssy)?.version||'1.0',date:'—',by:'—',notes:'—',frozen:false}];
+  document.getElementById('versionHistTbody').innerHTML = versions.map(v=>`<tr>
+    <td class="mono fw-700">v${v.ver}</td><td class="text-sm">${v.date}</td><td class="text-sm">${v.by}</td>
     <td class="text-sm">${v.notes}</td>
-    <td>${v.frozen ? '<span class="badge badge-blue">🔒 Frozen</span>' : '<span class="badge badge-green">🔓 Active</span>'}</td>
+    <td>${v.frozen?'<span class="badge badge-blue">🔒 Frozen</span>':'<span class="badge badge-green">🔓 Active</span>'}</td>
   </tr>`).join('');
+
+  document.getElementById('ecnVersionInfo').textContent = changes.length+' records';
+  updateAdminVis();
 }
 
-// ============================================================
-// TREE LIST VIEW
-// ============================================================
-function renderTreeList() {
-  const container = document.getElementById('treeListContainer');
-  const groups = GROUPS.filter(g => g.assembly_id === APP.currentAssembly);
-  const vh = VERSION_HISTORY.find(v => v.version === APP.currentVersion && v.assembly_id === APP.currentAssembly);
-  const isReadOnly = vh?.frozen && APP.currentVersion !== VERSION_HISTORY[VERSION_HISTORY.length-1]?.version;
+function showMarkChangedModal(){
+  const steps = STEPS.filter(s=>!s.ecn||s.ecn==='applied');
+  showModal('Mark Steps Changed',`<p class="text-sm mb-3">Select steps to mark as <strong style="color:var(--red)">changed</strong>:</p>
+    <div style="max-height:280px;overflow-y:auto">${steps.map(s=>`
+      <label style="display:flex;align-items:center;gap:8px;padding:5px 8px;cursor:pointer;font-size:12px">
+        <input type="checkbox" value="${s.id}" class="mc"><span class="mono text-dim">${s.seq}</span><span>${s.label}</span>
+      </label>`).join('')}</div>`,
+  [{label:'Cancel',cls:'btn-ghost',fn:hideModal},{label:'🔴 Mark Changed',cls:'btn-danger',fn:()=>{
+    document.querySelectorAll('.mc:checked').forEach(ch=>{const s=STEPS.find(x=>x.id===ch.value);if(s)s.ecn='changed';});
+    hideModal();toast('Steps marked as changed','warning');renderEcnTab();
+  }}]);
+}
+function showAddEcnModal(){
+  showModal('Add ECN Record',`<p class="text-sm text-muted mb-3">Mock — would save to Supabase in production.</p>
+    <div class="sp-field"><label>Step</label><select id="ecnNewStep">${STEPS.map(s=>`<option value="${s.id}">${s.seq} ${s.label}</option>`).join('')}</select></div>
+    <div class="sp-field"><label>Change Type</label><select id="ecnNewType"><option>modified</option><option>replaced</option><option>added</option><option>removed</option></select></div>
+    <div class="sp-field"><label>Description</label><textarea id="ecnNewDesc" placeholder="Change description..."></textarea></div>`,
+  [{label:'Cancel',cls:'btn-ghost',fn:hideModal},{label:'Add Record',cls:'btn-accent',fn:()=>{hideModal();toast('ECN record added (mock)','success');}}]);
+}
 
-  container.innerHTML = groups.map(g => {
-    const steps = STEPS.filter(s => s.group_id === g.id).sort((a,b) => a.sort_order - b.sort_order);
+// ====== TREE EDITOR TAB ======
+function renderTreeEditor(){
+  renderTreeList();
+  updateTreeFreezeUI();
+  updateAdminVis();
+}
+
+function switchTreeSub(sub){
+  document.querySelectorAll('[data-stab]').forEach(t=>t.classList.toggle('active',t.dataset.stab===sub));
+  document.getElementById('tree-sub-list').style.display = sub==='list'?'':'none';
+  document.getElementById('tree-sub-visual').style.display = sub==='visual'?'':'none';
+  if(sub==='visual') setTimeout(()=>renderD3Tree(),50);
+}
+
+function updateTreeFreezeUI(){
+  const ver = document.getElementById('treeVersionPicker')?.value;
+  const vh = VERSIONS.find(v=>v.ver===ver);
+  const badge = document.getElementById('treeFrozenBadge');
+  const btn = document.getElementById('treeFreezeBtn');
+  if(vh){
+    badge.style.display = vh.frozen?'':'none';
+    if(btn){btn.textContent = vh.frozen?'🔓 Unfreeze':'❄️ Freeze';}
+  }
+}
+function toggleTreeFreeze(){
+  const ver = document.getElementById('treeVersionPicker')?.value;
+  const vh = VERSIONS.find(v=>v.ver===ver);
+  if(!vh) return;
+  vh.frozen=!vh.frozen;
+  toast(vh.frozen?`v${ver} frozen 🔒`:`v${ver} unfrozen 🔓`,'info');
+  updateTreeFreezeUI();
+}
+
+function renderTreeList(){
+  const container = document.getElementById('treeListContainer');
+  const groups = GROUPS.filter(g=>g.assembly_id===(APP.currentAssy||'hbd'));
+  container.innerHTML = groups.map(g=>{
+    const steps = STEPS.filter(s=>s.gid===g.id).sort((a,b)=>a.sort-b.sort);
     return `<div class="group-block">
       <div class="group-header" onclick="this.nextElementSibling.style.display=this.nextElementSibling.style.display==='none'?'':'none'">
-        <div class="group-color-dot" style="background:${g.color}"></div>
-        <span class="group-icon">${g.icon}</span>
+        <div class="group-dot" style="background:${g.color}"></div>
+        <span>${g.icon}</span>
         <span class="group-label">${g.label}</span>
         <span class="group-count">${steps.length} steps</span>
       </div>
-      <div class="step-list">${steps.map(s => {
-        const fasteners = FASTENERS.filter(f => f.step_id === s.id);
-        const parts = PARTS.filter(p => p.step_id === s.id);
-        return `<div class="step-row" onclick="openEcnPanel('${s.id}')">
-          <span class="step-seq">${s.seq_tag || '—'}</span>
+      <div>${steps.map(s=>{
+        const fst=FASTENERS.filter(f=>f.sid===s.id);
+        const pts=PARTS.filter(p=>p.sid===s.id);
+        return `<div class="step-row" onclick="openStepPanel('${s.id}')">
+          <span class="step-seq">${s.seq}</span>
           <span class="step-name">${s.label}</span>
-          ${fasteners.length ? `<span class="badge badge-purple text-xs">🔩${fasteners.length}</span>` : ''}
-          ${parts.length ? `<span class="badge badge-blue text-xs">📦${parts.length}</span>` : ''}
-          <span class="step-ecn"><span class="ecn-dot ${s.ecn_status||'none'}"></span><span class="text-xs text-muted">${s.ecn_status||'—'}</span></span>
+          ${fst.length?`<span class="badge badge-purple" style="font-size:9px">🔩${fst.length}</span>`:''}
+          ${pts.length?`<span class="badge badge-blue" style="font-size:9px">📦${pts.length}</span>`:''}
+          <span class="ecn-dot ${s.ecn||'none'}"></span>
+          <span class="text-xs text-dim">${s.ecn||'—'}</span>
         </div>`;
       }).join('')}</div>
     </div>`;
   }).join('');
 }
-
-function filterTreeList(query) {
-  query = query.toLowerCase();
-  document.querySelectorAll('.step-row').forEach(row => {
-    const text = row.textContent.toLowerCase();
-    row.style.display = !query || text.includes(query) ? '' : 'none';
-  });
+function filterTreeSteps(q){
+  q=q.toLowerCase();
+  document.querySelectorAll('.step-row').forEach(r=>{r.style.display=!q||r.textContent.toLowerCase().includes(q)?'':'none';});
 }
 
-// ============================================================
-// ECN MAP
-// ============================================================
-function renderEcnMap() {
-  const body = document.getElementById('ecnMapBody');
-  const changes = ECN_CHANGES.filter(c => {
-    const step = STEPS.find(s => s.id === c.step_id);
-    return step;
-  });
-  body.innerHTML = changes.map(c => {
-    const step = STEPS.find(s => s.id === c.step_id);
-    return `<tr>
-      <td><span class="fw-600">${step?.label || '?'}</span><br><span class="text-xs text-muted mono">${step?.seq_tag || ''}</span></td>
-      <td><span class="ecn-change-type ${c.change_type}">${c.change_type.toUpperCase()}</span></td>
-      <td class="text-sm">${c.field}</td>
-      <td class="text-sm mono" style="color:var(--red);text-decoration:line-through">${c.old_value}</td>
-      <td class="text-sm mono" style="color:var(--green)">${c.new_value}</td>
-      <td><span class="badge badge-purple">${c.disposition}</span></td>
-      <td><span class="badge badge-blue">v${c.version}</span></td>
-    </tr>`;
-  }).join('');
-
-  // Cascade detection
-  renderCascadeWarning();
+function showAddStepModal(){
+  showModal('Add Step',`<p class="text-sm text-muted mb-3">Mock — would save to Supabase.</p>
+    <div class="sp-field"><label>Label</label><input placeholder="Step name"></div>
+    <div class="sp-field"><label>Seq Tag</label><input placeholder="e.g. 3m"></div>
+    <div class="sp-field"><label>Group</label><select>${GROUPS.map(g=>`<option>${g.icon} ${g.label}</option>`).join('')}</select></div>`,
+  [{label:'Cancel',cls:'btn-ghost',fn:hideModal},{label:'Add Step',cls:'btn-accent',fn:()=>{hideModal();toast('Step added (mock)','success');}}]);
 }
 
-function renderCascadeWarning() {
-  const container = document.getElementById('cascadeContainer');
-  const changedStepIds = STEPS.filter(s => s.ecn_status === 'changed').map(s => s.id);
-  if (changedStepIds.length === 0) { container.innerHTML = ''; return; }
+// ====== STEP SIDE PANEL ======
+function openStepPanel(sid){
+  const s = STEPS.find(x=>x.id===sid);
+  if(!s) return;
+  const g = GROUPS.find(x=>x.id===s.gid);
+  const fst = FASTENERS.filter(f=>f.sid===sid);
+  const pts = PARTS.filter(p=>p.sid===sid);
+  const ecns = ECN_CHANGES.filter(c=>c.sid===sid);
+  const isAdmin = APP.role==='admin';
 
-  const affectedUnits = UNITS.filter(u => u.version !== u.latest_version);
-  const byVersion = {};
-  affectedUnits.forEach(u => {
-    if (!byVersion[u.version]) byVersion[u.version] = [];
-    byVersion[u.version].push(u);
-  });
-
-  container.innerHTML = `
-    <div class="cascade-warn">
-      <div class="cascade-warn-title">⚠️ ECN Cascade Warning — ${changedStepIds.length} steps changed</div>
-      <div class="cascade-warn-list">
-        <p style="margin-bottom:8px;font-size:12px;color:var(--text)">${affectedUnits.length} units need ECN updates:</p>
-        ${Object.entries(byVersion).map(([ver, units]) =>
-          `<div style="margin-bottom:6px"><span class="badge badge-yellow" style="margin-right:8px">v${ver}</span>
-          <span class="text-xs text-muted">${units.length} units:</span>
-          ${units.slice(0,8).map(u => `<span class="cascade-unit">${u.sn}</span>`).join('')}
-          ${units.length > 8 ? `<span class="text-xs text-muted">+${units.length-8} more</span>` : ''}
-          </div>`
-        ).join('')}
-      </div>
-    </div>`;
-}
-
-// ============================================================
-// ECN EDIT PANEL
-// ============================================================
-function openEcnPanel(stepId) {
-  const step = STEPS.find(s => s.id === stepId);
-  if (!step) return;
-  const group = GROUPS.find(g => g.id === step.group_id);
-  const fasteners = FASTENERS.filter(f => f.step_id === stepId);
-  const parts = PARTS.filter(p => p.step_id === stepId);
-  const changes = ECN_CHANGES.filter(c => c.step_id === stepId);
-  const isAdmin = APP.role === 'admin';
-
-  document.getElementById('ecnPanelTitle').textContent = `${step.label}`;
-  document.getElementById('ecnPanelBody').innerHTML = `
-    <div style="padding:10px 12px;background:${group?.color || '#666'}22;border-left:3px solid ${group?.color || '#666'};border-radius:0 6px 6px 0;margin-bottom:16px">
-      <div class="fw-700 mono" style="font-size:14px">${step.label}</div>
-      <div class="text-xs text-muted mt-2">Level ${step.level} · ${group?.label || '?'} · ${step.seq_tag || '—'}</div>
+  document.getElementById('spTitle').textContent = s.label;
+  document.getElementById('spBody').innerHTML = `
+    <div style="padding:10px 12px;background:${g?.color||'#666'}15;border-left:3px solid ${g?.color||'#666'};border-radius:0 6px 6px 0;margin-bottom:16px">
+      <div class="fw-700 mono" style="font-size:13px">${s.label}</div>
+      <div class="text-xs text-dim mt-2">Level ${s.level} · ${g?.label||'?'} · ${s.seq}</div>
     </div>
 
-    <div class="ecn-section">
-      <div class="ecn-section-title">ECN Status</div>
-      <div class="ecn-field">
-        <label>Status</label>
-        <select id="ecn_status_sel" ${!isAdmin?'disabled':''}>
-          <option value="" ${!step.ecn_status?'selected':''}>None</option>
-          <option value="changed" ${step.ecn_status==='changed'?'selected':''}>🔴 Changed</option>
-          <option value="pending" ${step.ecn_status==='pending'?'selected':''}>🟡 Pending Review</option>
-          <option value="applied" ${step.ecn_status==='applied'?'selected':''}>🟢 Applied</option>
+    <div class="sp-section">
+      <div class="sp-section-title">ECN Status</div>
+      <div class="sp-field"><label>Status</label>
+        <select id="sp_ecn" ${!isAdmin?'disabled':''}>
+          <option value="" ${!s.ecn?'selected':''}>None</option>
+          <option value="changed" ${s.ecn==='changed'?'selected':''}>🔴 Changed</option>
+          <option value="pending" ${s.ecn==='pending'?'selected':''}>🟡 Pending</option>
+          <option value="applied" ${s.ecn==='applied'?'selected':''}>🟢 Applied</option>
         </select>
       </div>
-      ${isAdmin ? `
-      <div class="ecn-field">
-        <label>Change Description</label>
-        <textarea id="ecn_desc" placeholder="Describe the change...">${changes[0]?.description || ''}</textarea>
-      </div>
-      <div class="ecn-field">
-        <label>Disposition</label>
-        <select id="ecn_disposition">
-          <option value="">— Select —</option>
-          <option value="rework" ${changes[0]?.disposition==='rework'?'selected':''}>🔧 Rework</option>
-          <option value="replace" ${changes[0]?.disposition==='replace'?'selected':''}>🔄 Replace</option>
-          <option value="scrap" ${changes[0]?.disposition==='scrap'?'selected':''}>🗑️ Scrap</option>
-          <option value="use_as_is" ${changes[0]?.disposition==='use_as_is'?'selected':''}>✅ Use As-Is</option>
-        </select>
-      </div>` : ''}
+      ${isAdmin?`<div class="sp-field"><label>Description</label><textarea placeholder="Change description...">${ecns[0]?.desc||''}</textarea></div>
+      <div class="sp-field"><label>Disposition</label><select><option value="">— Select —</option><option ${ecns[0]?.disp==='rework'?'selected':''}>rework</option><option ${ecns[0]?.disp==='replace'?'selected':''}>replace</option><option ${ecns[0]?.disp==='scrap'?'selected':''}>scrap</option><option ${ecns[0]?.disp==='use_as_is'?'selected':''}>use_as_is</option></select></div>`:''}
     </div>
 
-    ${changes.length > 0 ? `
-    <div class="ecn-section">
-      <div class="ecn-section-title">Change History</div>
-      ${changes.map(c => `
-        <div style="padding:8px 10px;background:var(--surface2);border-radius:6px;margin-bottom:6px;font-size:12px">
-          <div class="flex items-center gap-2">
-            <span class="ecn-change-type ${c.change_type}">${c.change_type}</span>
-            <span class="fw-600">${c.field}</span>
-            <span class="badge badge-blue text-xs">v${c.version}</span>
-          </div>
-          <div class="mt-2 text-xs"><span style="color:var(--red);text-decoration:line-through">${c.old_value}</span> → <span style="color:var(--green)">${c.new_value}</span></div>
-          <div class="mt-2 text-xs text-muted">${c.description}</div>
-          <div class="mt-2"><span class="badge badge-purple text-xs">${c.disposition}</span></div>
-        </div>
-      `).join('')}
-    </div>` : ''}
+    ${ecns.length?`<div class="sp-section"><div class="sp-section-title">Change History</div>${ecns.map(c=>`
+      <div style="padding:8px 10px;background:var(--surface2);border-radius:6px;margin-bottom:6px;font-size:12px">
+        <div class="flex items-center gap-2"><span class="ecn-type ${c.type}">${c.type}</span><span class="fw-600">${c.field}</span><span class="badge badge-blue" style="font-size:9px">v${c.ver}</span></div>
+        <div class="mt-2 text-xs"><span style="color:var(--red);text-decoration:line-through">${c.old}</span> → <span style="color:var(--green)">${c.new}</span></div>
+        <div class="mt-2 text-xs text-muted">${c.desc}</div>
+      </div>`).join('')}</div>`:''}
 
-    ${fasteners.length > 0 ? `
-    <div class="ecn-section">
-      <div class="ecn-section-title">🔩 Fasteners (${fasteners.length})</div>
-      ${fasteners.map(f => `
-        <div style="padding:6px 10px;background:var(--surface2);border-radius:6px;margin-bottom:4px;font-size:12px">
-          <strong class="mono">${f.pn}</strong> ×${f.qty}
-          ${f.loctite ? `<span style="color:var(--purple);margin-left:8px">LT-${f.loctite}</span>` : ''}
-          ${f.torque ? `<span style="color:var(--yellow);margin-left:8px">${f.torque}Nm</span>` : ''}
-        </div>
-      `).join('')}
-    </div>` : ''}
+    ${fst.length?`<div class="sp-section"><div class="sp-section-title">🔩 Fasteners</div>${fst.map(f=>`
+      <div style="padding:5px 10px;background:var(--surface2);border-radius:5px;margin-bottom:4px;font-size:12px">
+        <strong class="mono">${f.pn}</strong> ×${f.qty} <span style="color:var(--purple);margin-left:8px">LT-${f.lt}</span> <span style="color:var(--yellow);margin-left:6px">${f.torque}</span>
+      </div>`).join('')}</div>`:''}
 
-    ${parts.length > 0 ? `
-    <div class="ecn-section">
-      <div class="ecn-section-title">📦 Parts (${parts.length})</div>
-      ${parts.map(p => `
-        <div style="padding:6px 10px;background:var(--surface2);border-radius:6px;margin-bottom:4px;font-size:12px">
-          <strong class="mono">${p.pn}</strong> ×${p.qty}
-        </div>
-      `).join('')}
-    </div>` : ''}
-
-    <div class="text-xs text-muted mono mt-3">ID: ${step.id} · Group: ${group?.label || '?'}</div>
+    ${pts.length?`<div class="sp-section"><div class="sp-section-title">📦 Parts</div>${pts.map(p=>`
+      <div style="padding:5px 10px;background:var(--surface2);border-radius:5px;margin-bottom:4px;font-size:12px"><strong class="mono">${p.pn}</strong> ×${p.qty}</div>`).join('')}</div>`:''}
   `;
 
-  const footer = document.getElementById('ecnPanelFooter');
-  footer.innerHTML = isAdmin ?
-    `<button class="btn btn-secondary" onclick="closeEcnPanel()">Cancel</button>
-     <button class="btn btn-primary" onclick="saveEcnEdit('${stepId}')">💾 Save</button>` :
-    `<button class="btn btn-secondary" onclick="closeEcnPanel()">Close</button>`;
-
-  document.getElementById('ecnPanel').classList.add('open');
+  document.getElementById('spFooter').innerHTML = isAdmin ?
+    `<button class="btn btn-ghost" onclick="closeSidePanel()">Cancel</button><button class="btn btn-accent" onclick="saveStep('${sid}')">💾 Save</button>` :
+    `<button class="btn btn-ghost" onclick="closeSidePanel()">Close</button>`;
+  document.getElementById('sidePanel').classList.add('open');
 }
-
-function closeEcnPanel() {
-  document.getElementById('ecnPanel').classList.remove('open');
-}
-
-function saveEcnEdit(stepId) {
-  const step = STEPS.find(s => s.id === stepId);
-  if (!step) return;
-  const newStatus = document.getElementById('ecn_status_sel').value || null;
-  step.ecn_status = newStatus;
-  closeEcnPanel();
-  toast(`ECN status updated: ${step.label} → ${newStatus || 'none'}`, 'success');
-  renderCurrentAssemblyTab();
-  if (APP.currentPage === 'tree') renderTreePage();
-}
-
-// Mark steps changed modal
-function showMarkChangedModal() {
-  const steps = STEPS.filter(s => !s.ecn_status || s.ecn_status === 'applied');
-  const html = `<p class="text-sm mb-3">Select steps to mark as <strong style="color:var(--red)">changed</strong>:</p>
-    <div style="max-height:300px;overflow-y:auto">
-    ${steps.map(s => `
-      <label style="display:flex;align-items:center;gap:8px;padding:6px 8px;cursor:pointer;border-radius:4px;font-size:12px" class="step-check-row">
-        <input type="checkbox" value="${s.id}" class="mark-check">
-        <span class="mono">${s.seq_tag || '—'}</span>
-        <span>${s.label}</span>
-      </label>
-    `).join('')}
-    </div>`;
-  showModal('Mark Steps Changed', html, [
-    { label: 'Cancel', cls: 'btn-secondary', action: hideModal },
-    { label: '🔴 Mark Changed', cls: 'btn-danger', action: doMarkChanged },
-  ]);
-}
-
-function doMarkChanged() {
-  const checks = document.querySelectorAll('.mark-check:checked');
-  checks.forEach(ch => {
-    const step = STEPS.find(s => s.id === ch.value);
-    if (step) step.ecn_status = 'changed';
-  });
-  hideModal();
-  toast(`${checks.length} steps marked as changed`, 'warning');
-  renderCurrentAssemblyTab();
+function closeSidePanel(){document.getElementById('sidePanel').classList.remove('open');}
+function saveStep(sid){
+  const s=STEPS.find(x=>x.id===sid);if(!s)return;
+  s.ecn = document.getElementById('sp_ecn')?.value||null;
+  closeSidePanel();toast(`${s.label} updated`,'success');
+  renderTreeList();renderEcnTab();
 }
 
 // ============================================================
-// D3 TREE VISUALIZATION
+// D3 TREE
 // ============================================================
-const LEVEL_COLORS = ['#a5d6a7','#e1bee7','#b3e5fc','#c8e6c9','#fff9c4','#ffe0b2','#ffcdd2','#e8e8e8'];
-const LEVEL_SHAPES = ['stadium','octagon','hexagon','pentagon','diamond','rounded_rectangle','rectangle','parallelogram'];
-let zoomBehavior = null, currentTransform = d3.zoomIdentity;
+const LV_COLORS = ['#a5d6a7','#e1bee7','#b3e5fc','#c8e6c9','#fff9c4','#ffe0b2','#ffcdd2','#e8e8e8'];
+let zoom_bh = null;
 
-function renderTreePage() {
-  const container = document.getElementById('treeContainer');
-  const svg = d3.select('#treeSvg');
-  svg.selectAll('*').remove();
-  const w = container.clientWidth, h = container.clientHeight;
-  svg.attr('width', w).attr('height', h);
+function renderD3Tree(){
+  const ctr = document.getElementById('treeContainer');
+  const svg = d3.select('#treeSvg'); svg.selectAll('*').remove();
+  const w=ctr.clientWidth, h=ctr.clientHeight;
+  svg.attr('width',w).attr('height',h);
 
-  // Build node data
-  const nodes = STEPS.map(s => ({
-    ...s,
-    goesInto: LINKS.filter(l => l.child_step_id === s.id).map(l => l.parent_step_id),
-    receivesFrom: LINKS.filter(l => l.parent_step_id === s.id).map(l => l.child_step_id),
-    groupData: GROUPS.find(g => g.id === s.group_id),
-  }));
-  const links = LINKS;
+  const nodes = STEPS.map(s=>({...s,groupData:GROUPS.find(g=>g.id===s.gid)}));
+  if(!nodes.length) return;
 
-  if (nodes.length === 0) return;
+  // Layout
+  const nodeW=120,nodeH=34,vGap=52,topPad=70,leftPad=80;
+  const gaps=[260,220,200,180,160,140,130];
+  const levelGroups={};let maxLv=1;
+  nodes.forEach(n=>{const lv=n.level||1;if(!levelGroups[lv])levelGroups[lv]=[];levelGroups[lv].push(n);maxLv=Math.max(maxLv,lv);});
+  const levels=Object.keys(levelGroups).map(Number).sort((a,b)=>b-a);
+  const colX={};let cx=leftPad;
+  levels.forEach((lv,i)=>{colX[lv]=cx;if(i<levels.length-1)cx+=gaps[Math.min(Math.min(lv,levels[i+1])-1,6)]||140;});
 
-  // Calculate tree layout
-  const layout = calcTreeLayout(nodes, links);
-  const { positions, levels, columnXMap, topPadding, separatorLines } = layout;
+  const p2c={},c2p={};
+  LINKS.forEach(l=>{if(!p2c[l.p])p2c[l.p]=[];p2c[l.p].push(l.c);if(!c2p[l.c])c2p[l.c]=[];c2p[l.c].push(l.p);});
 
-  // Apply positions
-  nodes.forEach(n => {
-    const p = positions[n.id];
-    if (p) { n.tx = p.x; n.ty = p.y; n.tw = p.w; n.th = p.h; }
+  // Group subtrees from L2
+  const grps=[],vis=new Set();
+  nodes.filter(n=>n.level===2).sort((a,b)=>a.sort-b.sort).forEach(root=>{
+    if(vis.has(root.id)) return;
+    const g={ids:new Set()},q=[root.id];
+    while(q.length){const nid=q.shift();if(g.ids.has(nid))continue;g.ids.add(nid);vis.add(nid);(p2c[nid]||[]).forEach(c=>{if(!g.ids.has(c))q.push(c);});}
+    (c2p[root.id]||[]).forEach(pid=>{g.ids.add(pid);vis.add(pid);});
+    grps.push(g);
+  });
+  const unv=nodes.filter(n=>!vis.has(n.id));
+  if(unv.length&&grps.length) unv.forEach(n=>grps[grps.length-1].ids.add(n.id));
+  else if(unv.length) grps.push({ids:new Set(unv.map(n=>n.id))});
+
+  const pos={};let gStartY=topPad+40;
+  grps.forEach(group=>{
+    levels.forEach(lv=>{
+      const inLv=(levelGroups[lv]||[]).filter(n=>group.ids.has(n.id)).sort((a,b)=>a.sort-b.sort);
+      inLv.forEach((node,idx)=>{
+        const children=(p2c[node.id]||[]).filter(c=>group.ids.has(c));
+        let y=gStartY+idx*vGap;
+        if(children.length && children.some(c=>pos[c]?.y>0)){
+          const ys=children.map(c=>pos[c]?.y).filter(Boolean);y=(Math.min(...ys)+Math.max(...ys))/2;
+        }
+        pos[node.id]={x:colX[lv],y,w:nodeW-12,h:nodeH-4};
+      });
+      inLv.sort((a,b)=>(pos[a.id]?.y||0)-(pos[b.id]?.y||0));
+      let lastY=gStartY-vGap;
+      inLv.forEach(n=>{if(pos[n.id].y<lastY+vGap)pos[n.id].y=lastY+vGap;lastY=pos[n.id].y;});
+    });
+    const maxY=Math.max(...nodes.filter(n=>group.ids.has(n.id)).map(n=>pos[n.id]?.y||0));
+    gStartY=maxY+vGap+30;
   });
 
-  const g = svg.append('g').attr('class','zoom-group');
-
-  // Zoom
-  zoomBehavior = d3.zoom().scaleExtent([0.1, 3]).on('zoom', e => { currentTransform = e.transform; g.attr('transform', e.transform); });
-  svg.call(zoomBehavior);
-
-  // Arrow marker
-  const defs = svg.append('defs');
-  defs.append('marker').attr('id','arrow').attr('viewBox','0 0 10 10')
-    .attr('refX',9).attr('refY',5).attr('orient','auto').attr('markerWidth',5).attr('markerHeight',5)
-    .append('path').attr('d','M 0,1 L 8,5 L 0,9 z').attr('fill','#475569');
-
-  // Level headers
-  if (APP.treeShowLevels) {
-    levels.forEach(lv => {
-      const hx = columnXMap[lv];
-      g.append('rect').attr('x',hx-48).attr('y',topPadding-5).attr('width',96).attr('height',28).attr('rx',5).attr('fill','#2563eb').attr('opacity',0.85);
-      g.append('text').attr('x',hx).attr('y',topPadding+14).attr('text-anchor','middle').attr('fill','white').attr('font-size','12px').attr('font-weight','600').attr('font-family','JetBrains Mono,monospace').text(`L${lv}`);
+  // 3 centering passes
+  for(let p=0;p<3;p++){
+    [...levels].reverse().forEach(lv=>{
+      (levelGroups[lv]||[]).forEach(node=>{
+        const ch=(p2c[node.id]||[]).filter(c=>pos[c]);
+        if(ch.length){const ys=ch.map(c=>pos[c].y);pos[node.id].y=(Math.min(...ys)+Math.max(...ys))/2;}
+      });
+      const inLv=(levelGroups[lv]||[]).sort((a,b)=>(pos[a.id]?.y||0)-(pos[b.id]?.y||0));
+      let lastY=topPad;
+      inLv.forEach(n=>{if(pos[n.id].y<lastY+vGap)pos[n.id].y=lastY+vGap;lastY=pos[n.id].y;});
     });
   }
 
-  // Separator lines
-  if (APP.treeShowSep && separatorLines.length) {
-    const maxX = Math.max(...Object.values(columnXMap)) + 200;
-    separatorLines.forEach(sy => {
-      g.append('line').attr('x1',20).attr('y1',sy).attr('x2',maxX).attr('y2',sy)
-        .attr('stroke','#30363d').attr('stroke-width',1).attr('stroke-dasharray','8,4').attr('opacity',0.7);
+  nodes.forEach(n=>{const p2=pos[n.id];if(p2){n.tx=p2.x;n.ty=p2.y;n.tw=p2.w;n.th=p2.h;}});
+
+  const g=svg.append('g');
+  zoom_bh=d3.zoom().scaleExtent([0.1,3]).on('zoom',e=>g.attr('transform',e.transform));
+  svg.call(zoom_bh);
+
+  // Level headers
+  if(APP.treeShowLevels){
+    levels.forEach(lv=>{
+      g.append('rect').attr('x',colX[lv]-40).attr('y',topPad-4).attr('width',80).attr('height',24).attr('rx',4).attr('fill','#2563eb').attr('opacity',0.85);
+      g.append('text').attr('x',colX[lv]).attr('y',topPad+12).attr('text-anchor','middle').attr('fill','white').attr('font-size','11px').attr('font-weight','700').attr('font-family','JetBrains Mono,monospace').text(`L${lv}`);
     });
   }
 
   // Links
-  links.forEach(ld => {
-    const src = nodes.find(n => n.id === ld.child_step_id);
-    const tgt = nodes.find(n => n.id === ld.parent_step_id);
-    if (!src || !tgt) return;
-    const sx = src.tx + src.tw/2, sy = src.ty;
-    const tx = tgt.tx - tgt.tw/2, ty = tgt.ty;
-    const mx = (sx + tx) / 2;
-    g.append('path').attr('d', `M ${sx} ${sy} C ${mx} ${sy}, ${mx} ${ty}, ${tx} ${ty}`)
-      .attr('stroke','#475569').attr('stroke-width',1.5).attr('fill','none').attr('marker-end','url(#arrow)');
+  LINKS.forEach(ld=>{
+    const src=nodes.find(n=>n.id===ld.c),tgt=nodes.find(n=>n.id===ld.p);
+    if(!src||!tgt||!src.tx||!tgt.tx) return;
+    const sx=src.tx+src.tw/2,sy=src.ty,tx=tgt.tx-tgt.tw/2,ty=tgt.ty,mx=(sx+tx)/2;
+    g.append('path').attr('d',`M${sx} ${sy} C${mx} ${sy},${mx} ${ty},${tx} ${ty}`)
+      .attr('stroke','#475569').attr('stroke-width',1.4).attr('fill','none');
   });
 
   // Nodes
-  const nodeEls = g.selectAll('.node').data(nodes, d => d.id).enter().append('g').attr('class','node')
-    .attr('transform', d => `translate(${d.tx},${d.ty})`);
-
-  nodeEls.each(function(d) {
-    const grp = d3.select(this);
-    const color = APP.treeColorMode === 'group' && d.groupData ? d.groupData.color : LEVEL_COLORS[Math.min((d.level||1)-1, 7)];
-    const hw = d.tw/2, hh = d.th/2;
-    const shape = LEVEL_SHAPES[Math.min((d.level||1)-1, 7)];
-
-    // Shape
-    if (shape === 'stadium') {
-      grp.append('rect').attr('x',-hw).attr('y',-hh).attr('width',d.tw).attr('height',d.th).attr('rx',hh).attr('ry',hh).attr('fill',color).attr('stroke',darken(color)).attr('stroke-width',1.5);
-    } else if (shape === 'hexagon') {
-      const pts = `${-hw+8},${-hh} ${hw-8},${-hh} ${hw},0 ${hw-8},${hh} ${-hw+8},${hh} ${-hw},0`;
-      grp.append('polygon').attr('points',pts).attr('fill',color).attr('stroke',darken(color)).attr('stroke-width',1.5);
-    } else if (shape === 'octagon') {
-      const c = Math.min(hw,hh)*0.35;
-      const pts = `${-hw+c},${-hh} ${hw-c},${-hh} ${hw},${-hh+c} ${hw},${hh-c} ${hw-c},${hh} ${-hw+c},${hh} ${-hw},${hh-c} ${-hw},${-hh+c}`;
-      grp.append('polygon').attr('points',pts).attr('fill',color).attr('stroke',darken(color)).attr('stroke-width',1.5);
-    } else if (shape === 'diamond') {
-      const pts = `0,${-hh} ${hw},0 0,${hh} ${-hw},0`;
-      grp.append('polygon').attr('points',pts).attr('fill',color).attr('stroke',darken(color)).attr('stroke-width',1.5);
-    } else if (shape === 'pentagon') {
-      const a=(2*Math.PI)/5,sa=-Math.PI/2,rx=hw*0.85,ry=hh*0.9;
-      const pts = Array.from({length:5},(_,i)=>`${rx*Math.cos(sa+i*a)},${ry*Math.sin(sa+i*a)}`).join(' ');
-      grp.append('polygon').attr('points',pts).attr('fill',color).attr('stroke',darken(color)).attr('stroke-width',1.5);
-    } else {
-      grp.append('rect').attr('x',-hw).attr('y',-hh).attr('width',d.tw).attr('height',d.th).attr('rx',4).attr('fill',color).attr('stroke',darken(color)).attr('stroke-width',1.5);
-    }
-
-    // ECN dot
-    const ecnColors = { changed:'#dc2626', pending:'#d97706', applied:'#059669' };
-    grp.append('circle').attr('cx',-hw+9).attr('cy',-hh+9).attr('r',4).attr('fill',ecnColors[d.ecn_status]||'#6e7681').attr('stroke','white').attr('stroke-width',1.5);
-
-    // Label
-    const fs = Math.min(12 - (d.level - 1), 10);
-    grp.append('text').attr('text-anchor','middle').attr('y',3).attr('font-size',fs+'px').attr('font-weight', d.level <= 2 ? 700 : 500)
-      .attr('fill','#0d1117').attr('font-family','DM Sans,sans-serif').text(d.label);
-
-    // Seq tag
-    if (d.seq_tag && APP.treeShowSeq) {
-      grp.append('text').attr('x',hw+6).attr('y',-hh+4).attr('font-size','11px').attr('font-weight',700)
-        .attr('fill','#e6edf3').attr('font-family','JetBrains Mono,monospace').text(d.seq_tag);
-    }
-
-    // Group icon
-    if (d.groupData?.icon) {
-      grp.append('text').attr('x',hw-6).attr('y',-hh-3).attr('text-anchor','middle').attr('font-size','10px').text(d.groupData.icon);
-    }
-
-    // Fastener badge
-    const fCount = FASTENERS.filter(f => f.step_id === d.id).length;
-    if (fCount > 0) {
-      grp.append('circle').attr('cx',-hw+9).attr('cy',hh-5).attr('r',6).attr('fill','#6366f1').attr('stroke','white').attr('stroke-width',1);
-      grp.append('text').attr('x',-hw+9).attr('y',hh-2).attr('text-anchor','middle').attr('font-size','6px').attr('fill','white').attr('font-weight',700).text(`🔩${fCount}`);
-    }
+  const nodeEls=g.selectAll('.node').data(nodes,d=>d.id).enter().append('g').attr('class','node').attr('transform',d=>`translate(${d.tx},${d.ty})`);
+  nodeEls.each(function(d){
+    const el=d3.select(this);
+    const color=APP.treeColorMode==='group'&&d.groupData?d.groupData.color:LV_COLORS[Math.min((d.level||1)-1,7)];
+    const hw=d.tw/2,hh=d.th/2;
+    el.append('rect').attr('x',-hw).attr('y',-hh).attr('width',d.tw).attr('height',d.th).attr('rx',hh>16?hh:5).attr('fill',color).attr('stroke',darken(color)).attr('stroke-width',1.5);
+    const ecnC={changed:'#ef4444',pending:'#eab308',applied:'#22c55e'};
+    if(d.ecn) el.append('circle').attr('cx',-hw+8).attr('cy',-hh+8).attr('r',4).attr('fill',ecnC[d.ecn]||'#5c6080').attr('stroke','white').attr('stroke-width',1.2);
+    el.append('text').attr('text-anchor','middle').attr('y',3).attr('font-size',Math.min(11-(d.level-1)*0.5,10)+'px')
+      .attr('font-weight',d.level<=2?700:500).attr('fill','#0c0e1a').attr('font-family','DM Sans,sans-serif').text(d.label);
+    if(d.seq&&APP.treeShowSeq) el.append('text').attr('x',hw+5).attr('y',-hh+4).attr('font-size','10px').attr('font-weight',700).attr('fill','#e8eaf0').attr('font-family','JetBrains Mono,monospace').text(d.seq);
   });
+  nodeEls.on('click',(e,d)=>{e.stopPropagation();openStepPanel(d.id);});
 
-  // Click to open ECN panel
-  nodeEls.on('click', (e, d) => { e.stopPropagation(); openEcnPanel(d.id); });
-
-  // Legend
-  const legend = document.getElementById('treeLegend');
-  legend.innerHTML = levels.map(lv => `<span><span class="legend-swatch" style="background:${LEVEL_COLORS[Math.min(lv-1,7)]}"></span>L${lv}</span>`).join('');
-
-  // Fit
-  setTimeout(() => treeFit(), 200);
+  setTimeout(()=>treeFit(),200);
 }
 
-function calcTreeLayout(nodes, links) {
-  const levelGroups = {};
-  let maxLevel = 1;
-  nodes.forEach(n => {
-    const lv = n.level || 1;
-    if (!levelGroups[lv]) levelGroups[lv] = [];
-    levelGroups[lv].push(n);
-    maxLevel = Math.max(maxLevel, lv);
-  });
-
-  const nodeW = 130, nodeH = 38, vGap = 58, groupGap = 35;
-  const topPadding = 70, leftPadding = 100;
-  const defaultGaps = [280, 240, 210, 190, 170, 150, 140];
-  const levels = Object.keys(levelGroups).map(Number).sort((a,b) => b - a);
-
-  const columnXMap = {};
-  let cumX = leftPadding;
-  levels.forEach((lv, i) => {
-    columnXMap[lv] = cumX;
-    if (i < levels.length - 1) {
-      const lower = Math.min(lv, levels[i+1]);
-      cumX += defaultGaps[Math.min(lower-1, 6)] || 150;
-    }
-  });
-
-  const p2c = {}, c2p = {};
-  links.forEach(l => {
-    if (!p2c[l.parent_step_id]) p2c[l.parent_step_id] = [];
-    p2c[l.parent_step_id].push(l.child_step_id);
-    if (!c2p[l.child_step_id]) c2p[l.child_step_id] = [];
-    c2p[l.child_step_id].push(l.parent_step_id);
-  });
-
-  // Detect groups from L2
-  const groups = [], visited = new Set();
-  const l2 = nodes.filter(n => n.level === 2).sort((a,b) => a.sort_order - b.sort_order);
-  l2.forEach(root => {
-    if (visited.has(root.id)) return;
-    const grp = { nodeIds: new Set() };
-    const q = [root.id];
-    while (q.length) {
-      const nid = q.shift();
-      if (grp.nodeIds.has(nid)) continue;
-      grp.nodeIds.add(nid); visited.add(nid);
-      (p2c[nid]||[]).forEach(c => { if (!grp.nodeIds.has(c)) q.push(c); });
-    }
-    (c2p[root.id]||[]).forEach(pid => { grp.nodeIds.add(pid); visited.add(pid); });
-    groups.push(grp);
-  });
-  const unv = nodes.filter(n => !visited.has(n.id));
-  if (unv.length && groups.length) unv.forEach(n => groups[groups.length-1].nodeIds.add(n.id));
-  else if (unv.length) groups.push({ nodeIds: new Set(unv.map(n=>n.id)) });
-
-  const positions = {};
-  let groupStartY = topPadding + 40;
-
-  groups.forEach(group => {
-    levels.forEach(lv => {
-      const nodesInLv = (levelGroups[lv]||[]).filter(n => group.nodeIds.has(n.id)).sort((a,b) => a.sort_order - b.sort_order);
-      nodesInLv.forEach((node, idx) => {
-        const children = (p2c[node.id]||[]).filter(c => group.nodeIds.has(c));
-        let y = groupStartY + idx * vGap;
-        if (children.length && children.some(c => positions[c]?.y > 0)) {
-          const ys = children.map(c => positions[c]?.y).filter(Boolean);
-          y = (Math.min(...ys) + Math.max(...ys)) / 2;
-        }
-        positions[node.id] = { x: columnXMap[lv], y, w: nodeW - 16, h: nodeH - 6 };
-      });
-      // Resolve overlaps
-      nodesInLv.sort((a,b) => (positions[a.id]?.y||0) - (positions[b.id]?.y||0));
-      let lastY = groupStartY - vGap;
-      nodesInLv.forEach(n => {
-        if (positions[n.id].y < lastY + vGap) positions[n.id].y = lastY + vGap;
-        lastY = positions[n.id].y;
-      });
-    });
-    const gNodes = nodes.filter(n => group.nodeIds.has(n.id));
-    const maxY = Math.max(...gNodes.map(n => positions[n.id]?.y || 0));
-    groupStartY = maxY + vGap + groupGap;
-  });
-
-  // 3-pass centering
-  for (let pass = 0; pass < 3; pass++) {
-    [...levels].reverse().forEach(lv => {
-      (levelGroups[lv]||[]).forEach(node => {
-        const children = (p2c[node.id]||[]).filter(c => positions[c]);
-        if (children.length) {
-          const ys = children.map(c => positions[c].y);
-          positions[node.id].y = (Math.min(...ys) + Math.max(...ys)) / 2;
-        }
-      });
-      const nodesInLv = (levelGroups[lv]||[]).sort((a,b) => (positions[a.id]?.y||0) - (positions[b.id]?.y||0));
-      let lastY = topPadding;
-      nodesInLv.forEach(n => {
-        if (positions[n.id].y < lastY + vGap) positions[n.id].y = lastY + vGap;
-        lastY = positions[n.id].y;
-      });
-    });
-  }
-
-  // Separator lines
-  const separatorLines = [];
-  for (let i = 0; i < groups.length - 1; i++) {
-    const g1Ys = nodes.filter(n => groups[i].nodeIds.has(n.id)).map(n => positions[n.id]?.y||0);
-    const g2Ys = nodes.filter(n => groups[i+1].nodeIds.has(n.id)).map(n => positions[n.id]?.y||0);
-    if (g1Ys.length && g2Ys.length) separatorLines.push((Math.max(...g1Ys) + Math.min(...g2Ys)) / 2);
-  }
-
-  return { positions, levels, columnXMap, topPadding, separatorLines };
+function darken(hex,pct=30){
+  hex=hex.replace('#','');
+  let r=parseInt(hex.substring(0,2),16),g=parseInt(hex.substring(2,4),16),b=parseInt(hex.substring(4,6),16);
+  return `#${Math.max(0,Math.floor(r*(100-pct)/100)).toString(16).padStart(2,'0')}${Math.max(0,Math.floor(g*(100-pct)/100)).toString(16).padStart(2,'0')}${Math.max(0,Math.floor(b*(100-pct)/100)).toString(16).padStart(2,'0')}`;
 }
 
-function darken(hex, pct=30) {
-  hex = hex.replace('#','');
-  let r = parseInt(hex.substring(0,2),16), g = parseInt(hex.substring(2,4),16), b = parseInt(hex.substring(4,6),16);
-  r = Math.max(0, Math.floor(r*(100-pct)/100));
-  g = Math.max(0, Math.floor(g*(100-pct)/100));
-  b = Math.max(0, Math.floor(b*(100-pct)/100));
-  return `#${r.toString(16).padStart(2,'0')}${g.toString(16).padStart(2,'0')}${b.toString(16).padStart(2,'0')}`;
+function toggleTreeOpt(opt){
+  if(opt==='seq'){APP.treeShowSeq=!APP.treeShowSeq;document.getElementById('tcSeq').classList.toggle('active');}
+  if(opt==='levels'){APP.treeShowLevels=!APP.treeShowLevels;document.getElementById('tcLvl').classList.toggle('active');}
+  renderD3Tree();
 }
-
-// Tree controls
-function toggleTreeSeq() { APP.treeShowSeq = !APP.treeShowSeq; document.getElementById('treeSeqBtn').classList.toggle('active'); renderTreePage(); }
-function toggleTreeLevels() { APP.treeShowLevels = !APP.treeShowLevels; document.getElementById('treeLevelBtn').classList.toggle('active'); renderTreePage(); }
-function toggleTreeSep() { APP.treeShowSep = !APP.treeShowSep; document.getElementById('treeSepBtn').classList.toggle('active'); renderTreePage(); }
-function switchTreeColorMode(mode) { APP.treeColorMode = mode; renderTreePage(); }
-function treeZoomIn() { d3.select('#treeSvg').transition().duration(300).call(zoomBehavior.scaleBy, 1.3); }
-function treeZoomOut() { d3.select('#treeSvg').transition().duration(300).call(zoomBehavior.scaleBy, 0.7); }
-function treeFit() {
-  const nodes = STEPS;
-  if (!nodes.length || !zoomBehavior) return;
-  const c = document.getElementById('treeContainer');
+function treeZoom(factor){d3.select('#treeSvg').transition().duration(300).call(zoom_bh.scaleBy,factor);}
+function treeFit(){
+  if(!zoom_bh) return;
+  const c=document.getElementById('treeContainer');
   let mnX=Infinity,mxX=-Infinity,mnY=Infinity,mxY=-Infinity;
-  nodes.forEach(n => {
-    if (n.tx==null) return;
-    mnX=Math.min(mnX,n.tx-80);mxX=Math.max(mxX,n.tx+80);mnY=Math.min(mnY,n.ty-30);mxY=Math.max(mxY,n.ty+30);
-  });
-  if (mnX === Infinity) return;
-  const cw=c.clientWidth-40, ch=c.clientHeight-40;
-  const scale=Math.min(cw/(mxX-mnX), ch/(mxY-mnY), 1.5)*0.85;
-  const cx=(mnX+mxX)/2, cy=(mnY+mxY)/2;
-  const t = d3.zoomIdentity.translate(cw/2-cx*scale+20, ch/2-cy*scale+20).scale(scale);
-  d3.select('#treeSvg').transition().duration(500).call(zoomBehavior.transform, t);
+  STEPS.forEach(n=>{if(n.tx==null)return;mnX=Math.min(mnX,n.tx-70);mxX=Math.max(mxX,n.tx+70);mnY=Math.min(mnY,n.ty-25);mxY=Math.max(mxY,n.ty+25);});
+  if(mnX===Infinity)return;
+  const cw=c.clientWidth-40,ch=c.clientHeight-40;
+  const scale=Math.min(cw/(mxX-mnX),ch/(mxY-mnY),1.4)*0.85;
+  const cx2=(mnX+mxX)/2,cy2=(mnY+mxY)/2;
+  d3.select('#treeSvg').transition().duration(400).call(zoom_bh.transform,d3.zoomIdentity.translate(cw/2-cx2*scale+20,ch/2-cy2*scale+20).scale(scale));
 }
 
 // ============================================================
 // UI HELPERS
 // ============================================================
-function toast(msg, type='info') {
-  const c = document.getElementById('toastContainer');
-  const t = document.createElement('div'); t.className = `toast ${type}`; t.textContent = msg;
-  c.appendChild(t);
-  setTimeout(() => { t.style.opacity='0'; t.style.transform='translateY(-20px)'; setTimeout(()=>t.remove(),300); }, 3000);
+function toast(msg,type='info'){
+  const c=document.getElementById('toastBox');
+  const t=document.createElement('div');t.className=`toast ${type}`;t.textContent=msg;c.appendChild(t);
+  setTimeout(()=>{t.style.opacity='0';t.style.transform='translateY(-20px)';setTimeout(()=>t.remove(),300);},3000);
 }
-function showModal(title, content, buttons=[]) {
-  document.getElementById('modalTitle').textContent = title;
-  document.getElementById('modalBody').innerHTML = content;
-  const footer = document.getElementById('modalFooter');
-  footer.innerHTML = buttons.map(b => `<button class="btn ${b.cls||'btn-primary'}">${b.label}</button>`).join('');
-  footer.querySelectorAll('button').forEach((el,i) => { if (buttons[i]?.action) el.onclick = buttons[i].action; });
+function showModal(title,html,btns=[]){
+  document.getElementById('modalTitle').textContent=title;
+  document.getElementById('modalBody').innerHTML=html;
+  const f=document.getElementById('modalFooter');
+  f.innerHTML=btns.map(b=>`<button class="btn ${b.cls||'btn-primary'}">${b.label}</button>`).join('');
+  f.querySelectorAll('button').forEach((el,i)=>{if(btns[i]?.fn)el.onclick=btns[i].fn;});
   document.getElementById('modalOverlay').classList.add('show');
 }
-function hideModal() { document.getElementById('modalOverlay').classList.remove('show'); }
-
-function showAddStepModal() {
-  showModal('Add Step', `<p class="text-sm text-muted mb-3">This is a mock — real version would save to Supabase.</p>
-    <div class="ecn-field"><label>Label</label><input id="new_step_label" placeholder="Step name"></div>
-    <div class="ecn-field"><label>Seq Tag</label><input id="new_step_seq" placeholder="e.g. 3m"></div>
-  `, [
-    { label: 'Cancel', cls: 'btn-secondary', action: hideModal },
-    { label: 'Add', cls: 'btn-primary', action: () => { toast('Step added (mock)', 'success'); hideModal(); }},
-  ]);
-}
+function hideModal(){document.getElementById('modalOverlay').classList.remove('show');}
 
 // ============================================================
 // INIT
 // ============================================================
-document.addEventListener('DOMContentLoaded', () => {
-  renderHome();
-  updateAdminUI();
-});
+document.addEventListener('DOMContentLoaded',()=>{renderHome();});
 </script>
 </body>
 </html>

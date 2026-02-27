@@ -383,9 +383,7 @@ function renderHome(){
   return `
   <div class="home-wrap">
     <div class="home-admin">
-      <div class="admin-pill" data-action="editor" style="cursor:pointer" title="Open Tree Editor"
-        onmouseenter="this.style.background='rgba(245,158,11,0.18)';this.style.borderColor='rgba(245,158,11,0.4)'"
-        onmouseleave="this.style.background='rgba(245,158,11,0.08)';this.style.borderColor='rgba(245,158,11,0.2)'">🔧 Admin · Aniket</div>
+      <div class="admin-pill">🔧 Admin · Aniket</div>
       <button class="btn-sm" style="background:transparent;color:var(--muted)" onclick="toast('Logout mock')">Logout</button>
       <div style="width:24px;height:24px;border-radius:50%;background:linear-gradient(135deg,#f59e0b,#e8952e);border:2px solid var(--border)"></div>
     </div>
@@ -393,6 +391,20 @@ function renderHome(){
     <div class="home-hero">
       <div class="home-logo"><span class="sym">◈</span>EagleEye</div>
       <div class="home-sub">Assembly version tracking & ECN management</div>
+    </div>
+
+    <!-- Tree Editor Nav Card (Admin only) -->
+    <div class="nav-cards">
+      <div class="nav-card" style="border:2px solid rgba(139,92,246,0.25)" data-action="editor"
+        onmouseenter="this.style.borderColor='#8b5cf6';this.style.boxShadow='0 8px 32px rgba(139,92,246,0.15)'"
+        onmouseleave="this.style.borderColor='rgba(139,92,246,0.25)';this.style.boxShadow='none'">
+        <div class="nc-icon">🔧</div>
+        <div class="nc-title" style="color:#8b5cf6">Tree Editor</div>
+        <div class="nc-desc">Manage assembly steps, parts, fasteners. Version control with freeze/duplicate. Mark ECN changes & dispositions.</div>
+        <div class="nc-tags">
+          <span class="badge" style="background:rgba(139,92,246,0.12);color:#8b5cf6">Admin only</span>
+        </div>
+      </div>
     </div>
 
     <div style="max-width:860px;width:100%;padding:0 24px">

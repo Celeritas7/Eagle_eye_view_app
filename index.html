@@ -49,21 +49,21 @@ input[type=number]::-webkit-inner-spin-button,input[type=number]::-webkit-outer-
 .unit-card.selected{border:2px solid var(--accent);background:rgba(245,158,11,0.03)}
 
 /* ASSEMBLY VIEW */
-.av-header{display:flex;align-items:center;gap:8px;padding:6px 14px;border-bottom:1px solid var(--border);background:#0e0f15;position:sticky;top:0;z-index:10;flex-wrap:wrap}
-.av-tabs{display:flex;align-items:center;gap:0;padding:0 14px;border-bottom:1px solid var(--border);background:#0e0f15}
-.av-tab{display:flex;align-items:center;gap:4px;padding:7px 14px;font-size:11px;font-weight:500;color:var(--muted);background:transparent;border:none;cursor:pointer;border-bottom:2px solid transparent;font-family:'DM Sans',sans-serif}
+.av-header{display:flex;align-items:center;gap:10px;padding:10px 20px;border-bottom:1px solid var(--border);background:#0e0f15;position:sticky;top:0;z-index:10;flex-wrap:wrap}
+.av-tabs{display:flex;align-items:center;gap:0;padding:0 20px;border-bottom:1px solid var(--border);background:#0e0f15}
+.av-tab{display:flex;align-items:center;gap:6px;padding:12px 20px;font-size:15px;font-weight:500;color:var(--muted);background:transparent;border:none;cursor:pointer;border-bottom:2px solid transparent;font-family:'DM Sans',sans-serif}
 .av-tab.active{font-weight:700;color:var(--accent);border-bottom-color:var(--accent)}
-.av-tab .count{font-size:8px;font-weight:700;padding:1px 4px;border-radius:5px;background:rgba(239,68,68,0.15);color:var(--red);font-family:'JetBrains Mono',monospace}
-.av-tab .soon{font-size:7px;font-weight:700;padding:1px 4px;border-radius:3px;background:rgba(58,61,77,0.2);color:var(--dim);font-family:'JetBrains Mono',monospace}
-.ecn-banner{margin:8px 14px 0;padding:8px 12px;border-radius:8px;background:rgba(239,68,68,0.04);border:1px solid rgba(239,68,68,0.1)}
-.ecn-item{display:flex;align-items:center;gap:6px;padding:5px 8px;border-radius:5px;cursor:pointer;margin-bottom:2px;border:1px solid var(--border);background:var(--card);transition:all 0.1s;font-size:11px}
+.av-tab .count{font-size:10px;font-weight:700;padding:2px 6px;border-radius:6px;background:rgba(239,68,68,0.15);color:var(--red);font-family:'JetBrains Mono',monospace}
+.av-tab .soon{font-size:9px;font-weight:700;padding:2px 6px;border-radius:4px;background:rgba(58,61,77,0.2);color:var(--dim);font-family:'JetBrains Mono',monospace}
+.ecn-banner{margin:12px 20px 0;padding:12px 16px;border-radius:10px;background:rgba(239,68,68,0.04);border:1px solid rgba(239,68,68,0.1)}
+.ecn-item{display:flex;align-items:center;gap:10px;padding:10px 14px;border-radius:8px;cursor:pointer;margin-bottom:4px;border:1px solid var(--border);background:var(--card);transition:all 0.1s;font-size:14px}
 .ecn-item:hover{border-color:var(--muted)}
 .ecn-item.done{background:rgba(34,197,94,0.04);border-color:rgba(34,197,94,0.1)}
 .ecn-item.blocked{opacity:0.5;cursor:not-allowed}
-.tree-list{padding:8px 14px}
-.grp-hdr{display:flex;align-items:center;gap:5px;padding:5px 8px;border-radius:6px;cursor:pointer}
+.tree-list{padding:12px 20px}
+.grp-hdr{display:flex;align-items:center;gap:8px;padding:10px 12px;border-radius:8px;cursor:pointer}
 .grp-hdr:hover{background:rgba(255,255,255,0.02)}
-.step-row{display:flex;align-items:center;gap:5px;padding:3px 6px 3px 22px;cursor:pointer;border-radius:4px;font-size:11px}
+.step-row{display:flex;align-items:center;gap:10px;padding:8px 10px 8px 16px;cursor:pointer;border-radius:6px;font-size:14px}
 .step-row:hover{background:rgba(255,255,255,0.02)}
 
 /* TREE EDITOR */
@@ -88,7 +88,7 @@ input[type=number]::-webkit-inner-spin-button,input[type=number]::-webkit-outer-
 
 /* MODAL */
 .cm-overlay{position:fixed;inset:0;z-index:100;background:rgba(0,0,0,0.65);backdrop-filter:blur(4px);display:flex;align-items:center;justify-content:center}
-.cm-box{background:var(--modal);border-radius:12px;width:min(440px,92vw);max-height:80vh;box-shadow:0 12px 40px rgba(0,0,0,0.6);border:1px solid var(--border);overflow:hidden;display:flex;flex-direction:column}
+.cm-box{background:var(--modal);border-radius:14px;width:min(500px,92vw);max-height:80vh;box-shadow:0 12px 40px rgba(0,0,0,0.6);border:1px solid var(--border);overflow:hidden;display:flex;flex-direction:column}
 .dup-overlay{position:fixed;inset:0;z-index:100;background:rgba(0,0,0,0.6);display:flex;align-items:center;justify-content:center}
 .dup-box{background:var(--modal);border-radius:10px;width:300px;padding:16px;border:1px solid var(--border)}
 </style>
@@ -342,65 +342,78 @@ function renderAssemblyView(){
   const tF=MOCK_TREE.reduce((s,g)=>s+g.steps.reduce((a,st)=>a+st.fasteners,0),0);
   const tS=MOCK_TREE.reduce((s,g)=>s+g.steps.length,0);
 
+  // Status badge
+  const statusBadge = allDone && isOut
+    ? `<div style="display:flex;align-items:center;gap:5px;padding:5px 14px;background:rgba(34,197,94,0.12);border:1px solid rgba(34,197,94,0.25);border-radius:20px;font-size:13px;font-weight:700;color:#22c55e" class="mono">● All ECN applied</div>`
+    : isOut
+    ? `<div style="display:flex;align-items:center;gap:5px;padding:5px 14px;background:rgba(239,68,68,0.1);border:1px solid rgba(239,68,68,0.25);border-radius:20px;font-size:13px;font-weight:700;color:#ef4444" class="mono">● v${unit.ver} → v${unit.latestVer}</div>`
+    : `<div style="display:flex;align-items:center;gap:5px;padding:5px 14px;background:rgba(34,197,94,0.1);border:1px solid rgba(34,197,94,0.25);border-radius:20px;font-size:13px;font-weight:700;color:#22c55e" class="mono">● All ECN applied</div>`;
+
   let tabContent='';
   if(tab==='list'){
     let banner='';
     if(isOut&&changes.length>0){
       banner=`<div class="ecn-banner">
-        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:4px">
-          <span style="font-size:11px;font-weight:700;color:#ef4444">⚠ ${changes.length} ECN changes · ${[...cascade.values()].filter(v=>v.isCascade).length} cascade</span>
-          <span style="font-size:9px;color:var(--muted)" class="mono">${appliedCount}/${changes.length}</span>
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:6px">
+          <span style="font-size:15px;font-weight:700;color:#ef4444">⚠ ${changes.length} ECN changes · ${[...cascade.values()].filter(v=>v.isCascade).length} cascade</span>
+          <span style="font-size:13px;color:var(--muted)" class="mono">${appliedCount}/${changes.length}</span>
         </div>
-        <div style="height:3px;border-radius:2px;background:rgba(239,68,68,0.1);overflow:hidden;margin-bottom:6px"><div style="height:100%;border-radius:2px;transition:width 0.3s;width:${(appliedCount/changes.length)*100}%;background:${allDone?'#22c55e':'#f59e0b'}"></div></div>
+        <div style="height:3px;border-radius:2px;background:rgba(239,68,68,0.1);overflow:hidden;margin-bottom:8px"><div style="height:100%;border-radius:2px;transition:width 0.3s;width:${(appliedCount/changes.length)*100}%;background:${allDone?'#22c55e':'#f59e0b'}"></div></div>
         ${changes.map((c,i)=>{const done=STATE.applied.has(`${unit.sn}-${c.step}`),info=cascade.get(c.step),blocked=info?.isBlocked&&!done;
           return `<div class="ecn-item ${done?'done':''} ${blocked?'blocked':''}" data-action="openChange" data-idx="${i}">
-            <span style="font-size:10px;font-weight:700;font-family:'JetBrains Mono',monospace;min-width:26px;text-align:center;padding:2px 5px;border-radius:4px;color:${done?'#22c55e':blocked?'var(--dim)':'#ef4444'};background:${done?'rgba(34,197,94,0.12)':'rgba(239,68,68,0.1)'}">${c.step}</span>
-            <span style="flex:1;font-weight:500;${done?'opacity:0.5;text-decoration:line-through':''}">${c.stepName}</span>
-            <span style="font-size:9px;color:var(--muted)" class="mono">${c.field}</span>
-            ${blocked?'<span style="font-size:9px">🔒</span>':''}
-            <span style="font-size:11px;color:${done?'#22c55e':'var(--dim)'}">${done?'✓':'○'}</span>
+            <span style="font-size:13px;font-weight:700;font-family:'JetBrains Mono',monospace;min-width:34px;text-align:center;padding:4px 8px;border-radius:6px;color:${done?'#22c55e':blocked?'var(--dim)':'#ef4444'};background:${done?'rgba(34,197,94,0.12)':'rgba(239,68,68,0.1)'}">${c.step}</span>
+            <span style="flex:1;font-size:14px;font-weight:500;${done?'opacity:0.5;text-decoration:line-through':''}">${c.stepName}</span>
+            <span style="font-size:13px;color:var(--muted)" class="mono">${c.field}</span>
+            ${blocked?'<span style="font-size:12px">🔒</span>':''}
+            <span style="font-size:14px;color:${done?'#22c55e':'var(--dim)'}">${done?'✓':'○'}</span>
           </div>`;}).join('')}
-        ${allDone?`<div style="margin-top:8px;padding:10px 12px;border-radius:8px;background:rgba(34,197,94,0.06);border:2px solid rgba(34,197,94,0.25);display:flex;align-items:center;justify-content:space-between">
-          <div><div style="font-size:12px;font-weight:700;color:#22c55e">✅ All changes applied</div><div style="font-size:10px;color:var(--muted);margin-top:2px">Ready to upgrade ${unit.sn}</div></div>
-          <button style="padding:6px 16px;border-radius:8px;font-size:11px;font-weight:700;background:#22c55e;border:none;color:#000;cursor:pointer">✓ Upgrade to v${unit.latestVer}</button>
+        ${allDone?`<div style="margin-top:10px;padding:14px 16px;border-radius:10px;background:rgba(34,197,94,0.06);border:2px solid rgba(34,197,94,0.25);display:flex;align-items:center;justify-content:space-between">
+          <div><div style="font-size:15px;font-weight:700;color:#22c55e">✅ All changes applied</div><div style="font-size:12px;color:var(--muted);margin-top:3px">Ready to upgrade ${unit.sn}</div></div>
+          <button style="padding:8px 20px;border-radius:10px;font-size:13px;font-weight:700;background:#22c55e;border:none;color:#000;cursor:pointer">✓ Upgrade to v${unit.latestVer}</button>
         </div>`:''}
       </div>`;
     }
     let treeHtml='<div class="tree-list">';
     MOCK_TREE.forEach(g=>{
-      treeHtml+=`<div style="margin-bottom:4px"><div class="grp-hdr" style="background:${g.color}08;border-left:3px solid ${g.color}">
-        <span style="font-size:12px">${g.icon}</span><span style="font-weight:700;color:${g.color};flex:1;font-size:11px">${g.name}</span>
-        ${g.level!==null?`<span class="badge" style="background:${g.color}15;color:${g.color}">L${g.level}</span>`:''}<span style="color:var(--muted);font-size:9px" class="mono">${g.steps.length}</span></div>`;
+      treeHtml+=`<div style="margin-bottom:6px"><div class="grp-hdr" style="background:${g.color}08;border-left:4px solid ${g.color}">
+        <span style="font-size:11px;color:var(--muted);cursor:pointer">▼</span>
+        <span style="font-size:16px">${g.icon}</span>
+        <span style="font-weight:700;color:${g.color};flex:1;font-size:15px">${g.name}</span>
+        ${g.level!==null?`<span class="badge" style="background:${g.color}15;color:${g.color};font-size:11px;padding:2px 8px">L${g.level}</span>`:''}<span style="color:var(--muted);font-size:13px" class="mono">${g.steps.length}</span></div>`;
       g.steps.forEach(s=>{const hasEcn=changes.some(c=>c.step===s.sn),done=STATE.applied.has(`${unit.sn}-${s.sn}`);
         treeHtml+=`<div class="step-row" style="${done?'opacity:0.4':''}">
-          ${hasEcn?`<span style="font-size:8px">${done?'✅':'🔴'}</span>`:'<span style="width:12px"></span>'}
-          <span style="font-weight:700;min-width:24px;text-align:center;font-size:10px;padding:1px 4px;border-radius:3px;background:${g.color}12;color:${g.color}" class="mono">${s.sn}</span>
-          <span style="font-size:9px;font-weight:600;color:${s.type==='PREP'?'#a855f7':s.type==='CHECK'?'#ec4899':'#3b82f6'}">${s.type}</span>
-          <span style="flex:1;font-size:10px">${s.name}</span>
-          ${s.parts>0?`<span style="font-size:8px;color:#22c55e" class="mono">${s.parts}P</span>`:''}
-          ${s.fasteners>0?`<span style="font-size:8px;color:#ef4444" class="mono">${s.fasteners}F</span>`:''}
+          <span style="color:var(--dim);font-size:12px;cursor:grab;user-select:none">⠿</span>
+          ${hasEcn?`<span style="font-size:10px">${done?'✅':'🔴'}</span>`:''}
+          <span style="font-weight:700;min-width:32px;text-align:center;font-size:13px;padding:3px 8px;border-radius:5px;background:${g.color}15;color:${g.color}" class="mono">${s.sn}</span>
+          <span style="font-size:12px;font-weight:600;padding:2px 8px;border-radius:4px;color:${s.type==='PREP'?'#a855f7':s.type==='CHECK'?'#ec4899':'#22c55e'};background:${s.type==='PREP'?'rgba(168,85,247,0.1)':s.type==='CHECK'?'rgba(236,72,153,0.1)':'rgba(34,197,94,0.1)'}">${s.type}</span>
+          <span style="flex:1;font-size:14px;color:var(--text)">${s.name}</span>
+          ${s.parts>0?`<span style="font-size:12px;color:#22c55e;font-weight:600" class="mono">${s.parts}P</span>`:''}
+          ${s.fasteners>0?`<span style="font-size:12px;color:#ef4444;font-weight:600" class="mono">${s.fasteners}F</span>`:''}
         </div>`;});
       treeHtml+='</div>';});
     treeHtml+='</div>';
     tabContent=banner+treeHtml;
   } else {
-    tabContent=`<div style="display:flex;flex-direction:column;align-items:center;padding:60px 20px;color:var(--dim)"><div style="font-size:32px;margin-bottom:10px;opacity:0.3">🔧</div><div style="font-size:18px;font-weight:700">${tab==='graph'?'Graph':'Kanban'} View</div><div style="font-size:11px;margin-top:4px">Coming soon</div></div>`;
+    tabContent=`<div style="display:flex;flex-direction:column;align-items:center;padding:80px 20px;color:var(--dim)"><div style="font-size:40px;margin-bottom:12px;opacity:0.3">🔧</div><div style="font-size:20px;font-weight:700">${tab==='graph'?'Graph':'Kanban'} View</div><div style="font-size:13px;margin-top:6px">Coming soon</div></div>`;
   }
 
   return `<div style="min-height:100vh;background:var(--bg)">
     <div class="av-header">
-      <button class="btn-sm" style="background:transparent;color:var(--muted);font-size:10px;padding:3px 8px" data-action="backToUnits">← Units</button>
-      <span style="font-size:14px;font-weight:800;color:var(--accent)" class="mono">◈</span>
-      <select class="inp" style="padding:4px 8px;font-size:11px;font-weight:600" data-role="unitPicker">${STATE.selectedUnits.map(u=>`<option value="${u.sn}" ${u.sn===unit.sn?'selected':''}>${u.sn} — v${u.ver} ${u.status==='outdated'?'⚠':'✓'}</option>`).join('')}</select>
-      <div style="display:flex;align-items:center;gap:3px;padding:2px 8px;background:${isOut?'rgba(239,68,68,0.1)':'rgba(34,197,94,0.1)'};border:1px solid ${isOut?'rgba(239,68,68,0.25)':'rgba(34,197,94,0.25)'};border-radius:12px;font-size:9px;font-weight:700;color:${isOut?'#ef4444':'#22c55e'}" class="mono">
-        <span style="width:4px;height:4px;border-radius:50%;background:${isOut?'#ef4444':'#22c55e'}"></span>v${unit.ver}${isOut?` <span style="font-weight:400;opacity:0.7">→ v${unit.latestVer}</span>`:''}
+      <button style="background:none;border:1px solid var(--border);border-radius:8px;padding:6px 14px;color:var(--muted);cursor:pointer;font-size:13px;font-family:'DM Sans',sans-serif" data-action="backToUnits">← Units</button>
+      <span style="font-size:18px;font-weight:800;color:var(--accent)" class="mono">◈</span>
+      <select class="inp" style="padding:6px 12px;font-size:14px;font-weight:600;min-width:200px" data-role="unitPicker">${STATE.selectedUnits.map(u=>`<option value="${u.sn}" ${u.sn===unit.sn?'selected':''}>${u.sn} — v${u.ver} ${u.status==='outdated'?'⚠':'✓'}</option>`).join('')}</select>
+      ${statusBadge}
+      <div style="margin-left:auto;display:flex;align-items:center;gap:8px">
+        <div class="admin-pill">🔧 Admin · Aniket</div>
+        <span style="font-size:12px;color:var(--muted);cursor:pointer" class="mono">Logout</span>
+        <div style="width:22px;height:22px;border-radius:50%;background:linear-gradient(135deg,#f59e0b,#e8952e);border:2px solid var(--border)"></div>
       </div>
     </div>
     <div class="av-tabs">
-      <button class="av-tab ${tab==='list'?'active':''}" data-action="avTab" data-tab="list">☰ List View ${changes.length-appliedCount>0?`<span class="count">${changes.length-appliedCount}</span>`:''}</button>
+      <button class="av-tab ${tab==='list'?'active':''}" data-action="avTab" data-tab="list">≡ List View ${changes.length-appliedCount>0?`<span class="count">${changes.length-appliedCount}</span>`:''}</button>
       <button class="av-tab ${tab==='graph'?'active':''}" data-action="avTab" data-tab="graph">◈ Graph <span class="soon">SOON</span></button>
       <button class="av-tab ${tab==='kanban'?'active':''}" data-action="avTab" data-tab="kanban">▦ Kanban <span class="soon">SOON</span></button>
-      <div style="margin-left:auto;display:flex;gap:8px;font-size:9px;color:var(--muted)" class="mono"><span><span style="color:#22c55e;font-weight:700">${tP}</span>P</span><span><span style="color:#ef4444;font-weight:700">${tF}</span>F</span><span><span style="font-weight:700">${tS}</span> steps</span></div>
+      <div style="margin-left:auto;display:flex;gap:12px;font-size:13px;color:var(--muted)" class="mono"><span><span style="color:#22c55e;font-weight:700">${tP}</span> parts</span><span><span style="color:#ef4444;font-weight:700">${tF}</span> fasteners</span><span><span style="font-weight:700">${tS}</span> steps</span></div>
     </div>
     ${tabContent}
   </div>${STATE.modal!==null?renderChangeModal():''}`;
@@ -412,23 +425,23 @@ function renderChangeModal(){
   const isDone=STATE.applied.has(`${unit.sn}-${ch.step}`),info=cascade.get(ch.step),blocked=info?.isBlocked&&!isDone;
   const tc={part_changed:{bg:"rgba(59,130,246,0.08)",c:"#3b82f6",l:"Part Changed"},fastener_changed:{bg:"rgba(239,68,68,0.08)",c:"#ef4444",l:"Fastener Changed"},step_modified:{bg:"rgba(168,85,247,0.08)",c:"#a855f7",l:"Step Modified"}}[ch.type]||{bg:"rgba(168,85,247,0.08)",c:"#a855f7",l:"Modified"};
   return `<div class="cm-overlay" data-action="closeModal"><div class="cm-box" onclick="event.stopPropagation()">
-    <div style="padding:10px 14px;border-bottom:1px solid var(--border);display:flex;align-items:center;gap:6px">
-      <span class="mono" style="font-size:11px;font-weight:700;color:${tc.c};background:${tc.bg};padding:2px 7px;border-radius:4px">${ch.step}</span>
-      <div style="flex:1"><div style="font-size:13px;font-weight:700">${ch.stepName}</div><div style="font-size:9px;color:var(--muted)">${ch.group} · ${unit.sn}</div></div>
-      <button style="background:none;border:none;color:var(--muted);font-size:14px;cursor:pointer" data-action="closeModal">✕</button>
+    <div style="padding:14px 18px;border-bottom:1px solid var(--border);display:flex;align-items:center;gap:8px">
+      <span class="mono" style="font-size:14px;font-weight:700;color:${tc.c};background:${tc.bg};padding:4px 10px;border-radius:6px">${ch.step}</span>
+      <div style="flex:1"><div style="font-size:16px;font-weight:700">${ch.stepName}</div><div style="font-size:12px;color:var(--muted)">${ch.group} · ${unit.sn}</div></div>
+      <button style="background:none;border:none;color:var(--muted);font-size:18px;cursor:pointer" data-action="closeModal">✕</button>
     </div>
-    <div style="padding:14px;overflow-y:auto;flex:1;display:flex;flex-direction:column;gap:10px">
-      <span class="badge" style="background:${tc.bg};color:${tc.c};align-self:flex-start">${tc.l}</span>
-      <div style="display:flex;gap:6px">
-        ${ch.old?`<div style="flex:1;padding:8px;border-radius:6px;background:rgba(239,68,68,0.04);border:1px solid rgba(239,68,68,0.08)"><div style="font-size:7px;font-weight:700;color:#ef4444;text-transform:uppercase;letter-spacing:1px;margin-bottom:3px">Before</div><div style="font-size:11px;font-weight:600" class="mono">${ch.old}</div></div>`:''}
-        <div style="flex:1;padding:8px;border-radius:6px;background:rgba(34,197,94,0.04);border:1px solid rgba(34,197,94,0.08)"><div style="font-size:7px;font-weight:700;color:#22c55e;text-transform:uppercase;letter-spacing:1px;margin-bottom:3px">${ch.old?'After':'New'}</div><div style="font-size:11px;font-weight:600" class="mono">${ch.new}</div></div>
+    <div style="padding:18px;overflow-y:auto;flex:1;display:flex;flex-direction:column;gap:14px">
+      <span class="badge" style="background:${tc.bg};color:${tc.c};align-self:flex-start;font-size:11px;padding:3px 10px">${tc.l}</span>
+      <div style="display:flex;gap:8px">
+        ${ch.old?`<div style="flex:1;padding:12px;border-radius:8px;background:rgba(239,68,68,0.04);border:1px solid rgba(239,68,68,0.08)"><div style="font-size:9px;font-weight:700;color:#ef4444;text-transform:uppercase;letter-spacing:1px;margin-bottom:4px">Before</div><div style="font-size:14px;font-weight:600" class="mono">${ch.old}</div></div>`:''}
+        <div style="flex:1;padding:12px;border-radius:8px;background:rgba(34,197,94,0.04);border:1px solid rgba(34,197,94,0.08)"><div style="font-size:9px;font-weight:700;color:#22c55e;text-transform:uppercase;letter-spacing:1px;margin-bottom:4px">${ch.old?'After':'New'}</div><div style="font-size:14px;font-weight:600" class="mono">${ch.new}</div></div>
       </div>
-      <div style="padding:8px;border-radius:6px;background:rgba(245,158,11,0.04);border:1px solid rgba(245,158,11,0.08)"><div style="font-size:7px;font-weight:700;color:var(--accent);text-transform:uppercase;letter-spacing:1px;margin-bottom:2px">Reason</div><div style="font-size:10px">${ch.reason}</div></div>
+      <div style="padding:12px;border-radius:8px;background:rgba(245,158,11,0.04);border:1px solid rgba(245,158,11,0.08)"><div style="font-size:9px;font-weight:700;color:var(--accent);text-transform:uppercase;letter-spacing:1px;margin-bottom:3px">Reason</div><div style="font-size:13px">${ch.reason}</div></div>
     </div>
-    <div style="padding:8px 14px;border-top:1px solid var(--border);display:flex;justify-content:flex-end;gap:6px;align-items:center">
-      ${isDone?'<span style="font-size:9px;color:#22c55e;margin-right:auto">✅ Applied</span>':''}${blocked?'<span style="font-size:9px;color:var(--dim);margin-right:auto">🔒 Resolve upstream first</span>':''}
-      <button class="btn-sm" style="background:transparent;color:var(--muted);padding:5px 12px" data-action="closeModal">Close</button>
-      <button style="padding:5px 14px;border-radius:5px;font-size:10px;font-weight:700;border:none;cursor:${blocked?'not-allowed':'pointer'};background:${isDone?'rgba(239,68,68,0.12)':blocked?'var(--hover)':'#22c55e'};color:${isDone?'#ef4444':blocked?'var(--dim)':'#000'};opacity:${blocked?0.5:1};font-family:'DM Sans',sans-serif" data-action="toggleApply" data-step="${ch.step}" ${blocked?'disabled':''}>${isDone?'↩ Undo':blocked?'🔒 Blocked':'✓ Mark Applied'}</button>
+    <div style="padding:12px 18px;border-top:1px solid var(--border);display:flex;justify-content:flex-end;gap:8px;align-items:center">
+      ${isDone?'<span style="font-size:12px;color:#22c55e;margin-right:auto">✅ Applied</span>':''}${blocked?'<span style="font-size:12px;color:var(--dim);margin-right:auto">🔒 Resolve upstream first</span>':''}
+      <button style="background:transparent;border:1px solid var(--border);border-radius:8px;padding:8px 16px;color:var(--muted);cursor:pointer;font-size:13px;font-family:'DM Sans',sans-serif" data-action="closeModal">Close</button>
+      <button style="padding:8px 20px;border-radius:8px;font-size:13px;font-weight:700;border:none;cursor:${blocked?'not-allowed':'pointer'};background:${isDone?'rgba(239,68,68,0.12)':blocked?'var(--hover)':'#22c55e'};color:${isDone?'#ef4444':blocked?'var(--dim)':'#000'};opacity:${blocked?0.5:1};font-family:'DM Sans',sans-serif" data-action="toggleApply" data-step="${ch.step}" ${blocked?'disabled':''}>${isDone?'↩ Undo':blocked?'🔒 Blocked':'✓ Mark Applied'}</button>
     </div>
   </div></div>`;
 }

@@ -417,7 +417,7 @@ const S = {
   // Modals
   confirmAction:null, confirmMsg:'', confirmData:null,
   newVerModal:false, newVerStr:'', newVerNotes:'',
-  // ECN marks: { [stepId]: { id:<dbId>, note:'', disposition:'scrap' } }
+  // ECN marks: { [stepId]: { note:'', disposition:'scrap' } }
   teEcnMarks:{},
   // Manual part/fastener names: { [id]: 'name' }
   partNames:{}, fastNames:{},
@@ -425,41 +425,13 @@ const S = {
   tePending:{steps:{},parts:{},fasteners:{},groups:{}},
 };
 
-// ECN marks — read/write directly to Supabase ecn_change_records
-async function loadEcnMarksFromDB(assyId){
-  const marks={};
-  try{
-    // Reuse loadEcnChanges which queries ecn_change_records for this assembly's steps
-    delete DB.ecnChanges[assyId]; // force fresh load
-    const records=await DB.loadEcnChanges(assyId);
-    records.forEach(r=>{
-      marks[r.step_id]={id:r.id, note:r.reason||'', disposition:r.disposition||'scrap', seq_tag:r.seq_tag};
-    });
-  }catch(e){console.error('loadEcnMarks:',e);}
-  return marks;
+// ECN marks persistence via localStorage
+function saveEcnMarks(){
+  if(!S.teAssy)return;
+  try{localStorage.setItem(`ee_ecn_${S.teAssy}`,JSON.stringify(S.teEcnMarks));}catch(e){}
 }
-async function createEcnMark(stepId, tree){
-  const step=tree.steps.find(s=>s.id===stepId);
-  if(!step)return null;
-  const seq=pvOr('steps',stepId,'seq_tag',step.seq_tag)||'';
-  const name=resolveStepName(step,tree)||'';
-  const group=tree.groups.find(g=>g.id===step.group_id);
-  const gName=group?pvOr('groups',group.id,'label',group.label):'';
-  const rec=await DB.createEcnChangeRecord({
-    step_id:stepId, seq_tag:seq, step_name:name, group_name:gName,
-    disposition:'scrap', change_type:'ecn_mark', field:'step',
-    reason:''
-  });
-  delete DB.ecnChanges[S.teAssy];
-  return rec;
-}
-async function deleteEcnMark(dbId){
-  await DB.deleteEcnChangeRecord(dbId);
-  delete DB.ecnChanges[S.teAssy];
-}
-async function updateEcnMark(dbId, fields){
-  await DB.updateEcnChangeRecord(dbId, fields);
-  delete DB.ecnChanges[S.teAssy];
+function loadEcnMarks(assyId){
+  try{const d=localStorage.getItem(`ee_ecn_${assyId}`);return d?JSON.parse(d):{};}catch(e){return {};}
 }
 
 // ============================================================
@@ -943,8 +915,8 @@ function attachEvents(){
       else if(a==='pickAssy'){
         S.teAssy=parseInt(el.dataset.id);S.teSel=null;S.teSelGroup=null;
         const assy=DB.assemblies.find(x=>x.id===S.teAssy);S.teVer=assy?.version;
-        await Promise.all([DB.loadTree(S.teAssy),DB.loadVersions(S.teAssy)]);
-        S.teEcnMarks=await loadEcnMarksFromDB(S.teAssy);
+        S.teEcnMarks=loadEcnMarks(S.teAssy);
+        await Promise.all([DB.loadTree(S.teAssy),DB.loadVersions(S.teAssy),DB.loadEcnChanges(S.teAssy)]);
         S.teVersions=DB.versions[S.teAssy]||[];render();
       }
       else if(a==='teBack'){
@@ -1038,30 +1010,16 @@ function attachEvents(){
         S.confirmData={type:'unfreezeVer',ver:S.teVer};S.confirmAction=true;render();
       }
 
-      // --- ECN MARKING (writes to Supabase ecn_change_records) ---
+      // --- ECN MARKING ---
       else if(a==='toggleEcnMark'){
         const sid=parseInt(el.dataset.sid);
-        const tree=DB.tree[`${S.teAssy}`];
-        try{
-          if(S.teEcnMarks[sid]){
-            await deleteEcnMark(S.teEcnMarks[sid].id);
-            delete S.teEcnMarks[sid];
-            toast('✕ ECN removed from DB');
-          } else {
-            const rec=await createEcnMark(sid, tree);
-            if(rec) S.teEcnMarks[sid]={id:rec.id, note:'', disposition:'scrap', seq_tag:rec.seq_tag};
-            toast('🔴 ECN saved to DB');
-          }
-        }catch(err){toast('❌ '+err.message,true);}
-        render();
+        if(S.teEcnMarks[sid]){delete S.teEcnMarks[sid];toast('✕ ECN removed');}
+        else{S.teEcnMarks[sid]={note:'',disposition:'scrap'};toast('🔴 ECN marked');}
+        saveEcnMarks();render();
       }
       else if(a==='setEcnDisp'){
         const sid=parseInt(el.dataset.sid),d=el.dataset.d;
-        if(S.teEcnMarks[sid]){
-          S.teEcnMarks[sid].disposition=d;
-          try{await updateEcnMark(S.teEcnMarks[sid].id,{disposition:d});}catch(err){toast('❌ '+err.message,true);}
-          render();
-        }
+        if(S.teEcnMarks[sid]){S.teEcnMarks[sid].disposition=d;saveEcnMarks();render();}
       }
     };
   });
@@ -1078,19 +1036,7 @@ function attachEvents(){
     if(r==='teStepPn'){el.oninput=()=>{setPending('steps',parseInt(el.dataset.sid),'pn',el.value);};}
     if(r==='teSortOrder'){el.oninput=()=>{setPending('steps',parseInt(el.dataset.sid),'sort_order',parseInt(el.value)||0);};}
     // ECN note (local only, never saved to DB)
-    if(r==='ecnNote'){
-      let noteTimer=null;
-      el.oninput=()=>{
-        const sid=parseInt(el.dataset.sid);
-        if(S.teEcnMarks[sid]){
-          S.teEcnMarks[sid].note=el.value;
-          clearTimeout(noteTimer);
-          noteTimer=setTimeout(async()=>{
-            try{await updateEcnMark(S.teEcnMarks[sid].id,{reason:el.value});}catch(e){console.error('ECN note save:',e);}
-          },800);
-        }
-      };
-    }
+    if(r==='ecnNote'){el.oninput=()=>{const sid=parseInt(el.dataset.sid);if(S.teEcnMarks[sid]){S.teEcnMarks[sid].note=el.value;saveEcnMarks();}};}
     // Part fields → pending (partPn renders for master lookup display)
     if(r==='partPn'){el.oninput=()=>{
       const pid=parseInt(el.dataset.pid);

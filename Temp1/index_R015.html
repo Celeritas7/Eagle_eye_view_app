@@ -429,17 +429,6 @@ const S = {
 // RENDER ENGINE
 // ============================================================
 function render(){
-  // Save focus state before re-render
-  const ae=document.activeElement;
-  let focusInfo=null;
-  if(ae&&(ae.tagName==='INPUT'||ae.tagName==='TEXTAREA'||ae.tagName==='SELECT')){
-    const role=ae.dataset?.role;
-    const sid=ae.dataset?.sid;const pid=ae.dataset?.pid;const fid=ae.dataset?.fid;const gid=ae.dataset?.gid;
-    if(role){
-      focusInfo={role,sid,pid,fid,gid,selStart:ae.selectionStart,selEnd:ae.selectionEnd,tag:ae.tagName};
-    }
-  }
-
   const app=document.getElementById('app');
   if(S.page==='home') app.innerHTML=renderHome();
   else if(S.page==='unitSelect') app.innerHTML=renderUnitSelect();
@@ -449,22 +438,6 @@ function render(){
   if(S.confirmAction) app.innerHTML+=renderConfirmModal();
   if(S.newVerModal) app.innerHTML+=renderNewVersionModal();
   attachEvents();
-
-  // Restore focus
-  if(focusInfo){
-    let sel=`[data-role="${focusInfo.role}"]`;
-    if(focusInfo.sid) sel+=`[data-sid="${focusInfo.sid}"]`;
-    if(focusInfo.pid) sel+=`[data-pid="${focusInfo.pid}"]`;
-    if(focusInfo.fid) sel+=`[data-fid="${focusInfo.fid}"]`;
-    if(focusInfo.gid) sel+=`[data-gid="${focusInfo.gid}"]`;
-    const el=document.querySelector(sel);
-    if(el){
-      el.focus();
-      if(focusInfo.tag!=='SELECT'&&focusInfo.selStart!=null){
-        try{el.setSelectionRange(focusInfo.selStart,focusInfo.selEnd);}catch(e){}
-      }
-    }
-  }
 }
 
 // ============================================================
@@ -1009,27 +982,27 @@ function attachEvents(){
     const r=el.dataset.role;
     if(r==='unitSearch'){el.oninput=()=>{S.unitSearch=el.value;render();};}
     if(r==='unitPicker'){el.onchange=async()=>{const u=S.selectedUnits.find(x=>x.sn===el.value);if(u){S.selectedUnits=[u,...S.selectedUnits.filter(x=>x.sn!==u.sn)];await DB.loadEcnApplied(u.sn);render();}};}
-    // Step fields → pending (render only for fields visible in left tree)
+    // Step fields → pending
     if(r==='teSeqTag'){el.oninput=()=>{setPending('steps',parseInt(el.dataset.sid),'seq_tag',el.value);render();};}
     if(r==='teType'){el.onchange=()=>{setPending('steps',parseInt(el.dataset.sid),'type',el.value);render();};}
     if(r==='teLabel'){el.oninput=()=>{setPending('steps',parseInt(el.dataset.sid),'label',el.value);render();};}
-    if(r==='teStepPn'){el.oninput=()=>{setPending('steps',parseInt(el.dataset.sid),'pn',el.value);};}
-    if(r==='teSortOrder'){el.oninput=()=>{setPending('steps',parseInt(el.dataset.sid),'sort_order',parseInt(el.value)||0);};}
+    if(r==='teStepPn'){el.oninput=()=>{setPending('steps',parseInt(el.dataset.sid),'pn',el.value);render();};}
+    if(r==='teSortOrder'){el.oninput=()=>{setPending('steps',parseInt(el.dataset.sid),'sort_order',parseInt(el.value)||0);render();};}
     // ECN note (local only, never saved to DB)
     if(r==='ecnNote'){el.oninput=()=>{const sid=parseInt(el.dataset.sid);if(S.teEcnMarks[sid])S.teEcnMarks[sid].note=el.value;};}
-    // Part fields → pending (partPn renders for master lookup display)
+    // Part fields → pending
     if(r==='partPn'){el.oninput=()=>{
       const pid=parseInt(el.dataset.pid);
       if(DB.lookupPN(el.value)) delete S.partNames[pid];
       setPending('parts',pid,'pn',el.value);render();
     };}
-    if(r==='partQty'){el.oninput=()=>{setPending('parts',parseInt(el.dataset.pid),'qty',parseInt(el.value)||1);};}
+    if(r==='partQty'){el.oninput=()=>{setPending('parts',parseInt(el.dataset.pid),'qty',parseInt(el.value)||1);render();};}
     if(r==='partName'){el.oninput=()=>{
       const pid=parseInt(el.dataset.pid);
       S.partNames[pid]=el.value||'';
       if(!el.value) delete S.partNames[pid];
     };}
-    // Fastener fields → pending (fastPn renders for master lookup)
+    // Fastener fields → pending
     if(r==='fastPn'){el.oninput=()=>{
       const fid=parseInt(el.dataset.fid);
       if(DB.lookupPN(el.value)) delete S.fastNames[fid];

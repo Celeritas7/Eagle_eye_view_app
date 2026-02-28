@@ -250,25 +250,29 @@ const DB = {
 
   async loadUnits(assemblyId, assyTag) {
     if(this.units[assemblyId]) return this.units[assemblyId];
-    // Try Google Sheets first
-    const gsUnits = await fetchGSheetUnits(assyTag);
-    if(gsUnits && gsUnits.length>0) {
-      this.gsStatus='ok'; this.units[assemblyId]=gsUnits;
-    } else {
-      // Fallback: try production_units table
-      this.gsStatus='err';
-      try {
-        const rows = await sbGet('eagle_eye_app_production_units',`assembly_id=eq.${assemblyId}&order=sn`);
+    // Primary: load from Supabase production_units table
+    try {
+      const rows = await sbGet('eagle_eye_app_production_units',`assembly_id=eq.${assemblyId}&order=sn`);
+      if(rows.length > 0) {
         this.units[assemblyId] = rows.map(r=>({
           sn:r.sn, version:r.version, latestVer:r.latest_version,
           status:r.status||'current', notes:r.notes, assignedTo:r.assigned_to,
           completed: r.status==='current'?'yes':null,
         }));
-      } catch(e) {
-        console.error('Units load error:',e);
-        this.units[assemblyId]=[];
+        this.gsStatus='db';
+        return this.units[assemblyId];
       }
-    }
+    } catch(e) { console.error('DB units error:',e); }
+    // Fallback: try Google Sheets (only works if sheet is published to web)
+    try {
+      const gsUnits = await fetchGSheetUnits(assyTag);
+      if(gsUnits && gsUnits.length>0) {
+        this.gsStatus='gs'; this.units[assemblyId]=gsUnits;
+        return this.units[assemblyId];
+      }
+    } catch(e) { console.warn('GSheet fallback failed:',e); }
+    this.gsStatus='err';
+    this.units[assemblyId]=[];
     return this.units[assemblyId];
   },
 
@@ -410,7 +414,7 @@ function dbStatus(){
   const s=DB.status, g=DB.gsStatus;
   return `<div style="display:flex;gap:4px">
     <div class="db-status ${s==='ok'?'ok':s==='err'?'err':'load'}" title="Supabase: ${s}">${s==='ok'?'●':'○'} DB</div>
-    ${g!=='unknown'?`<div class="db-status ${g==='ok'?'ok':'err'}" title="GSheet: ${g}">${g==='ok'?'●':'○'} GS</div>`:''}
+    ${g==='db'?'<div class="db-status ok" title="Units from DB">● Units</div>':g==='gs'?'<div class="db-status ok" title="Units from Google Sheets">● GS</div>':''}
   </div>`;
 }
 
@@ -479,7 +483,7 @@ function renderUnitSelect(){
     <div style="display:flex;align-items:center;gap:10px;margin-bottom:14px">
       <button class="btn-sm" style="background:transparent;color:var(--muted)" data-action="goHome">← Back</button>
       <span style="font-size:22px">${a.icon}</span>
-      <div><div style="font-size:16px;font-weight:700">${a.name}</div><div style="font-size:10px;color:var(--muted)" class="mono">${units.length} units · v${a.version} ${DB.gsStatus==='ok'?'<span style="color:#22c55e">● Live from Google Sheets</span>':DB.gsStatus==='err'?'<span style="color:#f59e0b">● From Supabase</span>':''}</div></div>
+      <div><div style="font-size:16px;font-weight:700">${a.name}</div><div style="font-size:10px;color:var(--muted)" class="mono">${units.length} units · v${a.version} ${DB.gsStatus==='gs'?'<span style="color:#22c55e">● Live from Google Sheets</span>':DB.gsStatus==='db'?'<span style="color:#22c55e">● From Database</span>':DB.gsStatus==='err'?'<span style="color:#ef4444">● No unit data found</span>':''}</div></div>
     </div>
     ${S.loadingUnits?'<div class="loading-wrap"><div class="spinner"></div>Loading units...</div>':`
     <div style="display:flex;gap:6px;margin-bottom:10px;flex-wrap:wrap;align-items:center">

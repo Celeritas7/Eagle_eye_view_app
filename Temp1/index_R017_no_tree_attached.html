@@ -70,25 +70,10 @@ input[type=number]::-webkit-inner-spin-button,input[type=number]::-webkit-outer-
 .step-row{display:flex;align-items:center;gap:14px;padding:10px 14px 10px 28px;cursor:pointer;border-radius:6px;font-size:15px}
 .step-row:hover{background:rgba(255,255,255,0.02)}
 
-/* GRAPH VIEW */
-.gv-wrap{position:relative;width:100%;height:calc(100vh - 130px);overflow:hidden;cursor:grab;background:var(--bg)}
-.gv-wrap.dragging{cursor:grabbing}
-.gv-header{position:absolute;top:8px;left:8px;z-index:20;display:flex;gap:4px;align-items:center}
-.gv-btn{background:rgba(14,15,22,0.95);border:1px solid var(--border);border-radius:5px;color:var(--muted);width:26px;height:26px;cursor:pointer;font-size:13px;font-family:'JetBrains Mono',monospace;display:flex;align-items:center;justify-content:center}
-.gv-btn:hover{color:var(--accent)}
-.gv-panel{position:absolute;top:38px;right:8px;z-index:20;padding:12px 14px;border-radius:10px;background:rgba(14,15,22,0.96);border:1px solid var(--border);width:250px;backdrop-filter:blur(10px);font-family:'JetBrains Mono',monospace}
-.gv-panel label{display:flex;justify-content:space-between;align-items:center;margin-bottom:4px;font-size:9px;color:var(--muted)}
-.gv-panel label .val{font-size:10px;font-weight:700;color:var(--accent);background:rgba(245,158,11,0.1);padding:1px 6px;border-radius:4px}
-.gv-panel input[type=range]{-webkit-appearance:none;appearance:none;width:100%;height:4px;border-radius:2px;background:var(--border);outline:none;cursor:pointer;margin-bottom:10px}
-.gv-panel input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:14px;height:14px;border-radius:50%;background:var(--accent);cursor:pointer}
-.gv-footer{position:absolute;bottom:8px;left:8px;padding:5px 12px;background:rgba(14,15,22,0.9);border:1px solid var(--border);border-radius:6px;font-size:9px;color:var(--dim);font-family:'JetBrains Mono',monospace}
-.gv-legend{position:absolute;bottom:8px;right:8px;display:flex;gap:8px;padding:5px 10px;background:rgba(14,15,22,0.9);border:1px solid var(--border);border-radius:6px;font-size:8px;color:var(--muted);font-family:'JetBrains Mono',monospace;flex-wrap:wrap}
-.gv-legend i{width:7px;height:7px;border-radius:2px;display:inline-block;vertical-align:middle;margin-right:3px}
-
 /* TREE EDITOR */
 .te-wrap{display:flex;height:100vh;overflow:hidden}
 .te-left{flex:1;display:flex;flex-direction:column;overflow:hidden}
-.te-right{width:400px;border-left:1px solid var(--border);background:var(--card);overflow-y:auto;padding:16px}
+.te-right{width:400px;border-left:1px solid var(--border);background:var(--card);overflow-y:auto;padding:16px;padding-bottom:60px}
 .te-topbar{padding:10px 16px;border-bottom:1px solid var(--border);background:#0e0f15;display:flex;align-items:center;gap:10px;flex-wrap:wrap}
 .te-verbar{padding:8px 16px;border-bottom:1px solid var(--border);background:#0c0d12;display:flex;align-items:center;gap:6px;flex-wrap:wrap}
 .te-ver-pill{padding:4px 12px;border-radius:6px;font-size:11px;font-weight:700;cursor:pointer;font-family:'JetBrains Mono',monospace;border:1px solid var(--border);background:transparent;color:var(--muted);transition:all 0.15s}
@@ -100,11 +85,13 @@ input[type=number]::-webkit-inner-spin-button,input[type=number]::-webkit-outer-
 .te-pick-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:14px;max-width:760px;width:100%}
 .te-pick-card{background:var(--card);border:2px solid var(--border);border-radius:14px;padding:24px;cursor:pointer;transition:all 0.2s;text-align:center}
 .te-pick-card:hover{transform:translateY(-3px);border-color:var(--purple);box-shadow:0 8px 24px rgba(139,92,246,0.12)}
-.te-tree{flex:1;overflow-y:auto;padding:8px 12px}
+.te-tree{flex:1;overflow-y:auto;padding:8px 12px;padding-bottom:60px}
 .te-grp{display:flex;align-items:center;gap:8px;padding:10px 12px;border-radius:8px;margin-top:4px}
 .te-grp:hover{background:rgba(255,255,255,0.015)}
 .te-step{display:flex;align-items:center;gap:8px;padding:8px 10px 8px 28px;cursor:pointer;border-radius:6px;margin:2px 0;font-size:14px}
 .te-step.sel{background:rgba(139,92,246,0.08);border:1px solid rgba(139,92,246,0.2)}
+.te-step.drag-over{border-top:2px solid #f59e0b !important;margin-top:0}
+.te-step.dragging{opacity:0.3}
 .dp-label{font-size:10px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:0.5px;margin-bottom:4px}
 .dp-row{display:flex;gap:4px;align-items:center;margin-bottom:4px;padding:6px 8px;border-radius:6px;border:1px solid var(--border)}
 .dp-section{margin-bottom:16px;padding-bottom:14px;border-bottom:1px solid var(--border)}
@@ -161,10 +148,9 @@ const GS_COL = {
 };
 
 const ECN_DISPOSITIONS = {
+  reuse:   {label:'REUSE',   color:'#3b82f6', icon:'♻️', bg:'rgba(59,130,246,0.12)'},
   scrap:   {label:'SCRAP',   color:'#ef4444', icon:'🗑️', bg:'rgba(239,68,68,0.12)'},
-  replace: {label:'REPLACE', color:'#3b82f6', icon:'🔄', bg:'rgba(59,130,246,0.12)'},
-  repair:  {label:'REPAIR',  color:'#f59e0b', icon:'🔧', bg:'rgba(245,158,11,0.12)'},
-  reuse:   {label:'REUSE',   color:'#22c55e', icon:'♻️', bg:'rgba(34,197,94,0.12)'},
+  rework:  {label:'REWORK',  color:'#f59e0b', icon:'🔧', bg:'rgba(245,158,11,0.12)'},
 };
 
 const GROUP_COLORS = ['#8b5cf6','#10b981','#f59e0b','#ef4444','#06b6d4','#ec4899','#6366f1','#f97316','#a855f7','#14b8a6'];
@@ -191,16 +177,35 @@ async function fetchGSheetUnits(tag){const sheet=GS_SHEET_MAP[tag],cols=GS_COL[t
 // ============================================================
 const DB = {
   assemblies:[], units:{}, tree:{}, ecnChanges:{}, ecnApplied:{}, versions:{},
+  masterParts:new Map(),
   status:'loading', gsStatus:'unknown', errors:[],
 
   async init(){
     this.status='loading';render();
     try{
-      this.assemblies=await sbGet('eagle_eye_app_assemblies','order=id');
+      const[assemblies]=await Promise.all([
+        sbGet('eagle_eye_app_assemblies','order=id'),
+        this.loadMasterParts(),
+      ]);
+      this.assemblies=assemblies;
       this.assemblies.forEach(a=>{const m=ASSY_META[a.tag]||{icon:'📦',color:'#6366f1',name:a.tag};a.icon=m.icon;a.color=m.color;a.section=m.section||null;a.name=m.name||a.tag;});
       this.status='ok';
     }catch(e){console.error('Init:',e);this.status='err';this.errors.push(e.message);}
     render();
+  },
+
+  async loadMasterParts(){
+    try{
+      const rows=await sbGet('master_parts_list_all','select=pn,name,category&limit=10000');
+      rows.forEach(r=>{if(r.pn)this.masterParts.set(r.pn.trim(),{name:(r.name||'').trim(),category:(r.category||'').trim()});});
+      console.log(`Master parts: ${this.masterParts.size} loaded`);
+    }catch(e){console.warn('Master parts load:',e);}
+  },
+
+  lookupPN(pn){
+    if(!pn)return null;
+    const hit=this.masterParts.get(pn.trim());
+    return hit?hit.name:null;
   },
 
   async loadUnits(assemblyId,assyTag){
@@ -265,23 +270,23 @@ const DB = {
   async addStep(gid,d){const[r]=await sbPost('eagle_eye_app_steps',[{group_id:gid,...d}]);return r;},
   async updateStep(sid,d){return(await sbPatch('eagle_eye_app_steps',`id=eq.${sid}`,d))[0];},
   async deleteStep(sid){
-    // Delete parts, fasteners, then step
-    await sbDelete('eagle_eye_app_parts',`step_id=eq.${sid}`);
-    await sbDelete('eagle_eye_app_fasteners',`step_id=eq.${sid}`);
+    // Unlink parts & fasteners (keep records), then delete the step
+    await sbPatch('eagle_eye_app_parts',`step_id=eq.${sid}`,{step_id:null});
+    await sbPatch('eagle_eye_app_fasteners',`step_id=eq.${sid}`,{step_id:null});
     await sbDelete('eagle_eye_app_steps',`id=eq.${sid}`);
   },
   async addGroup(aid,ver,d){const[r]=await sbPost('eagle_eye_app_groups',[{assembly_id:aid,version:ver,...d}]);return r;},
   async updateGroup(gid,d){return(await sbPatch('eagle_eye_app_groups',`id=eq.${gid}`,d))[0];},
   async deleteGroup(gid){
-    // Delete all steps in group (and their parts/fasteners)
+    // Unlink parts/fasteners for all steps, delete steps, then group
     const steps=await sbGet('eagle_eye_app_steps',`group_id=eq.${gid}&select=id`);
     for(const s of steps){await this.deleteStep(s.id);}
     await sbDelete('eagle_eye_app_groups',`id=eq.${gid}`);
   },
   async addPart(sid,d){const[r]=await sbPost('eagle_eye_app_parts',[{step_id:sid,...d}]);return r;},
-  async deletePart(pid){await sbDelete('eagle_eye_app_parts',`id=eq.${pid}`);},
+  async unlinkPart(pid){await sbPatch('eagle_eye_app_parts',`id=eq.${pid}`,{step_id:null});},
   async addFastener(sid,d){const[r]=await sbPost('eagle_eye_app_fasteners',[{step_id:sid,...d}]);return r;},
-  async deleteFastener(fid){await sbDelete('eagle_eye_app_fasteners',`id=eq.${fid}`);},
+  async unlinkFastener(fid){await sbPatch('eagle_eye_app_fasteners',`id=eq.${fid}`,{step_id:null});},
   async updatePart(pid,d){await sbPatch('eagle_eye_app_parts',`id=eq.${pid}`,d);},
   async updateFastener(fid,d){await sbPatch('eagle_eye_app_fasteners',`id=eq.${fid}`,d);},
 
@@ -307,14 +312,96 @@ const DB = {
 // HELPERS
 // ============================================================
 function toast(msg,err){const c=document.createElement('div');c.style.cssText=`position:fixed;bottom:16px;left:50%;transform:translateX(-50%);padding:6px 16px;border-radius:6px;background:${err?'#ef4444':'#22c55e'};color:${err?'#fff':'#000'};font-weight:700;font-size:10px;z-index:999;font-family:'JetBrains Mono',monospace;max-width:400px;text-align:center`;c.textContent=msg;document.body.appendChild(c);setTimeout(()=>c.remove(),2500);}
-function stepsForGroup(tree,gid){return tree.steps.filter(s=>s.group_id===gid);}
+function stepsForGroup(tree,gid){return tree.steps.filter(s=>{const pg=pv('steps',s.id,'group_id');return(pg!==undefined?pg:s.group_id)===gid;}).sort((a,b)=>(pvOr('steps',a.id,'sort_order',a.sort_order)||0)-(pvOr('steps',b.id,'sort_order',b.sort_order)||0));}
 function partsForStep(tree,sid){return tree.partsMap[sid]||[];}
 function fastenersForStep(tree,sid){return tree.fastMap[sid]||[];}
+// --- PENDING CHANGE HELPERS ---
+function pv(type,id,field){const p=S.tePending[type]?.[id];return p?.[field];}
+function pvOr(type,id,field,dbVal){const v=pv(type,id,field);return v!==undefined?v:dbVal;}
+function setPending(type,id,field,val){
+  if(!S.tePending[type][id])S.tePending[type][id]={};
+  S.tePending[type][id][field]=val;
+}
+function pendingCount(){
+  let n=0;
+  for(const t of ['steps','parts','fasteners','groups']) n+=Object.keys(S.tePending[t]).length;
+  return n;
+}
+function clearPending(){S.tePending={steps:{},parts:{},fasteners:{},groups:{}};}
+async function flushPending(){
+  const p=S.tePending;
+  const ops=[];
+  for(const[sid,d] of Object.entries(p.steps)) ops.push(DB.updateStep(parseInt(sid),d));
+  for(const[pid,d] of Object.entries(p.parts)) ops.push(DB.updatePart(parseInt(pid),d));
+  for(const[fid,d] of Object.entries(p.fasteners)) ops.push(DB.updateFastener(parseInt(fid),d));
+  for(const[gid,d] of Object.entries(p.groups)) ops.push(DB.updateGroup(parseInt(gid),d));
+  await Promise.all(ops);
+  clearPending();
+  DB.invalidateTree(S.teAssy);
+  await DB.loadTree(S.teAssy);
+}
+
+// Auto-generate step name: manual label > parts auto-name > step PN master > raw PN
+function resolveStepName(step, tree){
+  // Manual label always wins (check pending first, then DB)
+  const label=pvOr('steps',step.id,'label',step.label);
+  if(label) return label;
+  // Auto from child parts
+  const parts=partsForStep(tree, step.id);
+  if(parts.length>0){
+    const names=parts.map(p=>{
+      const manName=S.partNames[p.id];
+      if(manName) return manName;
+      const ppn=pvOr('parts',p.id,'pn',p.pn);
+      const master=DB.lookupPN(ppn);
+      if(master) return master;
+      return ppn||'';
+    }).filter(Boolean);
+    if(names.length>0) return names.join(' + ');
+  }
+  // Fallback: master-resolve step PN > raw PN
+  const spn=pvOr('steps',step.id,'pn',step.pn);
+  const stepMaster=DB.lookupPN(spn);
+  if(stepMaster) return stepMaster;
+  return spn||'';
+}
+
+// ECN cascade: steps after a marked step with same numeric prefix get ⚠️
+function ecnCascadeSet(tree, marks){
+  const affected=new Set();
+  if(!marks||typeof marks!=='object') return affected;
+  tree.groups.forEach(g=>{
+    const gSteps=stepsForGroup(tree,g.id);
+    const sorted=[...gSteps].sort((a,b)=>{
+      const ta=pvOr('steps',a.id,'seq_tag',a.seq_tag)||'';
+      const tb=pvOr('steps',b.id,'seq_tag',b.seq_tag)||'';
+      return ta.localeCompare(tb,undefined,{numeric:true});
+    });
+    for(let i=0;i<sorted.length;i++){
+      if(!marks[sorted[i].id]&&!marks.has?.(sorted[i].id))continue;
+      const tag=pvOr('steps',sorted[i].id,'seq_tag',sorted[i].seq_tag)||'';
+      const prefix=tag.match(/^(\d+)/)?.[1];
+      if(!prefix)continue;
+      for(let j=i+1;j<sorted.length;j++){
+        const jTag=pvOr('steps',sorted[j].id,'seq_tag',sorted[j].seq_tag)||'';
+        const jPrefix=jTag.match(/^(\d+)/)?.[1];
+        if(jPrefix!==prefix)break;
+        affected.add(sorted[j].id);
+      }
+    }
+  });
+  return affected;
+}
+
+// Drag state for step reordering
+const dragState={sid:null,overSid:null,overGid:null};
+
 function dbStatus(){
-  const s=DB.status,g=DB.gsStatus;
+  const s=DB.status,g=DB.gsStatus,m=DB.masterParts.size;
   return `<div style="display:flex;gap:4px">
     <div class="db-status ${s==='ok'?'ok':s==='err'?'err':'load'}" title="Supabase: ${s}">${s==='ok'?'●':'○'} DB</div>
     ${g==='db'?'<div class="db-status ok" title="Units from DB">● Units</div>':g==='gs'?'<div class="db-status ok" title="Units from GSheets">● GS</div>':''}
+    ${m>0?`<div class="db-status ok" title="${m} master parts loaded">● ${m} Parts</div>`:''}
   </div>`;
 }
 
@@ -324,23 +411,76 @@ function dbStatus(){
 const S = {
   page:'home', assy:null, unitSel:new Set(), unitFilter:'all', unitSearch:'',
   selectedUnits:[], avTab:'list', modal:null, loadingUnits:false,
-  // Graph view
-  gvZoom:0.65, gvPan:{x:10,y:0}, gvTValues:{}, gvPanelOpen:false,
-  gvGaps:{partsToSteps:150,stepsToGroups:160,groupsToAssy:140},
   // Tree editor
   teAssy:null, teVer:null, teSel:null, teSelGroup:null,
   teVersions:[], teFrozen:false,
   // Modals
   confirmAction:null, confirmMsg:'', confirmData:null,
   newVerModal:false, newVerStr:'', newVerNotes:'',
-  ecnModal:false, ecnStep:null, ecnField:'', ecnOld:'', ecnNew:'', ecnReason:'', ecnDisp:'replace', ecnChangeType:'part_changed',
-  editGroupModal:false, editGroupData:null,
+  // ECN marks: { [stepId]: { id:<dbId>, note:'', disposition:'scrap' } }
+  teEcnMarks:{},
+  // Manual part/fastener names: { [id]: 'name' }
+  partNames:{}, fastNames:{},
+  // Pending changes buffer (not yet saved to DB)
+  tePending:{steps:{},parts:{},fasteners:{},groups:{}},
 };
+
+// ECN marks — read/write directly to Supabase ecn_change_records
+async function loadEcnMarksFromDB(assyId){
+  const marks={};
+  try{
+    // Reuse loadEcnChanges which queries ecn_change_records for this assembly's steps
+    delete DB.ecnChanges[assyId]; // force fresh load
+    const records=await DB.loadEcnChanges(assyId);
+    records.forEach(r=>{
+      marks[r.step_id]={id:r.id, note:r.reason||'', disposition:r.disposition||'scrap', seq_tag:r.seq_tag};
+    });
+  }catch(e){console.error('loadEcnMarks:',e);}
+  return marks;
+}
+async function createEcnMark(stepId, tree){
+  const step=tree.steps.find(s=>s.id===stepId);
+  if(!step)return null;
+  const seq=pvOr('steps',stepId,'seq_tag',step.seq_tag)||'';
+  const name=resolveStepName(step,tree)||'';
+  const group=tree.groups.find(g=>g.id===step.group_id);
+  const gName=group?pvOr('groups',group.id,'label',group.label):'';
+  const rec=await DB.createEcnChangeRecord({
+    step_id:stepId, seq_tag:seq, step_name:name, group_name:gName,
+    disposition:'scrap', change_type:'ecn_mark', field:'step',
+    reason:''
+  });
+  delete DB.ecnChanges[S.teAssy];
+  return rec;
+}
+async function deleteEcnMark(dbId){
+  await DB.deleteEcnChangeRecord(dbId);
+  delete DB.ecnChanges[S.teAssy];
+}
+async function updateEcnMark(dbId, fields){
+  await DB.updateEcnChangeRecord(dbId, fields);
+  delete DB.ecnChanges[S.teAssy];
+}
 
 // ============================================================
 // RENDER ENGINE
 // ============================================================
 function render(){
+  // Save focus state before re-render
+  const ae=document.activeElement;
+  let focusInfo=null;
+  if(ae&&(ae.tagName==='INPUT'||ae.tagName==='TEXTAREA'||ae.tagName==='SELECT')){
+    const role=ae.dataset?.role;
+    const sid=ae.dataset?.sid;const pid=ae.dataset?.pid;const fid=ae.dataset?.fid;const gid=ae.dataset?.gid;
+    if(role){
+      focusInfo={role,sid,pid,fid,gid,selStart:ae.selectionStart,selEnd:ae.selectionEnd,tag:ae.tagName};
+    }
+  }
+  // Save scroll positions
+  const treeEl=document.querySelector('.te-tree');
+  const rightEl=document.querySelector('.te-right');
+  const scrolls={tree:treeEl?.scrollTop||0,right:rightEl?.scrollTop||0};
+
   const app=document.getElementById('app');
   if(S.page==='home') app.innerHTML=renderHome();
   else if(S.page==='unitSelect') app.innerHTML=renderUnitSelect();
@@ -349,9 +489,29 @@ function render(){
   // Overlays
   if(S.confirmAction) app.innerHTML+=renderConfirmModal();
   if(S.newVerModal) app.innerHTML+=renderNewVersionModal();
-  if(S.ecnModal) app.innerHTML+=renderEcnModal();
-  if(S.editGroupModal) app.innerHTML+=renderEditGroupModal();
   attachEvents();
+
+  // Restore scroll positions
+  const treeEl2=document.querySelector('.te-tree');
+  const rightEl2=document.querySelector('.te-right');
+  if(treeEl2) treeEl2.scrollTop=scrolls.tree;
+  if(rightEl2) rightEl2.scrollTop=scrolls.right;
+
+  // Restore focus
+  if(focusInfo){
+    let sel=`[data-role="${focusInfo.role}"]`;
+    if(focusInfo.sid) sel+=`[data-sid="${focusInfo.sid}"]`;
+    if(focusInfo.pid) sel+=`[data-pid="${focusInfo.pid}"]`;
+    if(focusInfo.fid) sel+=`[data-fid="${focusInfo.fid}"]`;
+    if(focusInfo.gid) sel+=`[data-gid="${focusInfo.gid}"]`;
+    const el=document.querySelector(sel);
+    if(el){
+      el.focus({preventScroll:true});
+      if(focusInfo.tag!=='SELECT'&&focusInfo.selStart!=null){
+        try{el.setSelectionRange(focusInfo.selStart,focusInfo.selEnd);}catch(e){}
+      }
+    }
+  }
 }
 
 // ============================================================
@@ -443,22 +603,25 @@ function renderAssembly(){
       </div>`;
     }
     let treeHtml='<div class="tree-list">';
+    // Build ECN marks from DB records for cascade
+    const avEcnMarks={};
+    ecnRecords.forEach(c=>{if(c.step_id)avEcnMarks[c.step_id]=true;});
+    tree.steps.forEach(s=>{if(s.ecn_status==='changed')avEcnMarks[s.id]=true;});
+    const avCascade=ecnCascadeSet(tree,avEcnMarks);
     tree.groups.forEach(g=>{const gSteps=stepsForGroup(tree,g.id);
       treeHtml+=`<div style="margin-bottom:6px"><div class="grp-hdr" style="background:${g.color||'#666'}08;border-left:4px solid ${g.color||'#666'}"><span style="font-size:11px;color:var(--muted)">▼</span><span style="font-size:16px">${g.icon||'📦'}</span><span style="font-weight:700;color:${g.color||'#666'};flex:1;font-size:15px">${g.label}</span><span style="color:var(--muted);font-size:13px" class="mono">${gSteps.length}</span></div>`;
-      gSteps.forEach(s=>{const pts=partsForStep(tree,s.id),fts=fastenersForStep(tree,s.id),hasEcn=s.ecn_status==='changed'||ecnRecords.some(c=>c.step_id===s.id),done=DB.isApplied(unit.sn,s.seq_tag);
-        treeHtml+=`<div class="step-row" style="${done?'opacity:0.4':''}"><span style="color:var(--dim);font-size:12px">⠿</span>${hasEcn?`<span style="font-size:10px">${done?'✅':'🔴'}</span>`:''}
+      gSteps.forEach(s=>{const pts=partsForStep(tree,s.id),fts=fastenersForStep(tree,s.id),hasEcn=s.ecn_status==='changed'||ecnRecords.some(c=>c.step_id===s.id),isCascade=avCascade.has(s.id),done=DB.isApplied(unit.sn,s.seq_tag);
+        treeHtml+=`<div class="step-row" style="${done?'opacity:0.4':''}${isCascade&&!done?';background:rgba(245,158,11,0.04)':''}"><span style="color:var(--dim);font-size:12px">⠿</span>${hasEcn?`<span style="font-size:10px">${done?'✅':'🔴'}</span>`:''}${isCascade&&!hasEcn?'<span style="font-size:10px" title="Affected by upstream ECN">⚠️</span>':''}
           <span style="font-weight:700;min-width:32px;text-align:center;font-size:13px;padding:3px 8px;border-radius:5px;background:${g.color||'#666'}15;color:${g.color||'#666'}" class="mono">${s.seq_tag||'—'}</span>
           <span style="font-size:12px;font-weight:600;padding:2px 8px;border-radius:4px;color:${s.type==='PREP'?'#a855f7':s.type==='CHECK'?'#ec4899':'#22c55e'};background:${s.type==='PREP'?'rgba(168,85,247,0.1)':s.type==='CHECK'?'rgba(236,72,153,0.1)':'rgba(34,197,94,0.1)'}">${s.type||'STEP'}</span>
-          <span style="flex:1;font-size:14px">${s.label||s.pn||''}</span>
+          <span style="flex:1;font-size:14px">${resolveStepName(s,tree)||''}</span>
           ${pts.length?`<span style="font-size:12px;color:#22c55e;font-weight:600" class="mono">${pts.length}P</span>`:''}
           ${fts.length?`<span style="font-size:12px;color:#ef4444;font-weight:600" class="mono">${fts.length}F</span>`:''}
         </div>`;});
       treeHtml+='</div>';});
     treeHtml+='</div>';
     tabContent=banner+treeHtml;
-  } else if(tab==='graph'){
-    tabContent=renderGraphView(tree, a, ecnRecords, unit);
-  } else tabContent=`<div style="display:flex;flex-direction:column;align-items:center;padding:80px 20px;color:var(--dim)"><div style="font-size:40px;margin-bottom:12px;opacity:0.3">🔧</div><div style="font-size:20px;font-weight:700">Kanban View</div><div style="font-size:13px;margin-top:6px">Coming soon</div></div>`;
+  } else tabContent=`<div style="display:flex;flex-direction:column;align-items:center;padding:80px 20px;color:var(--dim)"><div style="font-size:40px;margin-bottom:12px;opacity:0.3">🔧</div><div style="font-size:20px;font-weight:700">${tab==='graph'?'Graph':'Kanban'} View</div><div style="font-size:13px;margin-top:6px">Coming soon</div></div>`;
 
   return `<div style="min-height:100vh;background:var(--bg)">
     <div class="av-header">
@@ -469,385 +632,12 @@ function renderAssembly(){
     </div>
     <div class="av-tabs">
       <button class="av-tab ${tab==='list'?'active':''}" data-action="avTab" data-tab="list">≡ List ${ecnRecords.length-appliedCount>0?`<span class="count">${ecnRecords.length-appliedCount}</span>`:''}</button>
-      <button class="av-tab ${tab==='graph'?'active':''}" data-action="avTab" data-tab="graph">◈ Graph</button>
+      <button class="av-tab ${tab==='graph'?'active':''}" data-action="avTab" data-tab="graph">◈ Graph <span class="soon">SOON</span></button>
       <button class="av-tab ${tab==='kanban'?'active':''}" data-action="avTab" data-tab="kanban">▦ Kanban <span class="soon">SOON</span></button>
       <div style="margin-left:auto;display:flex;gap:12px;font-size:13px;color:var(--muted)" class="mono"><span><span style="color:#22c55e;font-weight:700">${totalP}</span> parts</span><span><span style="color:#ef4444;font-weight:700">${totalF}</span> fasteners</span><span><span style="font-weight:700">${tree.steps.length}</span> steps</span></div>
     </div>
     ${tabContent}
   </div>${S.modal!==null?renderChangeModal():''}`;
-}
-
-// ============================================================
-// GRAPH VIEW
-// ============================================================
-function renderGraphView(tree, assy, ecnRecords, unit) {
-  if (!tree || !tree.groups.length) return '<div class="loading-wrap"><div style="color:var(--dim)">No tree data</div></div>';
-
-  const G = S.gvGaps;
-  const STEP_W=220,STEP_H=54,PART_W=140,PART_H=32,GRP_W=185,GRP_H=54,ASSY_W=200,ASSY_H=60,MAX_FAST=2;
-  const COL_CHILD=50, COL_STEP=COL_CHILD+PART_W+G.partsToSteps, COL_GRP=COL_STEP+STEP_W+G.stepsToGroups, COL_ASSY=COL_GRP+GRP_W+G.groupsToAssy;
-
-  // Colors
-  const GC={
-    partFill:'#0c1824',partStroke:'#2563eb',partText:'#7dd3fc',
-    stepFill:'#140c24',stepStroke:'#7c3aed',stepText:'#c4b5fd',
-    prepFill:'#1a1406',prepStroke:'#d97706',prepText:'#fbbf24',
-    checkFill:'#1a0820',checkStroke:'#db2777',checkText:'#f9a8d4',
-    kanryoFill:'#061a12',kanryoStroke:'#16a34a',kanryoText:'#86efac',
-    grpFill:'#0e0f14',assyFill:'#0a1e12',assyStroke:'#22c55e',assyText:'#4ade80',
-    ecnGlow:'#ef4444',cascadeGlow:'#f59e0b',
-    fastName:'#f59e0b',loctite:'#a78bfa',torque:'#22c55e',
-    arrow:'#252838',arrowHi:'#3d4160',seqBg:'#1a1408',seqCol:'#f59e0b',
-    dim:'#363950',dimText:'#4a4e68',labelBg:'rgba(8,9,13,0.8)',labelDot:'#f59e0b',
-  };
-  function sc(type,ecn,casc){
-    let f=GC.stepFill,s=GC.stepStroke,t=GC.stepText;
-    if(type==='PREP'){f=GC.prepFill;s=GC.prepStroke;t=GC.prepText;}
-    if(type==='CHECK'){f=GC.checkFill;s=GC.checkStroke;t=GC.checkText;}
-    if(type==='KANRYO'){f=GC.kanryoFill;s=GC.kanryoStroke;t=GC.kanryoText;}
-    if(ecn)s=GC.ecnGlow; else if(casc)s=GC.cascadeGlow;
-    return{f,s,t};
-  }
-  function clip(s,n){return s&&s.length>n?s.slice(0,n-1)+'…':s||'';}
-  function bezP(x1,y1,x2,y2){const d=Math.abs(x2-x1)*0.42;return`M${x1},${y1} C${x1+d},${y1} ${x2-d},${y2} ${x2},${y2}`;}
-  function bezPt(x1,y1,x2,y2,t){const d=Math.abs(x2-x1)*0.42,cx1=x1+d,cy1=y1,cx2=x2-d,cy2=y2,u=1-t;return{x:u*u*u*x1+3*u*u*t*cx1+3*u*t*t*cx2+t*t*t*x2,y:u*u*u*y1+3*u*u*t*cy1+3*u*t*t*cy2+t*t*t*y2};}
-
-  // Layout
-  const nodes=[],edges=[];
-  let y=50;
-
-  tree.groups.forEach(g=>{
-    const gy0=y;
-    const gSteps=stepsForGroup(tree,g.id);
-    const stepNds=[];
-
-    gSteps.forEach(step=>{
-      const pts=partsForStep(tree,step.id);
-      const fts=fastenersForStep(tree,step.id);
-      const np=pts.length;
-      const isSingle=np===1, isMulti=np>1;
-      const hasEcn=step.ecn_status==='changed'||ecnRecords.some(c=>c.step_id===step.id);
-      const colors=sc((step.type||'STEP').toUpperCase(),hasEcn,false);
-      const childNds=[];
-
-      if(isMulti){
-        const totalCH=np*(PART_H+12)-12;
-        const cy0=y-totalCH/2+PART_H/2;
-        pts.forEach((p,pi)=>{
-          const py=cy0+pi*(PART_H+12);
-          const cn={id:'cp-'+step.id+'-'+pi,type:'part',x:COL_CHILD,y:py,w:PART_W,h:PART_H,pn:p.pn||'',name:p.name||p.pn||'Part',qty:p.qty||1};
-          nodes.push(cn);childNds.push(cn);
-        });
-      }
-
-      const sn={id:'s-'+step.id,type:'step',x:COL_STEP,y,w:STEP_W,h:STEP_H,
-        stepId:step.id,seq:step.seq_tag||'',name:step.label||step.pn||'',stepType:(step.type||'STEP').toUpperCase(),
-        colors,isSingle,isMulti,hasEcn,
-        inlinePartName:isSingle?(pts[0].name||pts[0].pn||''):'',
-        inlinePartPn:isSingle?(pts[0].pn||''):'',
-        fts};
-      nodes.push(sn);stepNds.push(sn);
-
-      if(isMulti){
-        childNds.forEach((cn,ci)=>{
-          edges.push({id:'e-cp-'+step.id+'-'+ci,from:cn,to:sn,kind:'part-step',fts:ci===0?fts:[],defT:0.45});
-        });
-      }
-
-      const blockH=isMulti?Math.max(STEP_H,np*(PART_H+12)):STEP_H;
-      y+=blockH+26;
-    });
-
-    const gmid=(gy0+y-26)/2;
-    const gn={id:'g-'+g.id,type:'group',x:COL_GRP,y:gmid,w:GRP_W,h:GRP_H,label:g.label,icon:g.icon||'📦',color:g.color||'#6b7280',stepCount:gSteps.length};
-    nodes.push(gn);
-
-    stepNds.forEach(sn=>{
-      edges.push({id:'e-sg-'+sn.stepId,from:sn,to:gn,kind:'step-grp',fts:sn.isMulti?[]:sn.fts,defT:0.35});
-    });
-    y+=44;
-  });
-
-  const grps=nodes.filter(n=>n.type==='group');
-  const ay=grps.length?grps.reduce((a,n)=>a+n.y,0)/grps.length:200;
-  const an={id:'assy',type:'assy',x:COL_ASSY,y:ay,w:ASSY_W,h:ASSY_H};
-  nodes.push(an);
-  grps.forEach(gn=>{edges.push({id:'e-ga-'+gn.id,from:gn,to:an,kind:'grp-assy',fts:[],defT:0.5});});
-
-  const totalH=y+80;
-  window._gvEdges=edges;
-
-  // Build SVG strings
-  let svgEdges='', svgNodes='', svgLabels='';
-
-  // Column guides
-  [{x:COL_CHILD,l:'Parts',c:GC.partStroke},{x:COL_STEP,l:'Steps',c:GC.stepStroke},{x:COL_GRP,l:'Groups',c:'#6b7280'},{x:COL_ASSY,l:'Assembly',c:GC.assyStroke}].forEach(g=>{
-    svgEdges+=`<line x1="${g.x}" y1="-20" x2="${g.x}" y2="${totalH}" stroke="${g.c}" stroke-width="0.5" opacity="0.08" stroke-dasharray="6 4"/>`;
-    svgEdges+=`<text x="${g.x+4}" y="-8" fill="${g.c}" font-size="8" font-weight="700" opacity="0.2" font-family="'JetBrains Mono',monospace">${g.l}</text>`;
-  });
-
-  // Edges
-  edges.forEach(e=>{
-    const x1=e.from.x+e.from.w,y1=e.from.y,x2=e.to.x,y2=e.to.y;
-    const isHi=e.kind==='grp-assy',sw=isHi?2.2:1.2;
-    const ecn=e.to.hasEcn;
-    const col=ecn?(GC.ecnGlow+'40'):(isHi?GC.arrowHi:GC.arrow);
-    svgEdges+=`<path d="${bezP(x1,y1,x2,y2)}" fill="none" stroke="${col}" stroke-width="${sw}"/>`;
-    svgEdges+=`<circle cx="${x2}" cy="${y2}" r="2.8" fill="${col}"/>`;
-  });
-
-  // Nodes
-  nodes.forEach(n=>{
-    if(n.type==='part'){
-      const ind=11,pts=`${n.x+ind},${n.y-n.h/2} ${n.x+n.w-ind},${n.y-n.h/2} ${n.x+n.w},${n.y} ${n.x+n.w-ind},${n.y+n.h/2} ${n.x+ind},${n.y+n.h/2} ${n.x},${n.y}`;
-      svgNodes+=`<polygon points="${pts}" fill="${GC.partFill}" stroke="${GC.partStroke}" stroke-width="1.2"/>`;
-      svgNodes+=`<text x="${n.x+n.w/2}" y="${n.y+1}" fill="${GC.partText}" font-size="9" font-weight="600" text-anchor="middle" font-family="'JetBrains Mono',monospace">${clip(n.name||n.pn,17)}</text>`;
-      if(n.qty>1)svgNodes+=`<text x="${n.x+n.w-ind-2}" y="${n.y+n.h/2-3}" fill="${GC.partStroke}" font-size="7" font-weight="700" text-anchor="end" font-family="'JetBrains Mono',monospace">×${n.qty}</text>`;
-    }
-    else if(n.type==='step'){
-      const r=10,c=n.colors,glow=n.hasEcn?GC.ecnGlow:null;
-      const iconX=n.hasEcn?28:12;
-      if(glow)svgNodes+=`<rect x="${n.x-5}" y="${n.y-n.h/2-5}" width="${n.w+10}" height="${n.h+10}" rx="${r+4}" fill="none" stroke="${glow}" stroke-width="2.5" opacity="0.28" filter="url(#gvGlow)"/>`;
-      svgNodes+=`<rect x="${n.x}" y="${n.y-n.h/2}" width="${n.w}" height="${n.h}" rx="${r}" fill="${c.f}" stroke="${c.s}" stroke-width="1.5"/>`;
-      if(n.seq&&n.seq!=='—'){
-        svgNodes+=`<rect x="${n.x+n.w-38}" y="${n.y-n.h/2-10}" width="36" height="20" rx="5" fill="${GC.seqBg}" stroke="${GC.seqCol}" stroke-width="1.2"/>`;
-        svgNodes+=`<text x="${n.x+n.w-20}" y="${n.y-n.h/2+5}" fill="${GC.seqCol}" font-size="11" font-weight="800" text-anchor="middle" font-family="'JetBrains Mono',monospace">${n.seq}</text>`;
-      }
-      if(n.hasEcn)svgNodes+=`<circle cx="${n.x+14}" cy="${n.y-n.h/2+15}" r="5.5" fill="${GC.ecnGlow}"/>`;
-      if(n.isSingle&&n.inlinePartName){
-        svgNodes+=`<text x="${n.x+iconX}" y="${n.y-4}" fill="${c.t}" font-size="14" font-weight="700" font-family="'DM Sans',sans-serif">${clip(n.inlinePartName,24)}</text>`;
-        svgNodes+=`<text x="${n.x+iconX}" y="${n.y+12}" fill="${GC.dim}" font-size="9" font-family="'JetBrains Mono',monospace">${n.inlinePartPn}</text>`;
-      } else {
-        svgNodes+=`<text x="${n.x+iconX}" y="${n.y-4}" fill="${c.t}" font-size="13" font-weight="700" font-family="'DM Sans',sans-serif">${clip(n.name,22)}</text>`;
-        svgNodes+=`<text x="${n.x+iconX}" y="${n.y+10}" fill="${c.s}" font-size="8" font-weight="700" opacity="0.4" font-family="'JetBrains Mono',monospace">${n.stepType}</text>`;
-      }
-    }
-    else if(n.type==='group'){
-      svgNodes+=`<rect x="${n.x}" y="${n.y-n.h/2}" width="${n.w}" height="${n.h}" rx="14" fill="${GC.grpFill}" stroke="${n.color}" stroke-width="2"/>`;
-      svgNodes+=`<text x="${n.x+16}" y="${n.y+2}" font-size="16">${n.icon}</text>`;
-      svgNodes+=`<text x="${n.x+38}" y="${n.y-6}" fill="${n.color}" font-size="13" font-weight="700" font-family="'DM Sans',sans-serif">${n.label}</text>`;
-      svgNodes+=`<text x="${n.x+38}" y="${n.y+10}" fill="#4b5563" font-size="9" font-weight="600" font-family="'JetBrains Mono',monospace">完了 · ${n.stepCount} steps</text>`;
-    }
-    else if(n.type==='assy'){
-      svgNodes+=`<rect x="${n.x}" y="${n.y-n.h/2}" width="${n.w}" height="${n.h}" rx="${n.h/2}" fill="${GC.assyFill}" stroke="${GC.assyStroke}" stroke-width="2.5"/>`;
-      svgNodes+=`<circle cx="${n.x+22}" cy="${n.y}" r="6" fill="${GC.assyStroke}" opacity="0.3"/>`;
-      svgNodes+=`<text x="${n.x+n.w/2+8}" y="${n.y-3}" fill="${GC.assyText}" font-size="14" font-weight="800" text-anchor="middle" font-family="'DM Sans',sans-serif">${assy.name||assy.tag}</text>`;
-      svgNodes+=`<text x="${n.x+n.w/2+8}" y="${n.y+13}" fill="${GC.assyStroke}" font-size="9" font-weight="700" text-anchor="middle" opacity="0.5" font-family="'JetBrains Mono',monospace">v${assy.version||'?'}</text>`;
-    }
-  });
-
-  // Fastener labels on edges
-  edges.filter(e=>e.fts&&e.fts.length>0).forEach(e=>{
-    const tVal=S.gvTValues[e.id]??e.defT;
-    const x1=e.from.x+e.from.w,y1=e.from.y,x2=e.to.x,y2=e.to.y;
-    const pt=bezPt(x1,y1,x2,y2,tVal);
-    const show=e.fts.slice(0,MAX_FAST),extra=e.fts.length-MAX_FAST;
-    const lines=[];
-    show.forEach((f,fi)=>{
-      lines.push({t:clip((f.name||f.pn||'Fastener'),24)+(f.qty>1?' ×'+f.qty:''),c:GC.fastName});
-      if(f.loctite)lines.push({t:f.loctite,c:GC.loctite});
-      if(f.torque)lines.push({t:f.torque+'Nm',c:GC.torque});
-      if(fi<show.length-1)lines.push(null);
-    });
-    if(extra>0)lines.push({t:'+'+extra+' more',c:GC.dimText});
-    const lineH=12,gap=4;
-    const totalLH=lines.filter(Boolean).length*lineH+lines.filter(l=>!l).length*gap;
-    const maxW=Math.max(...lines.filter(Boolean).map(l=>l.t.length),5)*6.2+12;
-
-    let lbl=`<g data-role="gvLabel" data-eid="${e.id}" data-x1="${x1}" data-y1="${y1}" data-x2="${x2}" data-y2="${y2}" transform="translate(${pt.x},${pt.y-10})" style="cursor:ew-resize">`;
-    lbl+=`<circle cx="0" cy="10" r="3.5" fill="${GC.labelDot}" opacity="0.7"/>`;
-    lbl+=`<line x1="0" y1="8" x2="0" y2="0" stroke="${GC.labelDot}" stroke-width="0.8" opacity="0.3"/>`;
-    lbl+=`<rect x="${-maxW}" y="${-totalLH-4}" width="${maxW+6}" height="${totalLH+8}" rx="4" fill="${GC.labelBg}" stroke="#1e2030" stroke-width="0.5"/>`;
-    let ty=0;
-    const textEls=[];
-    for(let i=lines.length-1;i>=0;i--){
-      const l=lines[i];if(!l){ty-=gap;continue;}
-      ty-=lineH;
-      textEls.push(`<text x="0" y="${ty+lineH-3}" fill="${l.c}" font-size="9" font-weight="600" text-anchor="end" font-family="'JetBrains Mono',monospace">${l.t}</text>`);
-    }
-    lbl+=textEls.join('');
-    lbl+=`</g>`;
-    svgLabels+=lbl;
-  });
-
-  const z=S.gvZoom, px=S.gvPan.x, py=S.gvPan.y;
-  const partCount=nodes.filter(n=>n.type==='part').length;
-  const stepCount=nodes.filter(n=>n.type==='step').length;
-
-  return `<div class="gv-wrap" id="gvWrap">
-    <div class="gv-header">
-      <button class="gv-btn" data-action="gvZoomOut">−</button>
-      <span class="mono" style="font-size:10px;color:var(--muted);min-width:36px;text-align:center">${Math.round(z*100)}%</span>
-      <button class="gv-btn" data-action="gvZoomIn">+</button>
-      <button class="gv-btn" style="width:auto;padding:0 8px;font-size:9px" data-action="gvReset">Reset</button>
-      <button class="gv-btn" style="width:auto;padding:0 8px;font-size:10px;${S.gvPanelOpen?'color:var(--accent);border-color:var(--accent)':''}" data-action="gvTogglePanel">⇔</button>
-    </div>
-    ${S.gvPanelOpen?`<div class="gv-panel">
-      <label><span>⬡→▣ Parts ↔ Steps</span><span class="val">${G.partsToSteps}px</span></label>
-      <input type="range" min="60" max="400" value="${G.partsToSteps}" data-role="gvGap" data-key="partsToSteps">
-      <label><span>▣→◎ Steps ↔ Groups</span><span class="val">${G.stepsToGroups}px</span></label>
-      <input type="range" min="60" max="500" value="${G.stepsToGroups}" data-role="gvGap" data-key="stepsToGroups">
-      <label><span>◎→● Groups ↔ Assembly</span><span class="val">${G.groupsToAssy}px</span></label>
-      <input type="range" min="60" max="400" value="${G.groupsToAssy}" data-role="gvGap" data-key="groupsToAssy">
-      <button class="btn-sm" style="width:100%;margin-top:4px;text-align:center;color:var(--accent);border-color:rgba(245,158,11,0.2);background:rgba(245,158,11,0.05)" data-action="gvResetGaps">Reset Spacing</button>
-    </div>`:''}
-    <svg id="gvSvg" width="100%" height="100%" style="position:absolute;top:0;left:0">
-      <defs><filter id="gvGlow" x="-50%" y="-50%" width="200%" height="200%"><feGaussianBlur in="SourceGraphic" stdDeviation="6" result="b"/><feMerge><feMergeNode in="b"/><feMergeNode in="SourceGraphic"/></feMerge></filter></defs>
-      <g id="gvCanvas" transform="translate(${px},${py}) scale(${z})">
-        ${svgEdges}${svgNodes}${svgLabels}
-      </g>
-    </svg>
-    <div class="gv-footer">Scroll to zoom · Drag to pan · ↔ Slide labels along arrows · ${partCount} parts · ${stepCount} steps</div>
-    <div class="gv-legend">
-      <span><i style="background:#2563eb"></i>Part</span><span><i style="background:#7c3aed"></i>Step</span>
-      <span><i style="background:#d97706"></i>Prep</span><span><i style="background:#16a34a"></i>Kanryo</span>
-      <span><i style="background:#ef4444"></i>ECN</span><span><i style="background:#f59e0b"></i>Fastener</span>
-      <span><i style="background:#a78bfa"></i>Loctite</span><span><i style="background:#22c55e"></i>Torque</span>
-    </div>
-  </div>`;
-}
-
-function initGV(){
-  const wrap=document.getElementById('gvWrap');
-  const svg=document.getElementById('gvSvg');
-  if(!wrap||!svg)return;
-  let dragging=false,dragX=0,dragY=0;
-
-  // Pan
-  svg.addEventListener('mousedown',e=>{
-    if(e.target.closest('[data-role="gvLabel"]'))return;
-    if(e.button!==0)return;
-    dragging=true;wrap.classList.add('dragging');
-    dragX=e.clientX-S.gvPan.x;dragY=e.clientY-S.gvPan.y;
-  });
-  svg.addEventListener('mousemove',e=>{
-    if(!dragging)return;
-    S.gvPan.x=e.clientX-dragX;S.gvPan.y=e.clientY-dragY;
-    const c=document.getElementById('gvCanvas');
-    if(c)c.setAttribute('transform',`translate(${S.gvPan.x},${S.gvPan.y}) scale(${S.gvZoom})`);
-  });
-  const stopDrag=()=>{dragging=false;wrap.classList.remove('dragging');};
-  svg.addEventListener('mouseup',stopDrag);
-  svg.addEventListener('mouseleave',stopDrag);
-
-  // Wheel zoom
-  wrap.addEventListener('wheel',e=>{
-    e.preventDefault();
-    S.gvZoom=Math.min(3,Math.max(0.1,S.gvZoom+(e.deltaY>0?-0.06:0.06)));
-    const c=document.getElementById('gvCanvas');
-    if(c)c.setAttribute('transform',`translate(${S.gvPan.x},${S.gvPan.y}) scale(${S.gvZoom})`);
-  },{passive:false});
-
-  // Column gap sliders (live update)
-  wrap.querySelectorAll('[data-role="gvGap"]').forEach(slider=>{
-    slider.addEventListener('input',()=>{
-      const key=slider.dataset.key;
-      S.gvGaps[key]=parseInt(slider.value);
-      // Update displayed value
-      const valEl=slider.previousElementSibling?.querySelector('.val');
-      if(valEl)valEl.textContent=slider.value+'px';
-      // Re-render SVG only (not the full app)
-      reRenderGvSvg();
-    });
-  });
-
-  // Sliding fastener labels
-  attachGvLabels(svg);
-}
-
-function reRenderGvSvg(){
-  const svg=document.getElementById('gvSvg');
-  if(!svg)return;
-  const tree=DB.tree[`${S.assy.id}`];
-  const ecnRecords=DB.ecnChanges[S.assy.id]||[];
-  if(!tree)return;
-  // Re-call renderGraphView logic for SVG only
-  const inner=renderGvSvgInner(tree,S.assy,ecnRecords);
-  svg.innerHTML=inner;
-  attachGvLabels(svg);
-}
-
-function renderGvSvgInner(tree,assy,ecnRecords){
-  // Duplicate mini-layout from renderGraphView to rebuild SVG
-  const G=S.gvGaps;
-  const STEP_W=220,STEP_H=54,PART_W=140,PART_H=32,GRP_W=185,GRP_H=54,ASSY_W=200,ASSY_H=60,MAX_FAST=2;
-  const COL_CHILD=50,COL_STEP=COL_CHILD+PART_W+G.partsToSteps,COL_GRP=COL_STEP+STEP_W+G.stepsToGroups,COL_ASSY=COL_GRP+GRP_W+G.groupsToAssy;
-  const GC={partFill:'#0c1824',partStroke:'#2563eb',partText:'#7dd3fc',stepFill:'#140c24',stepStroke:'#7c3aed',stepText:'#c4b5fd',prepFill:'#1a1406',prepStroke:'#d97706',prepText:'#fbbf24',checkFill:'#1a0820',checkStroke:'#db2777',checkText:'#f9a8d4',kanryoFill:'#061a12',kanryoStroke:'#16a34a',kanryoText:'#86efac',grpFill:'#0e0f14',assyFill:'#0a1e12',assyStroke:'#22c55e',assyText:'#4ade80',ecnGlow:'#ef4444',cascadeGlow:'#f59e0b',fastName:'#f59e0b',loctite:'#a78bfa',torque:'#22c55e',arrow:'#252838',arrowHi:'#3d4160',seqBg:'#1a1408',seqCol:'#f59e0b',dim:'#363950',dimText:'#4a4e68',labelBg:'rgba(8,9,13,0.8)',labelDot:'#f59e0b'};
-  function sc(type,ecn,casc){let f=GC.stepFill,s=GC.stepStroke,t=GC.stepText;if(type==='PREP'){f=GC.prepFill;s=GC.prepStroke;t=GC.prepText;}if(type==='CHECK'){f=GC.checkFill;s=GC.checkStroke;t=GC.checkText;}if(type==='KANRYO'){f=GC.kanryoFill;s=GC.kanryoStroke;t=GC.kanryoText;}if(ecn)s=GC.ecnGlow;return{f,s,t};}
-  function clip(s,n){return s&&s.length>n?s.slice(0,n-1)+'…':s||'';}
-  function bezP(x1,y1,x2,y2){const d=Math.abs(x2-x1)*0.42;return`M${x1},${y1} C${x1+d},${y1} ${x2-d},${y2} ${x2},${y2}`;}
-  function bezPt(x1,y1,x2,y2,t){const d=Math.abs(x2-x1)*0.42,cx1=x1+d,cy1=y1,cx2=x2-d,cy2=y2,u=1-t;return{x:u*u*u*x1+3*u*u*t*cx1+3*u*t*t*cx2+t*t*t*x2,y:u*u*u*y1+3*u*u*t*cy1+3*u*t*t*cy2+t*t*t*y2};}
-
-  const nodes=[],edges=[];let y=50;
-  tree.groups.forEach(g=>{
-    const gy0=y,gSteps=stepsForGroup(tree,g.id),stepNds=[];
-    gSteps.forEach(step=>{
-      const pts=partsForStep(tree,step.id),fts=fastenersForStep(tree,step.id),np=pts.length;
-      const isSingle=np===1,isMulti=np>1;
-      const hasEcn=step.ecn_status==='changed'||ecnRecords.some(c=>c.step_id===step.id);
-      const colors=sc((step.type||'STEP').toUpperCase(),hasEcn,false);
-      const childNds=[];
-      if(isMulti){const totalCH=np*(PART_H+12)-12;const cy0=y-totalCH/2+PART_H/2;pts.forEach((p,pi)=>{const py=cy0+pi*(PART_H+12);const cn={id:'cp-'+step.id+'-'+pi,type:'part',x:COL_CHILD,y:py,w:PART_W,h:PART_H,pn:p.pn||'',name:p.name||p.pn||'Part',qty:p.qty||1};nodes.push(cn);childNds.push(cn);});}
-      const sn={id:'s-'+step.id,type:'step',x:COL_STEP,y,w:STEP_W,h:STEP_H,stepId:step.id,seq:step.seq_tag||'',name:step.label||step.pn||'',stepType:(step.type||'STEP').toUpperCase(),colors,isSingle,isMulti,hasEcn,inlinePartName:isSingle?(pts[0].name||pts[0].pn||''):'',inlinePartPn:isSingle?(pts[0].pn||''):'',fts};
-      nodes.push(sn);stepNds.push(sn);
-      if(isMulti){childNds.forEach((cn,ci)=>{edges.push({id:'e-cp-'+step.id+'-'+ci,from:cn,to:sn,kind:'part-step',fts:ci===0?fts:[],defT:0.45});});}
-      const blockH=isMulti?Math.max(STEP_H,np*(PART_H+12)):STEP_H;
-      y+=blockH+26;
-    });
-    const gmid=(gy0+y-26)/2;
-    const gn={id:'g-'+g.id,type:'group',x:COL_GRP,y:gmid,w:GRP_W,h:GRP_H,label:g.label,icon:g.icon||'📦',color:g.color||'#6b7280',stepCount:gSteps.length};
-    nodes.push(gn);
-    stepNds.forEach(sn=>{edges.push({id:'e-sg-'+sn.stepId,from:sn,to:gn,kind:'step-grp',fts:sn.isMulti?[]:sn.fts,defT:0.35});});
-    y+=44;
-  });
-  const grps=nodes.filter(n=>n.type==='group'),ay=grps.length?grps.reduce((a,n)=>a+n.y,0)/grps.length:200;
-  const an={id:'assy',type:'assy',x:COL_ASSY,y:ay,w:ASSY_W,h:ASSY_H};nodes.push(an);
-  grps.forEach(gn=>{edges.push({id:'e-ga-'+gn.id,from:gn,to:an,kind:'grp-assy',fts:[],defT:0.5});});
-  const totalH=y+80;
-
-  // Stash for label sliding
-  window._gvEdges=edges;
-
-  let svgE='',svgN='',svgL='';
-  [{x:COL_CHILD,l:'Parts',c:GC.partStroke},{x:COL_STEP,l:'Steps',c:GC.stepStroke},{x:COL_GRP,l:'Groups',c:'#6b7280'},{x:COL_ASSY,l:'Assembly',c:GC.assyStroke}].forEach(g=>{svgE+=`<line x1="${g.x}" y1="-20" x2="${g.x}" y2="${totalH}" stroke="${g.c}" stroke-width="0.5" opacity="0.08" stroke-dasharray="6 4"/><text x="${g.x+4}" y="-8" fill="${g.c}" font-size="8" font-weight="700" opacity="0.2" font-family="'JetBrains Mono',monospace">${g.l}</text>`;});
-  edges.forEach(e=>{const x1=e.from.x+e.from.w,y1=e.from.y,x2=e.to.x,y2=e.to.y,isHi=e.kind==='grp-assy',sw=isHi?2.2:1.2,ecn=e.to.hasEcn,col=ecn?(GC.ecnGlow+'40'):(isHi?GC.arrowHi:GC.arrow);svgE+=`<path d="${bezP(x1,y1,x2,y2)}" fill="none" stroke="${col}" stroke-width="${sw}"/><circle cx="${x2}" cy="${y2}" r="2.8" fill="${col}"/>`;});
-  nodes.forEach(n=>{
-    if(n.type==='part'){const ind=11,pts=`${n.x+ind},${n.y-n.h/2} ${n.x+n.w-ind},${n.y-n.h/2} ${n.x+n.w},${n.y} ${n.x+n.w-ind},${n.y+n.h/2} ${n.x+ind},${n.y+n.h/2} ${n.x},${n.y}`;svgN+=`<polygon points="${pts}" fill="${GC.partFill}" stroke="${GC.partStroke}" stroke-width="1.2"/><text x="${n.x+n.w/2}" y="${n.y+1}" fill="${GC.partText}" font-size="9" font-weight="600" text-anchor="middle" font-family="'JetBrains Mono',monospace">${clip(n.name||n.pn,17)}</text>`;if(n.qty>1)svgN+=`<text x="${n.x+n.w-ind-2}" y="${n.y+n.h/2-3}" fill="${GC.partStroke}" font-size="7" font-weight="700" text-anchor="end" font-family="'JetBrains Mono',monospace">×${n.qty}</text>`;}
-    else if(n.type==='step'){const r=10,c=n.colors,glow=n.hasEcn?GC.ecnGlow:null,iconX=n.hasEcn?28:12;if(glow)svgN+=`<rect x="${n.x-5}" y="${n.y-n.h/2-5}" width="${n.w+10}" height="${n.h+10}" rx="${r+4}" fill="none" stroke="${glow}" stroke-width="2.5" opacity="0.28" filter="url(#gvGlow)"/>`;svgN+=`<rect x="${n.x}" y="${n.y-n.h/2}" width="${n.w}" height="${n.h}" rx="${r}" fill="${c.f}" stroke="${c.s}" stroke-width="1.5"/>`;if(n.seq&&n.seq!=='—'){svgN+=`<rect x="${n.x+n.w-38}" y="${n.y-n.h/2-10}" width="36" height="20" rx="5" fill="${GC.seqBg}" stroke="${GC.seqCol}" stroke-width="1.2"/><text x="${n.x+n.w-20}" y="${n.y-n.h/2+5}" fill="${GC.seqCol}" font-size="11" font-weight="800" text-anchor="middle" font-family="'JetBrains Mono',monospace">${n.seq}</text>`;}if(n.hasEcn)svgN+=`<circle cx="${n.x+14}" cy="${n.y-n.h/2+15}" r="5.5" fill="${GC.ecnGlow}"/>`;if(n.isSingle&&n.inlinePartName){svgN+=`<text x="${n.x+iconX}" y="${n.y-4}" fill="${c.t}" font-size="14" font-weight="700" font-family="'DM Sans',sans-serif">${clip(n.inlinePartName,24)}</text><text x="${n.x+iconX}" y="${n.y+12}" fill="${GC.dim}" font-size="9" font-family="'JetBrains Mono',monospace">${n.inlinePartPn}</text>`;}else{svgN+=`<text x="${n.x+iconX}" y="${n.y-4}" fill="${c.t}" font-size="13" font-weight="700" font-family="'DM Sans',sans-serif">${clip(n.name,22)}</text><text x="${n.x+iconX}" y="${n.y+10}" fill="${c.s}" font-size="8" font-weight="700" opacity="0.4" font-family="'JetBrains Mono',monospace">${n.stepType}</text>`;}}
-    else if(n.type==='group'){svgN+=`<rect x="${n.x}" y="${n.y-n.h/2}" width="${n.w}" height="${n.h}" rx="14" fill="${GC.grpFill}" stroke="${n.color}" stroke-width="2"/><text x="${n.x+16}" y="${n.y+2}" font-size="16">${n.icon}</text><text x="${n.x+38}" y="${n.y-6}" fill="${n.color}" font-size="13" font-weight="700" font-family="'DM Sans',sans-serif">${n.label}</text><text x="${n.x+38}" y="${n.y+10}" fill="#4b5563" font-size="9" font-weight="600" font-family="'JetBrains Mono',monospace">完了 · ${n.stepCount} steps</text>`;}
-    else if(n.type==='assy'){svgN+=`<rect x="${n.x}" y="${n.y-n.h/2}" width="${n.w}" height="${n.h}" rx="${n.h/2}" fill="${GC.assyFill}" stroke="${GC.assyStroke}" stroke-width="2.5"/><circle cx="${n.x+22}" cy="${n.y}" r="6" fill="${GC.assyStroke}" opacity="0.3"/><text x="${n.x+n.w/2+8}" y="${n.y-3}" fill="${GC.assyText}" font-size="14" font-weight="800" text-anchor="middle" font-family="'DM Sans',sans-serif">${assy.name||assy.tag}</text><text x="${n.x+n.w/2+8}" y="${n.y+13}" fill="${GC.assyStroke}" font-size="9" font-weight="700" text-anchor="middle" opacity="0.5" font-family="'JetBrains Mono',monospace">v${assy.version||'?'}</text>`;}
-  });
-  edges.filter(e=>e.fts&&e.fts.length>0).forEach(e=>{
-    const tVal=S.gvTValues[e.id]??e.defT,x1=e.from.x+e.from.w,y1=e.from.y,x2=e.to.x,y2=e.to.y,pt=bezPt(x1,y1,x2,y2,tVal);
-    const show=e.fts.slice(0,MAX_FAST),extra=e.fts.length-MAX_FAST,lines=[];
-    show.forEach((f,fi)=>{lines.push({t:clip((f.name||f.pn||'Fastener'),24)+(f.qty>1?' ×'+f.qty:''),c:GC.fastName});if(f.loctite)lines.push({t:f.loctite,c:GC.loctite});if(f.torque)lines.push({t:f.torque+'Nm',c:GC.torque});if(fi<show.length-1)lines.push(null);});
-    if(extra>0)lines.push({t:'+'+extra+' more',c:GC.dimText});
-    const lineH=12,gap=4,totalLH=lines.filter(Boolean).length*lineH+lines.filter(l=>!l).length*gap,maxW=Math.max(...lines.filter(Boolean).map(l=>l.t.length),5)*6.2+12;
-    let lbl=`<g data-role="gvLabel" data-eid="${e.id}" data-x1="${x1}" data-y1="${y1}" data-x2="${x2}" data-y2="${y2}" transform="translate(${pt.x},${pt.y-10})" style="cursor:ew-resize">`;
-    lbl+=`<circle cx="0" cy="10" r="3.5" fill="${GC.labelDot}" opacity="0.7"/><line x1="0" y1="8" x2="0" y2="0" stroke="${GC.labelDot}" stroke-width="0.8" opacity="0.3"/>`;
-    lbl+=`<rect x="${-maxW}" y="${-totalLH-4}" width="${maxW+6}" height="${totalLH+8}" rx="4" fill="${GC.labelBg}" stroke="#1e2030" stroke-width="0.5"/>`;
-    let ty=0;for(let i=lines.length-1;i>=0;i--){const l=lines[i];if(!l){ty-=gap;continue;}ty-=lineH;lbl+=`<text x="0" y="${ty+lineH-3}" fill="${l.c}" font-size="9" font-weight="600" text-anchor="end" font-family="'JetBrains Mono',monospace">${l.t}</text>`;}
-    lbl+=`</g>`;svgL+=lbl;
-  });
-  const z=S.gvZoom,px=S.gvPan.x,py=S.gvPan.y;
-  return`<defs><filter id="gvGlow" x="-50%" y="-50%" width="200%" height="200%"><feGaussianBlur in="SourceGraphic" stdDeviation="6" result="b"/><feMerge><feMergeNode in="b"/><feMergeNode in="SourceGraphic"/></feMerge></filter></defs><g id="gvCanvas" transform="translate(${px},${py}) scale(${z})">${svgE}${svgN}${svgL}</g>`;
-}
-
-function attachGvLabels(svg){
-  svg.querySelectorAll('[data-role="gvLabel"]').forEach(el=>{
-    let startX=null,t0=0;
-    const eid=el.dataset.eid,x1=+el.dataset.x1,y1=+el.dataset.y1,x2=+el.dataset.x2,y2=+el.dataset.y2;
-    const edge=window._gvEdges?.find(e=>e.id===eid);
-    const defT=edge?edge.defT:0.4;
-
-    el.addEventListener('mousedown',ev=>{
-      ev.stopPropagation();startX=ev.clientX;t0=S.gvTValues[eid]??defT;
-      function bezPt(t){const d=Math.abs(x2-x1)*0.42,cx1=x1+d,cy1=y1,cx2=x2-d,cy2=y2,u=1-t;return{x:u*u*u*x1+3*u*u*t*cx1+3*u*t*t*cx2+t*t*t*x2,y:u*u*u*y1+3*u*u*t*cy1+3*u*t*t*cy2+t*t*t*y2};}
-      const onMove=e=>{if(startX===null)return;const dx=(e.clientX-startX)/S.gvZoom,dt=dx/Math.abs(x2-x1),newT=Math.max(0.05,Math.min(0.95,t0+dt));S.gvTValues[eid]=newT;const pt=bezPt(newT);el.setAttribute('transform',`translate(${pt.x},${pt.y-10})`);};
-      const onUp=()=>{startX=null;window.removeEventListener('mousemove',onMove);window.removeEventListener('mouseup',onUp);};
-      window.addEventListener('mousemove',onMove);window.addEventListener('mouseup',onUp);
-    });
-  });
 }
 
 function renderChangeModal(){
@@ -900,86 +690,114 @@ function renderEditor(){
   // --- RIGHT PANEL ---
   let rightPanel='';
   if(selStep){
-    const ecnRecs=(DB.ecnChanges[a.id]||[]).filter(c=>c.step_id===selStep.id);
     const ro=isFrozen?'readonly disabled':'';
     const roStyle=isFrozen?'opacity:0.6;pointer-events:none':'';
+    const hasEcn=!!S.teEcnMarks[selStep.id];
+    const isCascade=ecnCascadeSet(tree,S.teEcnMarks).has(selStep.id);
+    const ecm=S.teEcnMarks[selStep.id]||{};
+    const sLabel=pvOr('steps',selStep.id,'label',selStep.label);
+    const sSeq=pvOr('steps',selStep.id,'seq_tag',selStep.seq_tag);
+    const sType=(pvOr('steps',selStep.id,'type',selStep.type)||'').toUpperCase();
+    const sPn=pvOr('steps',selStep.id,'pn',selStep.pn);
+    const sSort=pvOr('steps',selStep.id,'sort_order',selStep.sort_order);
+    const autoName=resolveStepName(selStep, tree);
+    const hasManualLabel=!!sLabel;
+    const isAutoNamed=!hasManualLabel&&autoName&&(selParts.length>0||DB.lookupPN(sPn));
+    const dispTitle=sLabel||autoName||'Untitled';
+    const hasDirty=!!S.tePending.steps[selStep.id];
     rightPanel=`
       ${isFrozen?'<div style="padding:8px 12px;border-radius:8px;margin-bottom:12px;background:rgba(59,130,246,0.06);border:1px solid rgba(59,130,246,0.15);font-size:11px;font-weight:700;color:#3b82f6;text-align:center">🔒 Frozen — unfreeze to edit</div>':''}
+      ${isCascade?'<div style="padding:8px 12px;border-radius:8px;margin-bottom:12px;background:rgba(245,158,11,0.06);border:1px solid rgba(245,158,11,0.15);font-size:11px;font-weight:700;color:#f59e0b;text-align:center">⚠️ Affected by upstream ECN change</div>':''}
       <div class="dp-section" style="${roStyle}">
         <div style="display:flex;align-items:center;gap:8px;margin-bottom:12px">
-          <div style="font-size:18px;font-weight:800;flex:1">${selStep.label||selStep.pn||'Untitled'}</div>
+          <div style="font-size:18px;font-weight:800;flex:1">${dispTitle}</div>
           ${!isFrozen?`<button class="btn-sm" style="background:rgba(239,68,68,0.1);color:#ef4444;border-color:rgba(239,68,68,0.2);font-size:9px" data-action="deleteStep" data-sid="${selStep.id}">🗑 Delete</button>`:''}
         </div>
+        ${isAutoNamed?`<div style="display:flex;align-items:center;gap:4px;margin-bottom:8px"><span style="font-size:8px;color:#22c55e;font-weight:700;background:rgba(34,197,94,0.08);padding:2px 6px;border-radius:3px">⚡ AUTO-NAME</span><span style="font-size:9px;color:var(--dim)">from ${selParts.length>0?'parts':'step PN'} — set label to override</span></div>`:''}
         <div style="display:flex;gap:8px;align-items:flex-start;margin-bottom:12px;flex-wrap:wrap">
-          <div><div class="dp-label">SEQ TAG</div><input class="inp" style="width:56px;font-weight:700;font-size:13px;padding:6px 8px" value="${selStep.seq_tag||''}" data-role="teSeqTag" data-sid="${selStep.id}"></div>
-          <div><div class="dp-label">TYPE</div><select class="inp" style="font-size:13px;padding:6px 8px" data-role="teType" data-sid="${selStep.id}"><option value="step" ${selStep.type==='STEP'?'selected':''}>STEP</option><option value="prep" ${selStep.type==='PREP'?'selected':''}>PREP</option><option value="check" ${selStep.type==='CHECK'?'selected':''}>CHECK</option></select></div>
-          <div style="flex:1"><div class="dp-label">LABEL</div><input class="inp" style="width:100%;font-size:13px;padding:6px 8px" value="${selStep.label||''}" data-role="teLabel" data-sid="${selStep.id}"></div>
+          <div><div class="dp-label">SEQ TAG</div><input class="inp" style="width:56px;font-weight:700;font-size:13px;padding:6px 8px" value="${sSeq||''}" data-role="teSeqTag" data-sid="${selStep.id}"></div>
+          <div><div class="dp-label">TYPE</div><select class="inp" style="font-size:13px;padding:6px 8px" data-role="teType" data-sid="${selStep.id}"><option value="step" ${sType==='STEP'?'selected':''}>STEP</option><option value="prep" ${sType==='PREP'?'selected':''}>PREP</option><option value="check" ${sType==='CHECK'?'selected':''}>CHECK</option></select></div>
+          <div style="flex:1"><div class="dp-label">LABEL ${isAutoNamed?'<span style="color:#22c55e;font-size:8px">(auto)</span>':''}</div><input class="inp" style="width:100%;font-size:13px;padding:6px 8px;${isAutoNamed?'color:var(--dim);font-style:italic':''}" value="${sLabel||''}" data-role="teLabel" data-sid="${selStep.id}" placeholder="${autoName||'Step name...'}"></div>
         </div>
-        <div><div class="dp-label">PART NUMBER (PN)</div><input class="inp" style="width:100%;font-size:12px;padding:6px 8px;margin-bottom:6px" value="${selStep.pn||''}" data-role="teStepPn" data-sid="${selStep.id}"></div>
+        <div><div class="dp-label">PART NUMBER (PN)</div><input class="inp" style="width:100%;font-size:12px;padding:6px 8px;margin-bottom:6px" value="${sPn||''}" data-role="teStepPn" data-sid="${selStep.id}"></div>
         <div style="display:flex;gap:8px">
-          <div><div class="dp-label">SORT ORDER</div><input class="inp" type="number" style="width:60px;font-size:12px;padding:6px 8px" value="${selStep.sort_order||0}" data-role="teSortOrder" data-sid="${selStep.id}"></div>
-          <div><div class="dp-label">ECN STATUS</div>
-            <select class="inp" style="font-size:11px;padding:5px 8px" data-role="teEcnStatus" data-sid="${selStep.id}">
-              <option value="" ${!selStep.ecn_status?'selected':''}>None</option>
-              <option value="changed" ${selStep.ecn_status==='changed'?'selected':''}>🔴 Changed</option>
-              <option value="pending" ${selStep.ecn_status==='pending'?'selected':''}>🟡 Pending</option>
-              <option value="reviewed" ${selStep.ecn_status==='reviewed'?'selected':''}>🟢 Reviewed</option>
-            </select>
+          <div><div class="dp-label">SORT ORDER</div><input class="inp" type="number" style="width:60px;font-size:12px;padding:6px 8px" value="${sSort||0}" data-role="teSortOrder" data-sid="${selStep.id}"></div>
+        </div>
+      </div>
+
+      <div class="dp-section">
+        <div style="padding:7px 9px;border-radius:7px;background:${hasEcn?'rgba(239,68,68,0.04)':'rgba(139,92,246,0.02)'};border:1px solid ${hasEcn?'rgba(239,68,68,0.12)':'var(--border)'}">
+          <div style="display:flex;align-items:center;gap:6px;${hasEcn?'margin-bottom:6px':''}">
+            <span style="font-size:10px;font-weight:700;color:${hasEcn?'#ef4444':'var(--muted)'}">${hasEcn?'🔴 ECN Marked':'No ECN'}</span>
+            ${!isFrozen?`<button class="btn-sm" style="margin-left:auto;font-size:9px;padding:2px 8px;background:${hasEcn?'rgba(239,68,68,0.12)':'rgba(34,197,94,0.12)'};color:${hasEcn?'#ef4444':'#22c55e'};border-color:${hasEcn?'rgba(239,68,68,0.2)':'rgba(34,197,94,0.2)'}" data-action="toggleEcnMark" data-sid="${selStep.id}">${hasEcn?'✕ Remove':'+ Mark ECN'}</button>`:''}
           </div>
+          ${hasEcn?`
+            <div style="font-size:8px;color:var(--muted);margin-bottom:2px;font-weight:700">DISPOSITION</div>
+            <div style="display:flex;gap:3px;margin-bottom:6px">
+              ${Object.entries(ECN_DISPOSITIONS).map(([k,d])=>`<button class="ecn-disp-btn ${ecm.disposition===k?'active':''}" style="flex:1;padding:4px;border-radius:4px;font-size:9px;${ecm.disposition===k?`border:2px solid ${d.color};background:${d.bg};color:${d.color}`:`border:1px solid var(--border);color:${d.color}`};${isFrozen&&ecm.disposition!==k?'opacity:0.3':''}" data-action="setEcnDisp" data-sid="${selStep.id}" data-d="${k}">${d.icon} ${d.label}</button>`).join('')}
+            </div>
+            ${!isFrozen?`<textarea class="inp" style="width:100%;resize:vertical;line-height:1.3;font-size:11px;padding:6px 8px" rows="2" placeholder="ECN note..." data-role="ecnNote" data-sid="${selStep.id}">${ecm.note||''}</textarea>`
+            :(ecm.note?`<div style="font-size:11px;color:var(--text);opacity:0.6;padding:4px 0">${ecm.note}</div>`:'')}
+          `:''}
         </div>
       </div>
 
       <div class="dp-section" style="${roStyle}">
         <div style="display:flex;align-items:center;margin-bottom:6px"><span class="dp-label" style="flex:1;margin:0">PARTS (${selParts.length})</span>${!isFrozen?`<button class="btn-sm" style="background:rgba(34,197,94,0.12);color:#22c55e;border:none;font-size:11px;padding:4px 10px" data-action="addPart" data-sid="${selStep.id}">+ Part</button>`:''}</div>
-        ${selParts.map(p=>`<div class="dp-row">
-          <input class="inp" style="width:100px;font-weight:700;color:#0ea5e9;font-size:11px" value="${p.pn||''}" data-role="partPn" data-pid="${p.id}" placeholder="PN">
-          <input class="inp" type="number" style="width:40px;text-align:center;font-size:11px" value="${p.qty||1}" data-role="partQty" data-pid="${p.id}">
-          <button style="background:none;border:none;color:#ef4444;font-size:12px;cursor:pointer;padding:2px 4px" data-action="delPart" data-pid="${p.id}">✕</button>
-        </div>`).join('')}
+        ${selParts.map(p=>{const ppn=pvOr('parts',p.id,'pn',p.pn);const pqty=pvOr('parts',p.id,'qty',p.qty);const resolved=DB.lookupPN(ppn);const manName=S.partNames[p.id];
+          return `<div style="margin-bottom:5px;padding:6px 8px;border-radius:6px;border:1px solid var(--border)">
+          <div style="display:flex;gap:4px;align-items:center">
+            <input class="inp" style="width:100px;font-weight:700;color:#0ea5e9;font-size:11px" value="${ppn||''}" data-role="partPn" data-pid="${p.id}" placeholder="PN">
+            <input class="inp" type="number" style="width:40px;text-align:center;font-size:11px" value="${pqty||1}" data-role="partQty" data-pid="${p.id}">
+            <button style="background:none;border:none;color:#ef4444;font-size:12px;cursor:pointer;padding:2px 4px" data-action="delPart" data-pid="${p.id}" title="Unlink from step">✕</button>
+          </div>
+          ${resolved?`<div style="display:flex;align-items:center;gap:4px;margin-top:3px"><span style="font-size:9px;color:#22c55e;font-weight:600">📦 ${resolved}</span><span style="font-size:7px;color:var(--dim);background:rgba(34,197,94,0.08);padding:1px 4px;border-radius:3px">MASTER</span></div>`
+          :(ppn?`<div style="margin-top:3px"><div style="font-size:9px;color:var(--dim);margin-bottom:2px">⚠ Not in master — enter name:</div><input class="inp" style="width:100%;font-size:10px;padding:3px 6px" value="${manName||''}" data-role="partName" data-pid="${p.id}" placeholder="Part name (manual)"></div>`:'')}
+        </div>`;}).join('')}
       </div>
 
       <div class="dp-section" style="${roStyle}">
         <div style="display:flex;align-items:center;margin-bottom:6px"><span class="dp-label" style="flex:1;margin:0">FASTENERS (${selFast.length})</span>${!isFrozen?`<button class="btn-sm" style="background:rgba(245,158,11,0.12);color:#f59e0b;border:none;font-size:11px;padding:4px 10px" data-action="addFastener" data-sid="${selStep.id}">+ Fastener</button>`:''}</div>
-        ${selFast.map(f=>`<div style="display:flex;gap:4px;align-items:center;margin-bottom:4px">
-          <input class="inp" style="width:90px;font-weight:700;color:#f59e0b;font-size:11px" value="${f.pn||''}" data-role="fastPn" data-fid="${f.id}" placeholder="PN">
-          <input class="inp" style="width:50px;font-size:11px" value="${f.torque||''}" placeholder="Torque" data-role="fastTorque" data-fid="${f.id}">
-          <input class="inp" style="width:30px;font-size:11px" value="${f.loctite||''}" placeholder="Loc" data-role="fastLoc" data-fid="${f.id}">
-          <input class="inp" type="number" style="width:32px;text-align:center;font-size:11px" value="${f.qty||1}" data-role="fastQty" data-fid="${f.id}">
-          <button style="background:none;border:none;color:#ef4444;font-size:12px;cursor:pointer" data-action="delFast" data-fid="${f.id}">✕</button>
-        </div>`).join('')}
-      </div>
-
-      <div class="dp-section">
-        <div style="display:flex;align-items:center;margin-bottom:8px"><span class="dp-label" style="flex:1;margin:0">ECN RECORDS (${ecnRecs.length})</span><button class="btn-sm" style="background:rgba(239,68,68,0.12);color:#ef4444;border:none;font-size:11px;padding:4px 10px" data-action="openEcnCreate" data-sid="${selStep.id}">+ ECN Change</button></div>
-        ${ecnRecs.map(c=>{const d=ECN_DISPOSITIONS[c.disposition]||{};return `<div style="padding:8px 10px;border-radius:6px;border:1px solid var(--border);margin-bottom:4px;display:flex;align-items:center;gap:6px">
-          <span style="font-size:11px;font-weight:700;color:var(--muted)" class="mono">${c.seq_tag||'—'}</span>
-          <span style="flex:1;font-size:12px">${c.field||c.change_type}: ${c.old_value||'—'} → ${c.new_value||'—'}</span>
-          ${c.disposition?`<span style="font-size:9px;font-weight:700;padding:2px 6px;border-radius:4px;background:${d.bg||''};color:${d.color||''}">${(c.disposition||'').toUpperCase()}</span>`:''}
-          <button style="background:none;border:none;color:#ef4444;font-size:10px;cursor:pointer" data-action="delEcnRec" data-ecnid="${c.id}">✕</button>
+        ${selFast.map(f=>{const fpn=pvOr('fasteners',f.id,'pn',f.pn);const ftorque=pvOr('fasteners',f.id,'torque',f.torque);const floc=pvOr('fasteners',f.id,'loctite',f.loctite);const fqty=pvOr('fasteners',f.id,'qty',f.qty);const resolved=DB.lookupPN(fpn);const manName=S.fastNames[f.id];
+          return `<div style="margin-bottom:5px;padding:6px 8px;border-radius:6px;border:1px solid var(--border)">
+          <div style="display:flex;gap:4px;align-items:center">
+            <input class="inp" style="width:90px;font-weight:700;color:#f59e0b;font-size:11px" value="${fpn||''}" data-role="fastPn" data-fid="${f.id}" placeholder="PN">
+            <input class="inp" style="width:50px;font-size:11px" value="${ftorque||''}" placeholder="Torque" data-role="fastTorque" data-fid="${f.id}">
+            <input class="inp" style="width:30px;font-size:11px" value="${floc||''}" placeholder="Loc" data-role="fastLoc" data-fid="${f.id}">
+            <input class="inp" type="number" style="width:32px;text-align:center;font-size:11px" value="${fqty||1}" data-role="fastQty" data-fid="${f.id}">
+            <button style="background:none;border:none;color:#ef4444;font-size:12px;cursor:pointer" data-action="delFast" data-fid="${f.id}" title="Unlink from step">✕</button>
+          </div>
+          ${resolved?`<div style="display:flex;align-items:center;gap:4px;margin-top:3px"><span style="font-size:9px;color:#f59e0b;font-weight:600">🔩 ${resolved}</span><span style="font-size:7px;color:var(--dim);background:rgba(245,158,11,0.08);padding:1px 4px;border-radius:3px">MASTER</span></div>`
+          :(fpn?`<div style="margin-top:3px"><div style="font-size:9px;color:var(--dim);margin-bottom:2px">⚠ Not in master — enter name:</div><input class="inp" style="width:100%;font-size:10px;padding:3px 6px" value="${manName||''}" data-role="fastName" data-fid="${f.id}" placeholder="Fastener name (manual)"></div>`:'')}
         </div>`;}).join('')}
       </div>`;
   } else if(selGrp){
     const grp=tree.groups.find(g=>g.id===selGrp);
     if(grp){
       const roStyle=isFrozen?'opacity:0.6;pointer-events:none':'';
+      const gLabel=pvOr('groups',grp.id,'label',grp.label);
+      const gSort=pvOr('groups',grp.id,'sort_order',grp.sort_order);
+      const gVer=pvOr('groups',grp.id,'version',grp.version);
+      const gColor=pvOr('groups',grp.id,'color',grp.color);
+      const gIcon=pvOr('groups',grp.id,'icon',grp.icon);
       rightPanel=`
       ${isFrozen?'<div style="padding:8px 12px;border-radius:8px;margin-bottom:12px;background:rgba(59,130,246,0.06);border:1px solid rgba(59,130,246,0.15);font-size:11px;font-weight:700;color:#3b82f6;text-align:center">🔒 Frozen — unfreeze to edit</div>':''}
       <div class="dp-section" style="${roStyle}">
         <div style="display:flex;align-items:center;gap:8px;margin-bottom:14px">
-          <span style="font-size:24px">${grp.icon||'📦'}</span>
-          <div style="font-size:18px;font-weight:800;flex:1;color:${grp.color||'#666'}">${grp.label}</div>
+          <span style="font-size:24px">${gIcon||'📦'}</span>
+          <div style="font-size:18px;font-weight:800;flex:1;color:${gColor||'#666'}">${gLabel}</div>
           ${!isFrozen?`<button class="btn-sm" style="background:rgba(239,68,68,0.1);color:#ef4444;border-color:rgba(239,68,68,0.2);font-size:9px" data-action="deleteGroup" data-gid="${grp.id}">🗑 Delete Group</button>`:''}
         </div>
-        <div style="margin-bottom:10px"><div class="dp-label">GROUP NAME</div><input class="inp" style="width:100%;font-size:13px;padding:6px 8px" value="${grp.label||''}" data-role="grpLabel" data-gid="${grp.id}"></div>
+        <div style="margin-bottom:10px"><div class="dp-label">GROUP NAME</div><input class="inp" style="width:100%;font-size:13px;padding:6px 8px" value="${gLabel||''}" data-role="grpLabel" data-gid="${grp.id}"></div>
         <div style="margin-bottom:10px"><div class="dp-label">COLOR</div>
-          <div style="display:flex;gap:4px;flex-wrap:wrap">${GROUP_COLORS.map(c=>`<div style="width:24px;height:24px;border-radius:6px;background:${c};cursor:pointer;border:2px solid ${c===grp.color?'#fff':'transparent'};opacity:${c===grp.color?1:0.5}" data-action="setGrpColor" data-gid="${grp.id}" data-color="${c}"></div>`).join('')}</div>
+          <div style="display:flex;gap:4px;flex-wrap:wrap">${GROUP_COLORS.map(c=>`<div style="width:24px;height:24px;border-radius:6px;background:${c};cursor:pointer;border:2px solid ${c===gColor?'#fff':'transparent'};opacity:${c===gColor?1:0.5}" data-action="setGrpColor" data-gid="${grp.id}" data-color="${c}"></div>`).join('')}</div>
         </div>
         <div style="margin-bottom:10px"><div class="dp-label">ICON</div>
-          <div style="display:flex;gap:4px;flex-wrap:wrap">${GROUP_ICONS.map(ic=>`<div style="width:28px;height:28px;border-radius:6px;display:flex;align-items:center;justify-content:center;cursor:pointer;font-size:16px;background:${ic===grp.icon?'rgba(255,255,255,0.1)':'transparent'};border:1px solid ${ic===grp.icon?'var(--muted)':'transparent'}" data-action="setGrpIcon" data-gid="${grp.id}" data-icon="${ic}">${ic}</div>`).join('')}</div>
+          <div style="display:flex;gap:4px;flex-wrap:wrap">${GROUP_ICONS.map(ic=>`<div style="width:28px;height:28px;border-radius:6px;display:flex;align-items:center;justify-content:center;cursor:pointer;font-size:16px;background:${ic===gIcon?'rgba(255,255,255,0.1)':'transparent'};border:1px solid ${ic===gIcon?'var(--muted)':'transparent'}" data-action="setGrpIcon" data-gid="${grp.id}" data-icon="${ic}">${ic}</div>`).join('')}</div>
         </div>
         <div style="display:flex;gap:8px">
-          <div><div class="dp-label">SORT ORDER</div><input class="inp" type="number" style="width:60px;font-size:12px;padding:6px 8px" value="${grp.sort_order||0}" data-role="grpSort" data-gid="${grp.id}"></div>
-          <div><div class="dp-label">VERSION</div><input class="inp" style="width:60px;font-size:12px;padding:6px 8px" value="${grp.version||''}" data-role="grpVersion" data-gid="${grp.id}"></div>
+          <div><div class="dp-label">SORT ORDER</div><input class="inp" type="number" style="width:60px;font-size:12px;padding:6px 8px" value="${gSort||0}" data-role="grpSort" data-gid="${grp.id}"></div>
+          <div><div class="dp-label">VERSION</div><input class="inp" style="width:60px;font-size:12px;padding:6px 8px" value="${gVer||''}" data-role="grpVersion" data-gid="${grp.id}"></div>
         </div>
       </div>
       <div class="dp-section"><div class="dp-label">STEPS IN GROUP</div><div style="font-size:13px;color:var(--muted)">${stepsForGroup(tree,grp.id).length} steps</div></div>`;
@@ -1016,28 +834,34 @@ function renderEditor(){
       </div>
       ${verBar}
       <div class="te-tree">
-        ${tree.groups.map(g=>{const gSteps=stepsForGroup(tree,g.id);const isGSel=selGrp===g.id;
+        ${(()=>{const cascade=ecnCascadeSet(tree,S.teEcnMarks);return tree.groups.map(g=>{const gSteps=stepsForGroup(tree,g.id);const isGSel=selGrp===g.id;const gc=pvOr('groups',g.id,'color',g.color);const gi=pvOr('groups',g.id,'icon',g.icon);const gl=pvOr('groups',g.id,'label',g.label);
           return `<div style="margin-bottom:6px">
-          <div class="te-grp" style="background:${g.color||'#666'}08;border-left:4px solid ${g.color||'#666'};cursor:pointer;${isGSel?'outline:1px solid rgba(139,92,246,0.3);outline-offset:-1px;border-radius:8px':''}" data-action="selGroup" data-gid="${g.id}">
-            <span style="font-size:16px">${g.icon||'📦'}</span>
-            <span style="font-weight:700;color:${g.color||'#666'};flex:1;font-size:15px" class="mono">${g.label}</span>
+          <div class="te-grp" style="background:${gc||'#666'}08;border-left:4px solid ${gc||'#666'};cursor:pointer;${isGSel?'outline:1px solid rgba(139,92,246,0.3);outline-offset:-1px;border-radius:8px':''}" data-action="selGroup" data-gid="${g.id}" data-drop-gid="${g.id}">
+            <span style="font-size:16px">${gi||'📦'}</span>
+            <span style="font-weight:700;color:${gc||'#666'};flex:1;font-size:15px" class="mono">${gl}</span>
             <span style="color:var(--muted);font-size:13px">${gSteps.length}</span>
             ${!isFrozen?`<button style="background:none;border:none;color:#22c55e;cursor:pointer;font-size:16px;padding:0 4px" data-action="addStep" data-gid="${g.id}" onclick="event.stopPropagation()">+</button>`:''}
           </div>
-          ${gSteps.map(s=>{const isSel=sel===s.id;const hasEcn=s.ecn_status&&s.ecn_status!=='';
-            return `<div class="te-step ${isSel?'sel':''}" data-action="selStep" data-sid="${s.id}" style="${isSel?'':'border:1px solid transparent'}">
-              ${hasEcn?`<span style="font-size:11px">${s.ecn_status==='changed'?'🔴':s.ecn_status==='pending'?'🟡':'🟢'}</span>`:''}
-              <span style="font-weight:700;color:${g.color||'#666'};min-width:30px;text-align:center;font-size:13px;background:${g.color||'#666'}15;padding:3px 8px;border-radius:5px" class="mono">${s.seq_tag||'—'}</span>
-              <span style="font-size:11px;font-weight:600;padding:2px 8px;border-radius:4px;color:${s.type==='PREP'?'#a855f7':s.type==='CHECK'?'#ec4899':'#22c55e'};background:${s.type==='PREP'?'rgba(168,85,247,0.1)':s.type==='CHECK'?'rgba(236,72,153,0.1)':'rgba(34,197,94,0.1)'}">${s.type||'STEP'}</span>
-              <span style="flex:1;color:${s.label?'var(--text)':'var(--dim)'};font-size:14px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${s.label||s.pn||'untitled'}</span>
+          ${gSteps.map(s=>{const isSel=sel===s.id;const hasEcn=!!S.teEcnMarks[s.id];const isCascade=cascade.has(s.id);const sName=resolveStepName(s,tree);const sSeqP=pvOr('steps',s.id,'seq_tag',s.seq_tag);const sTypeP=(pvOr('steps',s.id,'type',s.type)||'').toUpperCase();
+            return `<div class="te-step ${isSel?'sel':''}" data-action="selStep" data-sid="${s.id}" data-drag-sid="${s.id}" data-drag-gid="${g.id}" ${!isFrozen?'draggable="true"':''} style="${isSel?'':'border:1px solid transparent'}${isCascade?';background:rgba(245,158,11,0.04)':''}">
+              ${hasEcn?'<span style="font-size:11px">🔴</span>':''}${isCascade?'<span style="font-size:11px" title="Affected by upstream ECN">⚠️</span>':''}
+              <span style="font-weight:700;color:${gc||'#666'};min-width:30px;text-align:center;font-size:13px;background:${gc||'#666'}15;padding:3px 8px;border-radius:5px" class="mono">${sSeqP||'—'}</span>
+              <span style="font-size:11px;font-weight:600;padding:2px 8px;border-radius:4px;color:${sTypeP==='PREP'?'#a855f7':sTypeP==='CHECK'?'#ec4899':'#22c55e'};background:${sTypeP==='PREP'?'rgba(168,85,247,0.1)':sTypeP==='CHECK'?'rgba(236,72,153,0.1)':'rgba(34,197,94,0.1)'}">${sTypeP||'STEP'}</span>
+              <span style="flex:1;color:${sName?'var(--text)':'var(--dim)'};font-size:14px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${sName||'untitled'}</span>
               ${partsForStep(tree,s.id).length?`<span style="font-size:11px;color:#22c55e;font-weight:600" class="mono">${partsForStep(tree,s.id).length}P</span>`:''}
               ${fastenersForStep(tree,s.id).length?`<span style="font-size:11px;color:#ef4444;font-weight:600" class="mono">${fastenersForStep(tree,s.id).length}F</span>`:''}
             </div>`;}).join('')}
-        </div>`;}).join('')}
+        </div>`;}).join('');})()}
         ${!isFrozen?`<button class="btn-sm" style="width:100%;margin-top:8px;padding:10px;background:rgba(99,102,241,0.12);color:#6366f1;border:none;font-size:12px" data-action="addGroup">+ Add Group</button>`:''}
       </div>
     </div>
     <div class="te-right">${rightPanel}</div>
+    ${pendingCount()>0?`<div style="position:fixed;bottom:0;left:0;right:0;z-index:50;padding:10px 24px;background:rgba(15,16,22,0.95);border-top:2px solid rgba(245,158,11,0.3);backdrop-filter:blur(8px);display:flex;align-items:center;justify-content:center;gap:12px">
+      <span style="font-size:11px;font-weight:700;color:#f59e0b;font-family:'JetBrains Mono',monospace">⚠ ${pendingCount()} unsaved change${pendingCount()>1?'s':''}</span>
+      <button class="btn-sm" style="padding:6px 20px;font-size:12px;background:#22c55e;color:#000;border-color:#22c55e;font-weight:800" data-action="savePending">💾 Save Changes</button>
+      <button class="btn-sm" style="padding:6px 16px;font-size:11px;background:rgba(239,68,68,0.1);color:#ef4444;border-color:rgba(239,68,68,0.2)" data-action="discardPending">✕ Discard</button>
+    </div>`:''
+    }
   </div>`;
 }
 
@@ -1082,40 +906,6 @@ function renderNewVersionModal(){
   </div></div>`;
 }
 
-function renderEcnModal(){
-  const step=S.ecnStep;if(!step)return'';
-  return `<div class="confirm-overlay"><div class="confirm-box" style="width:480px">
-    <div style="font-size:16px;font-weight:700;margin-bottom:4px">🔴 Create ECN Change Record</div>
-    <div style="font-size:12px;color:var(--muted);margin-bottom:14px">Step: ${step.label||step.pn||'—'} (${step.seq_tag||'—'})</div>
-    <div style="display:flex;gap:8px;margin-bottom:10px">
-      <div style="flex:1"><div class="dp-label">CHANGE TYPE</div>
-        <select class="inp" style="width:100%;font-size:12px;padding:6px 8px" data-role="ecnChangeType">
-          <option value="part_changed" ${S.ecnChangeType==='part_changed'?'selected':''}>Part Changed</option>
-          <option value="fastener_changed" ${S.ecnChangeType==='fastener_changed'?'selected':''}>Fastener Changed</option>
-          <option value="step_modified" ${S.ecnChangeType==='step_modified'?'selected':''}>Step Modified</option>
-          <option value="step_added" ${S.ecnChangeType==='step_added'?'selected':''}>Step Added</option>
-          <option value="step_removed" ${S.ecnChangeType==='step_removed'?'selected':''}>Step Removed</option>
-        </select>
-      </div>
-      <div style="flex:1"><div class="dp-label">FIELD</div><input class="inp" style="width:100%;font-size:12px;padding:6px 8px" placeholder="e.g. pn, torque, qty" data-role="ecnField" value="${S.ecnField}"></div>
-    </div>
-    <div style="display:flex;gap:8px;margin-bottom:10px">
-      <div style="flex:1"><div class="dp-label">OLD VALUE</div><input class="inp" style="width:100%;font-size:12px;padding:6px 8px" placeholder="Before" data-role="ecnOld" value="${S.ecnOld}"></div>
-      <div style="flex:1"><div class="dp-label">NEW VALUE</div><input class="inp" style="width:100%;font-size:12px;padding:6px 8px" placeholder="After" data-role="ecnNew" value="${S.ecnNew}"></div>
-    </div>
-    <div style="margin-bottom:10px"><div class="dp-label">REASON</div><input class="inp" style="width:100%;font-size:12px;padding:6px 8px" placeholder="Why this change?" data-role="ecnReason" value="${S.ecnReason}"></div>
-    <div style="margin-bottom:14px"><div class="dp-label">DISPOSITION</div>
-      <div style="display:flex;gap:6px;margin-top:4px">${Object.entries(ECN_DISPOSITIONS).map(([k,v])=>`<button class="ecn-disp-btn ${S.ecnDisp===k?'active':''}" style="${S.ecnDisp===k?`background:${v.bg};color:${v.color};border-color:${v.color}`:''}" data-action="setEcnDisp" data-d="${k}">${v.icon} ${v.label}</button>`).join('')}</div>
-    </div>
-    <div style="display:flex;gap:8px;justify-content:flex-end">
-      <button class="btn-sm" style="padding:8px 16px;font-size:12px" data-action="cancelEcn">Cancel</button>
-      <button class="btn-sm" style="padding:8px 16px;font-size:12px;background:#ef4444;color:#fff;border-color:#ef4444" data-action="saveEcn">Create ECN Record</button>
-    </div>
-  </div></div>`;
-}
-
-function renderEditGroupModal(){ return ''; /* inline editing now */ }
-
 // ============================================================
 // EVENT HANDLERS
 // ============================================================
@@ -1126,8 +916,11 @@ function attachEvents(){
       e.stopPropagation();
 
       // --- NAV ---
-      if(a==='editor'){S.page='editor';S.teAssy=null;S.teSel=null;S.teSelGroup=null;render();}
-      else if(a==='goHome'){S.page='home';render();}
+      if(a==='editor'){S.page='editor';S.teAssy=null;S.teSel=null;S.teSelGroup=null;clearPending();render();}
+      else if(a==='goHome'){
+        if(pendingCount()>0){S.confirmMsg=`You have <strong>${pendingCount()} unsaved changes</strong>. Discard and leave?`;S.confirmData={type:'navHome'};S.confirmAction=true;render();return;}
+        S.page='home';clearPending();render();
+      }
       else if(a==='assy'){
         const assy=DB.assemblies.find(x=>x.id===parseInt(el.dataset.id));
         S.assy=assy;S.page='unitSelect';S.unitSel=new Set();S.unitFilter='all';S.unitSearch='';S.loadingUnits=true;render();
@@ -1141,13 +934,7 @@ function attachEvents(){
         S.avTab='list';S.page='assembly';render();await DB.loadTree(S.assy.id);if(S.selectedUnits[0])await DB.loadEcnApplied(S.selectedUnits[0].sn);render();
       }
       else if(a==='backToUnits'){S.page='unitSelect';render();}
-      else if(a==='avTab'){S.avTab=el.dataset.tab;render();if(el.dataset.tab==='graph')setTimeout(initGV,50);}
-      // Graph view controls
-      else if(a==='gvZoomIn'){S.gvZoom=Math.min(3,S.gvZoom+0.12);const c=document.getElementById('gvCanvas');if(c)c.setAttribute('transform',`translate(${S.gvPan.x},${S.gvPan.y}) scale(${S.gvZoom})`);}
-      else if(a==='gvZoomOut'){S.gvZoom=Math.max(0.1,S.gvZoom-0.12);const c=document.getElementById('gvCanvas');if(c)c.setAttribute('transform',`translate(${S.gvPan.x},${S.gvPan.y}) scale(${S.gvZoom})`);}
-      else if(a==='gvReset'){S.gvZoom=0.65;S.gvPan={x:10,y:0};S.gvTValues={};render();setTimeout(initGV,50);}
-      else if(a==='gvTogglePanel'){S.gvPanelOpen=!S.gvPanelOpen;render();setTimeout(initGV,50);}
-      else if(a==='gvResetGaps'){S.gvGaps={partsToSteps:150,stepsToGroups:160,groupsToAssy:140};render();setTimeout(initGV,50);}
+      else if(a==='avTab'){S.avTab=el.dataset.tab;render();}
       else if(a==='openChange'){S.modal=parseInt(el.dataset.idx);render();}
       else if(a==='closeModal'){S.modal=null;render();}
       else if(a==='toggleApply'){try{await DB.toggleApplied(S.selectedUnits[0].sn,el.dataset.seq,parseInt(el.dataset.sid));S.modal=null;toast('💾 Saved');render();}catch(err){toast('❌ '+err.message,true);}}
@@ -1156,10 +943,14 @@ function attachEvents(){
       else if(a==='pickAssy'){
         S.teAssy=parseInt(el.dataset.id);S.teSel=null;S.teSelGroup=null;
         const assy=DB.assemblies.find(x=>x.id===S.teAssy);S.teVer=assy?.version;
-        await Promise.all([DB.loadTree(S.teAssy),DB.loadVersions(S.teAssy),DB.loadEcnChanges(S.teAssy)]);
+        await Promise.all([DB.loadTree(S.teAssy),DB.loadVersions(S.teAssy)]);
+        S.teEcnMarks=await loadEcnMarksFromDB(S.teAssy);
         S.teVersions=DB.versions[S.teAssy]||[];render();
       }
-      else if(a==='teBack'){S.teAssy=null;S.teSel=null;S.teSelGroup=null;render();}
+      else if(a==='teBack'){
+        if(pendingCount()>0){S.confirmMsg=`You have <strong>${pendingCount()} unsaved changes</strong>. Discard and go back?`;S.confirmData={type:'navTeBack'};S.confirmAction=true;render();return;}
+        S.teAssy=null;S.teSel=null;S.teSelGroup=null;clearPending();render();
+      }
       else if(a==='selStep'){S.teSel=parseInt(el.dataset.sid);S.teSelGroup=null;render();}
       else if(a==='selGroup'){S.teSelGroup=parseInt(el.dataset.gid);S.teSel=null;render();}
 
@@ -1169,7 +960,7 @@ function attachEvents(){
       }
       // Delete step (confirm)
       else if(a==='deleteStep'){
-        S.confirmMsg=`Delete step <strong>${el.dataset.sid}</strong>? This will also delete all its parts and fasteners. This cannot be undone.`;
+        S.confirmMsg=`Delete step <strong>${el.dataset.sid}</strong>? Its parts and fasteners will be <strong>unlinked</strong> (kept in DB) but the step itself will be removed.`;
         S.confirmData={type:'deleteStep',sid:parseInt(el.dataset.sid)};S.confirmAction=true;render();
       }
       // Add group
@@ -1179,18 +970,24 @@ function attachEvents(){
       // Delete group (confirm)
       else if(a==='deleteGroup'){
         const gid=parseInt(el.dataset.gid);const tree=DB.tree[`${S.teAssy}`];const cnt=tree?stepsForGroup(tree,gid).length:0;
-        S.confirmMsg=`Delete this group and <strong>${cnt} steps</strong> inside it? All parts and fasteners will also be deleted. This cannot be undone.`;
+        S.confirmMsg=`Delete this group and <strong>${cnt} steps</strong> inside it? Parts and fasteners will be <strong>unlinked</strong> (kept in DB), but steps and the group will be removed.`;
         S.confirmData={type:'deleteGroup',gid};S.confirmAction=true;render();
       }
       // Parts/fasteners
       else if(a==='addPart'){try{await DB.addPart(parseInt(el.dataset.sid),{pn:'',qty:1,sort_order:999});DB.invalidateTree(S.teAssy);await DB.loadTree(S.teAssy);toast('✅');render();}catch(err){toast('❌ '+err.message,true);}}
-      else if(a==='delPart'){try{await DB.deletePart(parseInt(el.dataset.pid));DB.invalidateTree(S.teAssy);await DB.loadTree(S.teAssy);render();}catch(err){toast('❌ '+err.message,true);}}
+      else if(a==='delPart'){try{await DB.unlinkPart(parseInt(el.dataset.pid));DB.invalidateTree(S.teAssy);await DB.loadTree(S.teAssy);toast('🔗 Unlinked');render();}catch(err){toast('❌ '+err.message,true);}}
       else if(a==='addFastener'){try{await DB.addFastener(parseInt(el.dataset.sid),{pn:'',qty:1,torque:'',loctite:'',sort_order:999});DB.invalidateTree(S.teAssy);await DB.loadTree(S.teAssy);toast('✅');render();}catch(err){toast('❌ '+err.message,true);}}
-      else if(a==='delFast'){try{await DB.deleteFastener(parseInt(el.dataset.fid));DB.invalidateTree(S.teAssy);await DB.loadTree(S.teAssy);render();}catch(err){toast('❌ '+err.message,true);}}
+      else if(a==='delFast'){try{await DB.unlinkFastener(parseInt(el.dataset.fid));DB.invalidateTree(S.teAssy);await DB.loadTree(S.teAssy);toast('🔗 Unlinked');render();}catch(err){toast('❌ '+err.message,true);}}
 
       // Group editing
-      else if(a==='setGrpColor'){try{await DB.updateGroup(parseInt(el.dataset.gid),{color:el.dataset.color});DB.invalidateTree(S.teAssy);await DB.loadTree(S.teAssy);render();}catch(err){toast('❌ '+err.message,true);}}
-      else if(a==='setGrpIcon'){try{await DB.updateGroup(parseInt(el.dataset.gid),{icon:el.dataset.icon});DB.invalidateTree(S.teAssy);await DB.loadTree(S.teAssy);render();}catch(err){toast('❌ '+err.message,true);}}
+      else if(a==='setGrpColor'){setPending('groups',parseInt(el.dataset.gid),'color',el.dataset.color);render();}
+      else if(a==='setGrpIcon'){setPending('groups',parseInt(el.dataset.gid),'icon',el.dataset.icon);render();}
+
+      // --- SAVE / DISCARD ---
+      else if(a==='savePending'){
+        try{await flushPending();toast('💾 All changes saved');render();}catch(err){toast('❌ '+err.message,true);}
+      }
+      else if(a==='discardPending'){clearPending();toast('↩ Changes discarded');render();}
 
       // --- CONFIRM MODAL ---
       else if(a==='confirmCancel'){S.confirmAction=null;S.confirmData=null;render();}
@@ -1205,6 +1002,8 @@ function attachEvents(){
             delete DB.versions[S.teAssy];S.teVersions=await DB.loadVersions(S.teAssy);
             toast(`🔓 v${d.ver} is now a draft`);
           }
+          else if(d.type==='navHome'){clearPending();S.page='home';}
+          else if(d.type==='navTeBack'){clearPending();S.teAssy=null;S.teSel=null;S.teSelGroup=null;}
           render();
         }catch(err){toast('❌ '+err.message,true);render();}
       }
@@ -1239,70 +1038,145 @@ function attachEvents(){
         S.confirmData={type:'unfreezeVer',ver:S.teVer};S.confirmAction=true;render();
       }
 
-      // --- ECN ---
-      else if(a==='openEcnCreate'){
-        const tree=DB.tree[`${S.teAssy}`];const step=tree?.steps.find(s=>s.id===parseInt(el.dataset.sid));
-        S.ecnStep=step;S.ecnModal=true;S.ecnField='';S.ecnOld='';S.ecnNew='';S.ecnReason='';S.ecnDisp='replace';S.ecnChangeType='part_changed';render();
-      }
-      else if(a==='setEcnDisp'){S.ecnDisp=el.dataset.d;render();}
-      else if(a==='cancelEcn'){S.ecnModal=false;S.ecnStep=null;render();}
-      else if(a==='saveEcn'){
+      // --- ECN MARKING (writes to Supabase ecn_change_records) ---
+      else if(a==='toggleEcnMark'){
+        const sid=parseInt(el.dataset.sid);
+        const tree=DB.tree[`${S.teAssy}`];
         try{
-          const step=S.ecnStep;const grp=(DB.tree[`${S.teAssy}`]?.groups||[]).find(g=>g.id===step.group_id);
-          await DB.createEcnChangeRecord({
-            ecn_log_id:null, step_id:step.id, seq_tag:step.seq_tag||'',
-            step_name:step.label||step.pn||'', change_type:S.ecnChangeType,
-            field:S.ecnField, old_value:S.ecnOld, new_value:S.ecnNew,
-            reason:S.ecnReason, group_name:grp?.label||'', disposition:S.ecnDisp,
-          });
-          // Mark step as changed
-          await DB.updateStep(step.id,{ecn_status:'changed'});
-          delete DB.ecnChanges[S.teAssy];await DB.loadEcnChanges(S.teAssy);
-          DB.invalidateTree(S.teAssy);await DB.loadTree(S.teAssy);
-          S.ecnModal=false;S.ecnStep=null;toast('🔴 ECN record created');render();
+          if(S.teEcnMarks[sid]){
+            await deleteEcnMark(S.teEcnMarks[sid].id);
+            delete S.teEcnMarks[sid];
+            toast('✕ ECN removed from DB');
+          } else {
+            const rec=await createEcnMark(sid, tree);
+            if(rec) S.teEcnMarks[sid]={id:rec.id, note:'', disposition:'scrap', seq_tag:rec.seq_tag};
+            toast('🔴 ECN saved to DB');
+          }
         }catch(err){toast('❌ '+err.message,true);}
+        render();
       }
-      else if(a==='delEcnRec'){
-        try{await DB.deleteEcnChangeRecord(parseInt(el.dataset.ecnid));delete DB.ecnChanges[S.teAssy];await DB.loadEcnChanges(S.teAssy);toast('🗑 ECN record deleted');render();}catch(err){toast('❌ '+err.message,true);}
+      else if(a==='setEcnDisp'){
+        const sid=parseInt(el.dataset.sid),d=el.dataset.d;
+        if(S.teEcnMarks[sid]){
+          S.teEcnMarks[sid].disposition=d;
+          try{await updateEcnMark(S.teEcnMarks[sid].id,{disposition:d});}catch(err){toast('❌ '+err.message,true);}
+          render();
+        }
       }
     };
   });
 
-  // --- DEBOUNCED INPUTS ---
-  let saveTimer=null;
-  function ds(fn){clearTimeout(saveTimer);saveTimer=setTimeout(async()=>{try{await fn();toast('💾');}catch(err){toast('❌ '+err.message,true);}},800);}
+  // --- LOCAL PENDING INPUTS (no DB writes until Save) ---
   document.querySelectorAll('[data-role]').forEach(el=>{
     const r=el.dataset.role;
     if(r==='unitSearch'){el.oninput=()=>{S.unitSearch=el.value;render();};}
     if(r==='unitPicker'){el.onchange=async()=>{const u=S.selectedUnits.find(x=>x.sn===el.value);if(u){S.selectedUnits=[u,...S.selectedUnits.filter(x=>x.sn!==u.sn)];await DB.loadEcnApplied(u.sn);render();}};}
-    // Step fields
-    if(r==='teSeqTag') el.oninput=()=>ds(()=>DB.updateStep(parseInt(el.dataset.sid),{seq_tag:el.value}));
-    if(r==='teType') el.onchange=()=>ds(()=>DB.updateStep(parseInt(el.dataset.sid),{type:el.value}));
-    if(r==='teLabel') el.oninput=()=>ds(()=>DB.updateStep(parseInt(el.dataset.sid),{label:el.value}));
-    if(r==='teStepPn') el.oninput=()=>ds(()=>DB.updateStep(parseInt(el.dataset.sid),{pn:el.value}));
-    if(r==='teSortOrder') el.oninput=()=>ds(()=>DB.updateStep(parseInt(el.dataset.sid),{sort_order:parseInt(el.value)||0}));
-    if(r==='teEcnStatus') el.onchange=()=>ds(async()=>{await DB.updateStep(parseInt(el.dataset.sid),{ecn_status:el.value||null});DB.invalidateTree(S.teAssy);await DB.loadTree(S.teAssy);render();});
-    // Part fields
-    if(r==='partPn') el.oninput=()=>ds(()=>DB.updatePart(parseInt(el.dataset.pid),{pn:el.value}));
-    if(r==='partQty') el.oninput=()=>ds(()=>DB.updatePart(parseInt(el.dataset.pid),{qty:parseInt(el.value)||1}));
-    // Fastener fields
-    if(r==='fastPn') el.oninput=()=>ds(()=>DB.updateFastener(parseInt(el.dataset.fid),{pn:el.value}));
-    if(r==='fastTorque') el.oninput=()=>ds(()=>DB.updateFastener(parseInt(el.dataset.fid),{torque:el.value}));
-    if(r==='fastLoc') el.oninput=()=>ds(()=>DB.updateFastener(parseInt(el.dataset.fid),{loctite:el.value}));
-    if(r==='fastQty') el.oninput=()=>ds(()=>DB.updateFastener(parseInt(el.dataset.fid),{qty:parseInt(el.value)||1}));
-    // Group fields
-    if(r==='grpLabel') el.oninput=()=>ds(async()=>{await DB.updateGroup(parseInt(el.dataset.gid),{label:el.value});DB.invalidateTree(S.teAssy);await DB.loadTree(S.teAssy);render();});
-    if(r==='grpSort') el.oninput=()=>ds(async()=>{await DB.updateGroup(parseInt(el.dataset.gid),{sort_order:parseInt(el.value)||0});DB.invalidateTree(S.teAssy);await DB.loadTree(S.teAssy);render();});
-    if(r==='grpVersion') el.oninput=()=>ds(()=>DB.updateGroup(parseInt(el.dataset.gid),{version:el.value}));
+    // Step fields → pending (render only for fields visible in left tree)
+    if(r==='teSeqTag'){el.oninput=()=>{setPending('steps',parseInt(el.dataset.sid),'seq_tag',el.value);render();};}
+    if(r==='teType'){el.onchange=()=>{setPending('steps',parseInt(el.dataset.sid),'type',el.value);render();};}
+    if(r==='teLabel'){el.oninput=()=>{setPending('steps',parseInt(el.dataset.sid),'label',el.value);render();};}
+    if(r==='teStepPn'){el.oninput=()=>{setPending('steps',parseInt(el.dataset.sid),'pn',el.value);};}
+    if(r==='teSortOrder'){el.oninput=()=>{setPending('steps',parseInt(el.dataset.sid),'sort_order',parseInt(el.value)||0);};}
+    // ECN note (local only, never saved to DB)
+    if(r==='ecnNote'){
+      let noteTimer=null;
+      el.oninput=()=>{
+        const sid=parseInt(el.dataset.sid);
+        if(S.teEcnMarks[sid]){
+          S.teEcnMarks[sid].note=el.value;
+          clearTimeout(noteTimer);
+          noteTimer=setTimeout(async()=>{
+            try{await updateEcnMark(S.teEcnMarks[sid].id,{reason:el.value});}catch(e){console.error('ECN note save:',e);}
+          },800);
+        }
+      };
+    }
+    // Part fields → pending (partPn renders for master lookup display)
+    if(r==='partPn'){el.oninput=()=>{
+      const pid=parseInt(el.dataset.pid);
+      if(DB.lookupPN(el.value)) delete S.partNames[pid];
+      setPending('parts',pid,'pn',el.value);render();
+    };}
+    if(r==='partQty'){el.oninput=()=>{setPending('parts',parseInt(el.dataset.pid),'qty',parseInt(el.value)||1);};}
+    if(r==='partName'){el.oninput=()=>{
+      const pid=parseInt(el.dataset.pid);
+      S.partNames[pid]=el.value||'';
+      if(!el.value) delete S.partNames[pid];
+    };}
+    // Fastener fields → pending (fastPn renders for master lookup)
+    if(r==='fastPn'){el.oninput=()=>{
+      const fid=parseInt(el.dataset.fid);
+      if(DB.lookupPN(el.value)) delete S.fastNames[fid];
+      setPending('fasteners',fid,'pn',el.value);render();
+    };}
+    if(r==='fastTorque'){el.oninput=()=>{setPending('fasteners',parseInt(el.dataset.fid),'torque',el.value);};}
+    if(r==='fastLoc'){el.oninput=()=>{setPending('fasteners',parseInt(el.dataset.fid),'loctite',el.value);};}
+    if(r==='fastQty'){el.oninput=()=>{setPending('fasteners',parseInt(el.dataset.fid),'qty',parseInt(el.value)||1);};}
+    if(r==='fastName'){el.oninput=()=>{
+      const fid=parseInt(el.dataset.fid);
+      S.fastNames[fid]=el.value||'';
+      if(!el.value) delete S.fastNames[fid];
+    };}
+    // Group fields → pending
+    if(r==='grpLabel'){el.oninput=()=>{setPending('groups',parseInt(el.dataset.gid),'label',el.value);render();};}
+    if(r==='grpSort'){el.oninput=()=>{setPending('groups',parseInt(el.dataset.gid),'sort_order',parseInt(el.value)||0);};}
+    if(r==='grpVersion'){el.oninput=()=>{setPending('groups',parseInt(el.dataset.gid),'version',el.value);};}
     // Modal fields
     if(r==='newVerStr'){el.oninput=()=>{S.newVerStr=el.value;};}
     if(r==='newVerNotes'){el.oninput=()=>{S.newVerNotes=el.value;};}
-    if(r==='ecnChangeType'){el.onchange=()=>{S.ecnChangeType=el.value;};}
-    if(r==='ecnField'){el.oninput=()=>{S.ecnField=el.value;};}
-    if(r==='ecnOld'){el.oninput=()=>{S.ecnOld=el.value;};}
-    if(r==='ecnNew'){el.oninput=()=>{S.ecnNew=el.value;};}
-    if(r==='ecnReason'){el.oninput=()=>{S.ecnReason=el.value;};}
   });
+
+  // --- DRAG & DROP for step reordering ---
+  const treeEl=document.querySelector('.te-tree');
+  if(treeEl){
+    treeEl.addEventListener('dragstart',e=>{
+      const row=e.target.closest('[data-drag-sid]');
+      if(!row)return;
+      dragState.sid=parseInt(row.dataset.dragSid);
+      dragState.srcGid=parseInt(row.dataset.dragGid);
+      row.classList.add('dragging');
+      e.dataTransfer.effectAllowed='move';
+      e.dataTransfer.setData('text/plain',dragState.sid);
+    });
+    treeEl.addEventListener('dragend',e=>{
+      dragState.sid=null;dragState.overSid=null;dragState.srcGid=null;
+      treeEl.querySelectorAll('.drag-over,.dragging').forEach(el=>el.classList.remove('drag-over','dragging'));
+    });
+    treeEl.addEventListener('dragover',e=>{
+      e.preventDefault();
+      e.dataTransfer.dropEffect='move';
+      const row=e.target.closest('[data-drag-sid]');
+      if(!row||parseInt(row.dataset.dragSid)===dragState.sid)return;
+      treeEl.querySelectorAll('.drag-over').forEach(el=>el.classList.remove('drag-over'));
+      row.classList.add('drag-over');
+      dragState.overSid=parseInt(row.dataset.dragSid);
+      dragState.overGid=parseInt(row.dataset.dragGid);
+    });
+    treeEl.addEventListener('drop',e=>{
+      e.preventDefault();
+      if(!dragState.sid||!dragState.overSid||dragState.sid===dragState.overSid)return;
+      const tree=DB.tree[`${S.teAssy}`];if(!tree)return;
+      const targetGid=dragState.overGid;
+      // Get all steps in the target group, sorted by current sort_order
+      const gSteps=stepsForGroup(tree,targetGid).sort((a,b)=>(pvOr('steps',a.id,'sort_order',a.sort_order)||0)-(pvOr('steps',b.id,'sort_order',b.sort_order)||0));
+      // Build new order: insert dragged step before the target
+      const filtered=gSteps.filter(s=>s.id!==dragState.sid);
+      const targetIdx=filtered.findIndex(s=>s.id===dragState.overSid);
+      const dragStep=tree.steps.find(s=>s.id===dragState.sid);
+      if(!dragStep)return;
+      filtered.splice(targetIdx,0,dragStep);
+      // Assign new sort_orders as pending
+      filtered.forEach((s,i)=>{
+        setPending('steps',s.id,'sort_order',(i+1)*10);
+      });
+      // If moving to a different group, update group_id
+      if(dragState.srcGid!==targetGid){
+        setPending('steps',dragState.sid,'group_id',targetGid);
+      }
+      dragState.sid=null;dragState.overSid=null;dragState.srcGid=null;
+      render();
+    });
+  }
 }
 
 // ============================================================

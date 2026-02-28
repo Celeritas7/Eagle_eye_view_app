@@ -538,7 +538,8 @@ function renderEditor(){
               ${Object.entries(ECN_DISPOSITIONS).map(([k,d])=>`<button class="ecn-disp-btn ${ecm.disposition===k?'active':''}" style="flex:1;padding:4px;border-radius:4px;font-size:9px;${ecm.disposition===k?`border:2px solid ${d.color};background:${d.bg};color:${d.color}`:`border:1px solid var(--border);color:${d.color}`};${isFrozen&&ecm.disposition!==k?'opacity:0.3':''}" data-action="setEcnDisp" data-sid="${selStep.id}" data-d="${k}">${d.icon} ${d.label}</button>`).join('')}
             </div>
             ${!isFrozen?`<textarea class="inp" style="width:100%;resize:vertical;line-height:1.3;font-size:11px;padding:6px 8px" rows="2" placeholder="ECN note..." data-role="ecnNote" data-sid="${selStep.id}">${ecm.note||''}</textarea>`
-            :(ecm.note?`<div style="font-size:11px;color:var(--text);opacity:0.6;padding:4px 0">${ecm.note}</div>`:'')}`:''}
+            :(ecm.note?`<div style="font-size:11px;color:var(--text);opacity:0.6;padding:4px 0">${ecm.note}</div>`:'')}
+          `:''}
         </div>
       </div>
 
@@ -560,8 +561,6 @@ function renderEditor(){
           <input class="inp" type="number" style="width:32px;text-align:center;font-size:11px" value="${f.qty||1}" data-role="fastQty" data-fid="${f.id}">
           <button style="background:none;border:none;color:#ef4444;font-size:12px;cursor:pointer" data-action="delFast" data-fid="${f.id}">✕</button>
         </div>`).join('')}
-      </div>
-
       </div>`;
   } else if(selGrp){
     const grp=tree.groups.find(g=>g.id===selGrp);
@@ -831,7 +830,6 @@ function attachEvents(){
     if(r==='teLabel') el.oninput=()=>ds(()=>DB.updateStep(parseInt(el.dataset.sid),{label:el.value}));
     if(r==='teStepPn') el.oninput=()=>ds(()=>DB.updateStep(parseInt(el.dataset.sid),{pn:el.value}));
     if(r==='teSortOrder') el.oninput=()=>ds(()=>DB.updateStep(parseInt(el.dataset.sid),{sort_order:parseInt(el.value)||0}));
-    if(r==='teEcnStatus') el.onchange=()=>ds(async()=>{await DB.updateStep(parseInt(el.dataset.sid),{ecn_status:el.value||null});DB.invalidateTree(S.teAssy);await DB.loadTree(S.teAssy);render();});
     // ECN note (local only)
     if(r==='ecnNote'){el.oninput=()=>{const sid=parseInt(el.dataset.sid);if(S.teEcnMarks[sid])S.teEcnMarks[sid].note=el.value;};}
     // Part fields

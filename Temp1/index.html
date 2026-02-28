@@ -315,7 +315,8 @@ const S = {
   // Modals
   confirmAction:null, confirmMsg:'', confirmData:null,
   newVerModal:false, newVerStr:'', newVerNotes:'',
-  
+  ecnModal:false, ecnStep:null, ecnField:'', ecnOld:'', ecnNew:'', ecnReason:'', ecnDisp:'replace', ecnChangeType:'part_changed',
+  editGroupModal:false, editGroupData:null,
 };
 
 // ============================================================
@@ -330,6 +331,8 @@ function render(){
   // Overlays
   if(S.confirmAction) app.innerHTML+=renderConfirmModal();
   if(S.newVerModal) app.innerHTML+=renderNewVersionModal();
+  if(S.ecnModal) app.innerHTML+=renderEcnModal();
+  if(S.editGroupModal) app.innerHTML+=renderEditGroupModal();
   attachEvents();
 }
 
@@ -504,6 +507,7 @@ function renderEditor(){
   // --- RIGHT PANEL ---
   let rightPanel='';
   if(selStep){
+    const ecnRecs=(DB.ecnChanges[a.id]||[]).filter(c=>c.step_id===selStep.id);
     const ro=isFrozen?'readonly disabled':'';
     const roStyle=isFrozen?'opacity:0.6;pointer-events:none':'';
     rightPanel=`
@@ -552,6 +556,14 @@ function renderEditor(){
         </div>`).join('')}
       </div>
 
+      <div class="dp-section">
+        <div style="display:flex;align-items:center;margin-bottom:8px"><span class="dp-label" style="flex:1;margin:0">ECN RECORDS (${ecnRecs.length})</span><button class="btn-sm" style="background:rgba(239,68,68,0.12);color:#ef4444;border:none;font-size:11px;padding:4px 10px" data-action="openEcnCreate" data-sid="${selStep.id}">+ ECN Change</button></div>
+        ${ecnRecs.map(c=>{const d=ECN_DISPOSITIONS[c.disposition]||{};return `<div style="padding:8px 10px;border-radius:6px;border:1px solid var(--border);margin-bottom:4px;display:flex;align-items:center;gap:6px">
+          <span style="font-size:11px;font-weight:700;color:var(--muted)" class="mono">${c.seq_tag||'—'}</span>
+          <span style="flex:1;font-size:12px">${c.field||c.change_type}: ${c.old_value||'—'} → ${c.new_value||'—'}</span>
+          ${c.disposition?`<span style="font-size:9px;font-weight:700;padding:2px 6px;border-radius:4px;background:${d.bg||''};color:${d.color||''}">${(c.disposition||'').toUpperCase()}</span>`:''}
+          <button style="background:none;border:none;color:#ef4444;font-size:10px;cursor:pointer" data-action="delEcnRec" data-ecnid="${c.id}">✕</button>
+        </div>`;}).join('')}
       </div>`;
   } else if(selGrp){
     const grp=tree.groups.find(g=>g.id===selGrp);
@@ -677,6 +689,39 @@ function renderNewVersionModal(){
   </div></div>`;
 }
 
+function renderEcnModal(){
+  const step=S.ecnStep;if(!step)return'';
+  return `<div class="confirm-overlay"><div class="confirm-box" style="width:480px">
+    <div style="font-size:16px;font-weight:700;margin-bottom:4px">🔴 Create ECN Change Record</div>
+    <div style="font-size:12px;color:var(--muted);margin-bottom:14px">Step: ${step.label||step.pn||'—'} (${step.seq_tag||'—'})</div>
+    <div style="display:flex;gap:8px;margin-bottom:10px">
+      <div style="flex:1"><div class="dp-label">CHANGE TYPE</div>
+        <select class="inp" style="width:100%;font-size:12px;padding:6px 8px" data-role="ecnChangeType">
+          <option value="part_changed" ${S.ecnChangeType==='part_changed'?'selected':''}>Part Changed</option>
+          <option value="fastener_changed" ${S.ecnChangeType==='fastener_changed'?'selected':''}>Fastener Changed</option>
+          <option value="step_modified" ${S.ecnChangeType==='step_modified'?'selected':''}>Step Modified</option>
+          <option value="step_added" ${S.ecnChangeType==='step_added'?'selected':''}>Step Added</option>
+          <option value="step_removed" ${S.ecnChangeType==='step_removed'?'selected':''}>Step Removed</option>
+        </select>
+      </div>
+      <div style="flex:1"><div class="dp-label">FIELD</div><input class="inp" style="width:100%;font-size:12px;padding:6px 8px" placeholder="e.g. pn, torque, qty" data-role="ecnField" value="${S.ecnField}"></div>
+    </div>
+    <div style="display:flex;gap:8px;margin-bottom:10px">
+      <div style="flex:1"><div class="dp-label">OLD VALUE</div><input class="inp" style="width:100%;font-size:12px;padding:6px 8px" placeholder="Before" data-role="ecnOld" value="${S.ecnOld}"></div>
+      <div style="flex:1"><div class="dp-label">NEW VALUE</div><input class="inp" style="width:100%;font-size:12px;padding:6px 8px" placeholder="After" data-role="ecnNew" value="${S.ecnNew}"></div>
+    </div>
+    <div style="margin-bottom:10px"><div class="dp-label">REASON</div><input class="inp" style="width:100%;font-size:12px;padding:6px 8px" placeholder="Why this change?" data-role="ecnReason" value="${S.ecnReason}"></div>
+    <div style="margin-bottom:14px"><div class="dp-label">DISPOSITION</div>
+      <div style="display:flex;gap:6px;margin-top:4px">${Object.entries(ECN_DISPOSITIONS).map(([k,v])=>`<button class="ecn-disp-btn ${S.ecnDisp===k?'active':''}" style="${S.ecnDisp===k?`background:${v.bg};color:${v.color};border-color:${v.color}`:''}" data-action="setEcnDisp" data-d="${k}">${v.icon} ${v.label}</button>`).join('')}</div>
+    </div>
+    <div style="display:flex;gap:8px;justify-content:flex-end">
+      <button class="btn-sm" style="padding:8px 16px;font-size:12px" data-action="cancelEcn">Cancel</button>
+      <button class="btn-sm" style="padding:8px 16px;font-size:12px;background:#ef4444;color:#fff;border-color:#ef4444" data-action="saveEcn">Create ECN Record</button>
+    </div>
+  </div></div>`;
+}
+
+function renderEditGroupModal(){ return ''; /* inline editing now */ }
 
 // ============================================================
 // EVENT HANDLERS
@@ -796,7 +841,30 @@ function attachEvents(){
       }
 
       // --- ECN ---
-
+      else if(a==='openEcnCreate'){
+        const tree=DB.tree[`${S.teAssy}`];const step=tree?.steps.find(s=>s.id===parseInt(el.dataset.sid));
+        S.ecnStep=step;S.ecnModal=true;S.ecnField='';S.ecnOld='';S.ecnNew='';S.ecnReason='';S.ecnDisp='replace';S.ecnChangeType='part_changed';render();
+      }
+      else if(a==='setEcnDisp'){S.ecnDisp=el.dataset.d;render();}
+      else if(a==='cancelEcn'){S.ecnModal=false;S.ecnStep=null;render();}
+      else if(a==='saveEcn'){
+        try{
+          const step=S.ecnStep;const grp=(DB.tree[`${S.teAssy}`]?.groups||[]).find(g=>g.id===step.group_id);
+          await DB.createEcnChangeRecord({
+            ecn_log_id:null, step_id:step.id, seq_tag:step.seq_tag||'',
+            step_name:step.label||step.pn||'', change_type:S.ecnChangeType,
+            field:S.ecnField, old_value:S.ecnOld, new_value:S.ecnNew,
+            reason:S.ecnReason, group_name:grp?.label||'', disposition:S.ecnDisp,
+          });
+          // Mark step as changed
+          await DB.updateStep(step.id,{ecn_status:'changed'});
+          delete DB.ecnChanges[S.teAssy];await DB.loadEcnChanges(S.teAssy);
+          DB.invalidateTree(S.teAssy);await DB.loadTree(S.teAssy);
+          S.ecnModal=false;S.ecnStep=null;toast('🔴 ECN record created');render();
+        }catch(err){toast('❌ '+err.message,true);}
+      }
+      else if(a==='delEcnRec'){
+        try{await DB.deleteEcnChangeRecord(parseInt(el.dataset.ecnid));delete DB.ecnChanges[S.teAssy];await DB.loadEcnChanges(S.teAssy);toast('🗑 ECN record deleted');render();}catch(err){toast('❌ '+err.message,true);}
       }
     };
   });
@@ -830,6 +898,11 @@ function attachEvents(){
     // Modal fields
     if(r==='newVerStr'){el.oninput=()=>{S.newVerStr=el.value;};}
     if(r==='newVerNotes'){el.oninput=()=>{S.newVerNotes=el.value;};}
+    if(r==='ecnChangeType'){el.onchange=()=>{S.ecnChangeType=el.value;};}
+    if(r==='ecnField'){el.oninput=()=>{S.ecnField=el.value;};}
+    if(r==='ecnOld'){el.oninput=()=>{S.ecnOld=el.value;};}
+    if(r==='ecnNew'){el.oninput=()=>{S.ecnNew=el.value;};}
+    if(r==='ecnReason'){el.oninput=()=>{S.ecnReason=el.value;};}
   });
 }
 

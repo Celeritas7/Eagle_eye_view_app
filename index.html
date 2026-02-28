@@ -377,12 +377,13 @@ function renderUnitSelect(){
       ${['all','outdated','current'].map(f=>`<button class="us-filter ${S.unitFilter===f?'active':''}" data-f="${f}" data-action="setFilter">${f}</button>`).join('')}
       <button class="btn-sm" style="margin-left:auto;background:transparent;color:var(--muted);font-size:9px" data-action="selectAll">Select all (${filtered.length})</button>
     </div>
-    <div class="unit-grid">${filtered.map(u=>{const sel=S.unitSel.has(u.sn),out=u.status==='outdated';
+    <div class="unit-grid">${filtered.map(u=>{const sel=S.unitSel.has(u.sn),out=u.status==='outdated';const needsUpgrade=u.version&&u.latestVer&&u.version!==u.latestVer;
       return `<div class="unit-card ${sel?'selected':''}" data-action="toggleUnit" data-sn="${u.sn}">
         ${sel?'<div style="position:absolute;top:4px;right:6px;font-size:10px;color:var(--accent)">✓</div>':''}
         <div style="font-size:11px;font-weight:700" class="mono">${u.sn}</div>
-        <div style="display:flex;gap:3px;margin-top:2px">
+        <div style="display:flex;gap:3px;margin-top:2px;flex-wrap:wrap">
           <span class="badge" style="background:${out?'rgba(239,68,68,0.12)':u.completed?'rgba(34,197,94,0.12)':'rgba(245,158,11,0.12)'};color:${out?'#ef4444':u.completed?'#22c55e':'#f59e0b'}">${out?'outdated':u.completed?'done':'pending'}</span>
+          ${u.version?`<span class="badge" style="background:${needsUpgrade?'rgba(239,68,68,0.12)':'rgba(107,112,128,0.08)'};color:${needsUpgrade?'#ef4444':'var(--muted)'}">v${u.version}</span>`:''}
         </div></div>`;}).join('')}</div>
     ${S.unitSel.size?`<div style="margin-top:10px;padding:8px 14px;border-radius:10px;background:rgba(245,158,11,0.04);border:1px solid rgba(245,158,11,0.15);display:flex;align-items:center;justify-content:space-between">
       <span style="font-weight:700;font-size:12px">${S.unitSel.size} selected</span>
@@ -495,6 +496,7 @@ function renderEditor(){
 
   const versions=S.teVersions||[];
   const currentVer=S.teVer||a.version;
+  const isFrozen=versions.some(v=>v.version===currentVer);
   const sel=S.teSel;
   const selGrp=S.teSelGroup;
 
@@ -506,11 +508,14 @@ function renderEditor(){
   let rightPanel='';
   if(selStep){
     const ecnRecs=(DB.ecnChanges[a.id]||[]).filter(c=>c.step_id===selStep.id);
+    const ro=isFrozen?'readonly disabled':'';
+    const roStyle=isFrozen?'opacity:0.6;pointer-events:none':'';
     rightPanel=`
-      <div class="dp-section">
+      ${isFrozen?'<div style="padding:8px 12px;border-radius:8px;margin-bottom:12px;background:rgba(59,130,246,0.06);border:1px solid rgba(59,130,246,0.15);font-size:11px;font-weight:700;color:#3b82f6;text-align:center">🔒 Frozen — unfreeze to edit</div>':''}
+      <div class="dp-section" style="${roStyle}">
         <div style="display:flex;align-items:center;gap:8px;margin-bottom:12px">
           <div style="font-size:18px;font-weight:800;flex:1">${selStep.label||selStep.pn||'Untitled'}</div>
-          <button class="btn-sm" style="background:rgba(239,68,68,0.1);color:#ef4444;border-color:rgba(239,68,68,0.2);font-size:9px" data-action="deleteStep" data-sid="${selStep.id}">🗑 Delete</button>
+          ${!isFrozen?`<button class="btn-sm" style="background:rgba(239,68,68,0.1);color:#ef4444;border-color:rgba(239,68,68,0.2);font-size:9px" data-action="deleteStep" data-sid="${selStep.id}">🗑 Delete</button>`:''}
         </div>
         <div style="display:flex;gap:8px;align-items:flex-start;margin-bottom:12px;flex-wrap:wrap">
           <div><div class="dp-label">SEQ TAG</div><input class="inp" style="width:56px;font-weight:700;font-size:13px;padding:6px 8px" value="${selStep.seq_tag||''}" data-role="teSeqTag" data-sid="${selStep.id}"></div>
@@ -531,8 +536,8 @@ function renderEditor(){
         </div>
       </div>
 
-      <div class="dp-section">
-        <div style="display:flex;align-items:center;margin-bottom:6px"><span class="dp-label" style="flex:1;margin:0">PARTS (${selParts.length})</span><button class="btn-sm" style="background:rgba(34,197,94,0.12);color:#22c55e;border:none;font-size:11px;padding:4px 10px" data-action="addPart" data-sid="${selStep.id}">+ Part</button></div>
+      <div class="dp-section" style="${roStyle}">
+        <div style="display:flex;align-items:center;margin-bottom:6px"><span class="dp-label" style="flex:1;margin:0">PARTS (${selParts.length})</span>${!isFrozen?`<button class="btn-sm" style="background:rgba(34,197,94,0.12);color:#22c55e;border:none;font-size:11px;padding:4px 10px" data-action="addPart" data-sid="${selStep.id}">+ Part</button>`:''}</div>
         ${selParts.map(p=>`<div class="dp-row">
           <input class="inp" style="width:100px;font-weight:700;color:#0ea5e9;font-size:11px" value="${p.pn||''}" data-role="partPn" data-pid="${p.id}" placeholder="PN">
           <input class="inp" type="number" style="width:40px;text-align:center;font-size:11px" value="${p.qty||1}" data-role="partQty" data-pid="${p.id}">
@@ -540,8 +545,8 @@ function renderEditor(){
         </div>`).join('')}
       </div>
 
-      <div class="dp-section">
-        <div style="display:flex;align-items:center;margin-bottom:6px"><span class="dp-label" style="flex:1;margin:0">FASTENERS (${selFast.length})</span><button class="btn-sm" style="background:rgba(245,158,11,0.12);color:#f59e0b;border:none;font-size:11px;padding:4px 10px" data-action="addFastener" data-sid="${selStep.id}">+ Fastener</button></div>
+      <div class="dp-section" style="${roStyle}">
+        <div style="display:flex;align-items:center;margin-bottom:6px"><span class="dp-label" style="flex:1;margin:0">FASTENERS (${selFast.length})</span>${!isFrozen?`<button class="btn-sm" style="background:rgba(245,158,11,0.12);color:#f59e0b;border:none;font-size:11px;padding:4px 10px" data-action="addFastener" data-sid="${selStep.id}">+ Fastener</button>`:''}</div>
         ${selFast.map(f=>`<div style="display:flex;gap:4px;align-items:center;margin-bottom:4px">
           <input class="inp" style="width:90px;font-weight:700;color:#f59e0b;font-size:11px" value="${f.pn||''}" data-role="fastPn" data-fid="${f.id}" placeholder="PN">
           <input class="inp" style="width:50px;font-size:11px" value="${f.torque||''}" placeholder="Torque" data-role="fastTorque" data-fid="${f.id}">
@@ -563,11 +568,14 @@ function renderEditor(){
   } else if(selGrp){
     const grp=tree.groups.find(g=>g.id===selGrp);
     if(grp){
-      rightPanel=`<div class="dp-section">
+      const roStyle=isFrozen?'opacity:0.6;pointer-events:none':'';
+      rightPanel=`
+      ${isFrozen?'<div style="padding:8px 12px;border-radius:8px;margin-bottom:12px;background:rgba(59,130,246,0.06);border:1px solid rgba(59,130,246,0.15);font-size:11px;font-weight:700;color:#3b82f6;text-align:center">🔒 Frozen — unfreeze to edit</div>':''}
+      <div class="dp-section" style="${roStyle}">
         <div style="display:flex;align-items:center;gap:8px;margin-bottom:14px">
           <span style="font-size:24px">${grp.icon||'📦'}</span>
           <div style="font-size:18px;font-weight:800;flex:1;color:${grp.color||'#666'}">${grp.label}</div>
-          <button class="btn-sm" style="background:rgba(239,68,68,0.1);color:#ef4444;border-color:rgba(239,68,68,0.2);font-size:9px" data-action="deleteGroup" data-gid="${grp.id}">🗑 Delete Group</button>
+          ${!isFrozen?`<button class="btn-sm" style="background:rgba(239,68,68,0.1);color:#ef4444;border-color:rgba(239,68,68,0.2);font-size:9px" data-action="deleteGroup" data-gid="${grp.id}">🗑 Delete Group</button>`:''}
         </div>
         <div style="margin-bottom:10px"><div class="dp-label">GROUP NAME</div><input class="inp" style="width:100%;font-size:13px;padding:6px 8px" value="${grp.label||''}" data-role="grpLabel" data-gid="${grp.id}"></div>
         <div style="margin-bottom:10px"><div class="dp-label">COLOR</div>
@@ -590,13 +598,16 @@ function renderEditor(){
   // --- VERSION BAR ---
   const verBar=`<div class="te-verbar">
     <span style="font-size:10px;font-weight:700;color:var(--dim);letter-spacing:1px;margin-right:4px">VERSIONS</span>
-    ${versions.map(v=>`<button class="te-ver-pill ${v.version===currentVer?'active':''}" data-action="switchVer" data-ver="${v.version}">v${v.version}</button>`).join('')}
-    ${!versions.length?`<span class="te-ver-pill active">v${currentVer}</span>`:''}
+    ${versions.map(v=>`<button class="te-ver-pill ${v.version===currentVer?'active':''}" data-action="switchVer" data-ver="${v.version}" title="${v.notes||''}">v${v.version} 🔒</button>`).join('')}
+    ${!versions.some(v=>v.version===currentVer)?`<button class="te-ver-pill active" style="border-color:rgba(245,158,11,0.4);background:rgba(245,158,11,0.1);color:#f59e0b">v${currentVer} <span style="font-size:8px">DRAFT</span></button>`:''}
     <button class="btn-sm" style="background:rgba(139,92,246,0.12);color:#8b5cf6;border:none;font-size:10px;padding:4px 10px;margin-left:4px" data-action="openNewVer">+ New Version</button>
     <div style="margin-left:auto;display:flex;gap:6px">
-      <button class="btn-sm" style="background:rgba(34,197,94,0.1);color:#22c55e;border-color:rgba(34,197,94,0.2);font-size:10px" data-action="setProduction">🏭 Set v${currentVer} as Production</button>
+      ${isFrozen?`<button class="btn-sm" style="background:rgba(245,158,11,0.1);color:#f59e0b;border-color:rgba(245,158,11,0.2);font-size:10px" data-action="unfreezeVer">🔓 Unfreeze to Draft</button>`
+      :`<button class="btn-sm" style="background:rgba(59,130,246,0.1);color:#3b82f6;border-color:rgba(59,130,246,0.2);font-size:10px" data-action="freezeVer">🔒 Freeze v${currentVer}</button>`}
+      <button class="btn-sm" style="background:rgba(34,197,94,0.1);color:#22c55e;border-color:rgba(34,197,94,0.2);font-size:10px" data-action="setProduction">🏭 Set as Production</button>
     </div>
-  </div>`;
+  </div>
+  ${isFrozen?`<div class="te-frozen-bar">🔒 Version v${currentVer} is frozen. Unfreeze to make edits.</div>`:''}`;
 
   return `<div class="te-wrap">
     <div class="te-left">
@@ -618,7 +629,7 @@ function renderEditor(){
             <span style="font-size:16px">${g.icon||'📦'}</span>
             <span style="font-weight:700;color:${g.color||'#666'};flex:1;font-size:15px" class="mono">${g.label}</span>
             <span style="color:var(--muted);font-size:13px">${gSteps.length}</span>
-            <button style="background:none;border:none;color:#22c55e;cursor:pointer;font-size:16px;padding:0 4px" data-action="addStep" data-gid="${g.id}" onclick="event.stopPropagation()">+</button>
+            ${!isFrozen?`<button style="background:none;border:none;color:#22c55e;cursor:pointer;font-size:16px;padding:0 4px" data-action="addStep" data-gid="${g.id}" onclick="event.stopPropagation()">+</button>`:''}
           </div>
           ${gSteps.map(s=>{const isSel=sel===s.id;const hasEcn=s.ecn_status&&s.ecn_status!=='';
             return `<div class="te-step ${isSel?'sel':''}" data-action="selStep" data-sid="${s.id}" style="${isSel?'':'border:1px solid transparent'}">
@@ -630,7 +641,7 @@ function renderEditor(){
               ${fastenersForStep(tree,s.id).length?`<span style="font-size:11px;color:#ef4444;font-weight:600" class="mono">${fastenersForStep(tree,s.id).length}F</span>`:''}
             </div>`;}).join('')}
         </div>`;}).join('')}
-        <button class="btn-sm" style="width:100%;margin-top:8px;padding:10px;background:rgba(99,102,241,0.12);color:#6366f1;border:none;font-size:12px" data-action="addGroup">+ Add Group</button>
+        ${!isFrozen?`<button class="btn-sm" style="width:100%;margin-top:8px;padding:10px;background:rgba(99,102,241,0.12);color:#6366f1;border:none;font-size:12px" data-action="addGroup">+ Add Group</button>`:''}
       </div>
     </div>
     <div class="te-right">${rightPanel}</div>
@@ -789,6 +800,12 @@ function attachEvents(){
         try{
           if(d.type==='deleteStep'){await DB.deleteStep(d.sid);S.teSel=null;DB.invalidateTree(S.teAssy);await DB.loadTree(S.teAssy);toast('🗑 Step deleted');}
           else if(d.type==='deleteGroup'){await DB.deleteGroup(d.gid);S.teSelGroup=null;DB.invalidateTree(S.teAssy);await DB.loadTree(S.teAssy);toast('🗑 Group deleted');}
+          else if(d.type==='unfreezeVer'){
+            // Delete the version_history entry to unfreeze
+            await sbDelete('eagle_eye_app_version_history',`assembly_id=eq.${S.teAssy}&version=eq.${d.ver}`);
+            delete DB.versions[S.teAssy];S.teVersions=await DB.loadVersions(S.teAssy);
+            toast(`🔓 v${d.ver} is now a draft`);
+          }
           render();
         }catch(err){toast('❌ '+err.message,true);render();}
       }
@@ -807,6 +824,20 @@ function attachEvents(){
       }
       else if(a==='setProduction'){
         try{await DB.updateAssemblyVersion(S.teAssy,S.teVer);toast(`🏭 v${S.teVer} is now production`);render();}catch(err){toast('❌ '+err.message,true);}
+      }
+      else if(a==='freezeVer'){
+        const exists=S.teVersions.some(v=>v.version===S.teVer);
+        if(!exists){
+          try{
+            await DB.createVersion(S.teAssy,S.teVer,`Frozen by Aniket`);
+            delete DB.versions[S.teAssy];S.teVersions=await DB.loadVersions(S.teAssy);
+            toast(`🔒 v${S.teVer} frozen`);render();
+          }catch(err){toast('❌ '+err.message,true);}
+        } else { toast('Already frozen',true); }
+      }
+      else if(a==='unfreezeVer'){
+        S.confirmMsg=`Unfreeze <strong>v${S.teVer}</strong> and make it a draft? This allows editing the tree.`;
+        S.confirmData={type:'unfreezeVer',ver:S.teVer};S.confirmAction=true;render();
       }
 
       // --- ECN ---

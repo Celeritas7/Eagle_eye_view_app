@@ -273,18 +273,17 @@ const DB = {
   },
 
   async loadTree(assemblyId, version) {
-    const key=`${assemblyId}`;
+    const key=`${assemblyId}_${version||'all'}`;
     if(this.tree[key]) return this.tree[key];
     try {
-      // Load ALL groups for this assembly (version filtering done client-side if needed)
+      // Load groups for this assembly & version
       let gq = `assembly_id=eq.${assemblyId}&order=sort_order`;
+      if(version) gq += `&version=eq.${version}`;
       const groups = await sbGet('eagle_eye_app_groups', gq);
-      if(groups.length===0){ this.tree[key]={groups:[],steps:[],partsMap:{},fastMap:{}}; return this.tree[key]; }
+      if(groups.length===0){ this.tree[key]={groups:[],steps:[],parts:{},fasteners:{}}; return this.tree[key]; }
       const gids = groups.map(g=>g.id);
       // Load steps for these groups
       const steps = await sbGet('eagle_eye_app_steps',`group_id=in.(${gids.join(',')})&order=sort_order`);
-      // Normalize type to uppercase (DB stores lowercase)
-      steps.forEach(s => { if(s.type) s.type = s.type.toUpperCase(); });
       const sids = steps.map(s=>s.id);
       // Load parts & fasteners
       let parts=[], fasteners=[];
@@ -506,7 +505,7 @@ function renderUnitSelect(){
 
 function renderAssembly(){
   const a=S.assy, unit=S.selectedUnits[0]; if(!unit) return '';
-  const treeKey=`${a.id}`;
+  const treeKey=`${a.id}_${a.version||'all'}`;
   const tree=DB.tree[treeKey];
   if(!tree) return '<div class="loading-wrap"><div class="spinner"></div>Loading tree...</div>';
   const ecnRecords=DB.ecnChanges[a.id]||[];
@@ -622,7 +621,7 @@ function renderChangeModal(){
 function renderEditor(){
   if(!S.teAssy) return renderEditorPicker();
   const a=DB.assemblies.find(x=>x.id===S.teAssy); if(!a) return '';
-  const treeKey=`${a.id}`;
+  const treeKey=`${a.id}_${S.teVer||a.version||'all'}`;
   const tree=DB.tree[treeKey];
   if(!tree) return '<div class="loading-wrap"><div class="spinner"></div>Loading tree...</div>';
   const sel=S.teSel;
@@ -772,7 +771,7 @@ function attachEvents(){
           const row=await DB.addStep(gid,{seq_tag:'',type:'STEP',label:'New step',sort_order:999});
           // Refresh tree
           const assy=DB.assemblies.find(x=>x.id===S.teAssy);
-          delete DB.tree[`${S.teAssy}`];
+          delete DB.tree[`${S.teAssy}_${S.teVer||assy?.version||'all'}`];
           await DB.loadTree(S.teAssy, S.teVer||assy?.version);
           toast('✅ Step added'); render();
         } catch(err){ toast('❌ '+err.message); }
@@ -781,7 +780,7 @@ function attachEvents(){
         try {
           const assy=DB.assemblies.find(x=>x.id===S.teAssy);
           await DB.addGroup(S.teAssy, S.teVer||assy?.version, {label:'New Group',icon:'📦',color:'#6366f1',sort_order:999});
-          delete DB.tree[`${S.teAssy}`];
+          delete DB.tree[`${S.teAssy}_${S.teVer||assy?.version||'all'}`];
           await DB.loadTree(S.teAssy, S.teVer||assy?.version);
           toast('✅ Group added'); render();
         } catch(err){ toast('❌ '+err.message); }
@@ -791,7 +790,7 @@ function attachEvents(){
           const sid=parseInt(el.dataset.sid);
           await DB.addPart(sid,{pn:'',qty:1,sort_order:999});
           const assy=DB.assemblies.find(x=>x.id===S.teAssy);
-          delete DB.tree[`${S.teAssy}`];
+          delete DB.tree[`${S.teAssy}_${S.teVer||assy?.version||'all'}`];
           await DB.loadTree(S.teAssy, S.teVer||assy?.version);
           toast('✅ Part added'); render();
         } catch(err){ toast('❌ '+err.message); }
@@ -800,7 +799,7 @@ function attachEvents(){
         try {
           await DB.deletePart(parseInt(el.dataset.pid));
           const assy=DB.assemblies.find(x=>x.id===S.teAssy);
-          delete DB.tree[`${S.teAssy}`];
+          delete DB.tree[`${S.teAssy}_${S.teVer||assy?.version||'all'}`];
           await DB.loadTree(S.teAssy, S.teVer||assy?.version);
           render();
         } catch(err){ toast('❌ '+err.message); }
@@ -810,7 +809,7 @@ function attachEvents(){
           const sid=parseInt(el.dataset.sid);
           await DB.addFastener(sid,{pn:'',qty:1,torque:'',loctite:'',sort_order:999});
           const assy=DB.assemblies.find(x=>x.id===S.teAssy);
-          delete DB.tree[`${S.teAssy}`];
+          delete DB.tree[`${S.teAssy}_${S.teVer||assy?.version||'all'}`];
           await DB.loadTree(S.teAssy, S.teVer||assy?.version);
           toast('✅ Fastener added'); render();
         } catch(err){ toast('❌ '+err.message); }
@@ -819,7 +818,7 @@ function attachEvents(){
         try {
           await DB.deleteFastener(parseInt(el.dataset.fid));
           const assy=DB.assemblies.find(x=>x.id===S.teAssy);
-          delete DB.tree[`${S.teAssy}`];
+          delete DB.tree[`${S.teAssy}_${S.teVer||assy?.version||'all'}`];
           await DB.loadTree(S.teAssy, S.teVer||assy?.version);
           render();
         } catch(err){ toast('❌ '+err.message); }

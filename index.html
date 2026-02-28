@@ -425,6 +425,15 @@ const S = {
   tePending:{steps:{},parts:{},fasteners:{},groups:{}},
 };
 
+// ECN marks persistence via localStorage
+function saveEcnMarks(){
+  if(!S.teAssy)return;
+  try{localStorage.setItem(`ee_ecn_${S.teAssy}`,JSON.stringify(S.teEcnMarks));}catch(e){}
+}
+function loadEcnMarks(assyId){
+  try{const d=localStorage.getItem(`ee_ecn_${assyId}`);return d?JSON.parse(d):{};}catch(e){return {};}
+}
+
 // ============================================================
 // RENDER ENGINE
 // ============================================================
@@ -439,6 +448,10 @@ function render(){
       focusInfo={role,sid,pid,fid,gid,selStart:ae.selectionStart,selEnd:ae.selectionEnd,tag:ae.tagName};
     }
   }
+  // Save scroll positions
+  const treeEl=document.querySelector('.te-tree');
+  const rightEl=document.querySelector('.te-right');
+  const scrolls={tree:treeEl?.scrollTop||0,right:rightEl?.scrollTop||0};
 
   const app=document.getElementById('app');
   if(S.page==='home') app.innerHTML=renderHome();
@@ -450,6 +463,12 @@ function render(){
   if(S.newVerModal) app.innerHTML+=renderNewVersionModal();
   attachEvents();
 
+  // Restore scroll positions
+  const treeEl2=document.querySelector('.te-tree');
+  const rightEl2=document.querySelector('.te-right');
+  if(treeEl2) treeEl2.scrollTop=scrolls.tree;
+  if(rightEl2) rightEl2.scrollTop=scrolls.right;
+
   // Restore focus
   if(focusInfo){
     let sel=`[data-role="${focusInfo.role}"]`;
@@ -459,7 +478,7 @@ function render(){
     if(focusInfo.gid) sel+=`[data-gid="${focusInfo.gid}"]`;
     const el=document.querySelector(sel);
     if(el){
-      el.focus();
+      el.focus({preventScroll:true});
       if(focusInfo.tag!=='SELECT'&&focusInfo.selStart!=null){
         try{el.setSelectionRange(focusInfo.selStart,focusInfo.selEnd);}catch(e){}
       }
@@ -896,6 +915,7 @@ function attachEvents(){
       else if(a==='pickAssy'){
         S.teAssy=parseInt(el.dataset.id);S.teSel=null;S.teSelGroup=null;
         const assy=DB.assemblies.find(x=>x.id===S.teAssy);S.teVer=assy?.version;
+        S.teEcnMarks=loadEcnMarks(S.teAssy);
         await Promise.all([DB.loadTree(S.teAssy),DB.loadVersions(S.teAssy),DB.loadEcnChanges(S.teAssy)]);
         S.teVersions=DB.versions[S.teAssy]||[];render();
       }
@@ -995,11 +1015,11 @@ function attachEvents(){
         const sid=parseInt(el.dataset.sid);
         if(S.teEcnMarks[sid]){delete S.teEcnMarks[sid];toast('✕ ECN removed');}
         else{S.teEcnMarks[sid]={note:'',disposition:'scrap'};toast('🔴 ECN marked');}
-        render();
+        saveEcnMarks();render();
       }
       else if(a==='setEcnDisp'){
         const sid=parseInt(el.dataset.sid),d=el.dataset.d;
-        if(S.teEcnMarks[sid]){S.teEcnMarks[sid].disposition=d;render();}
+        if(S.teEcnMarks[sid]){S.teEcnMarks[sid].disposition=d;saveEcnMarks();render();}
       }
     };
   });
@@ -1016,7 +1036,7 @@ function attachEvents(){
     if(r==='teStepPn'){el.oninput=()=>{setPending('steps',parseInt(el.dataset.sid),'pn',el.value);};}
     if(r==='teSortOrder'){el.oninput=()=>{setPending('steps',parseInt(el.dataset.sid),'sort_order',parseInt(el.value)||0);};}
     // ECN note (local only, never saved to DB)
-    if(r==='ecnNote'){el.oninput=()=>{const sid=parseInt(el.dataset.sid);if(S.teEcnMarks[sid])S.teEcnMarks[sid].note=el.value;};}
+    if(r==='ecnNote'){el.oninput=()=>{const sid=parseInt(el.dataset.sid);if(S.teEcnMarks[sid]){S.teEcnMarks[sid].note=el.value;saveEcnMarks();}};}
     // Part fields → pending (partPn renders for master lookup display)
     if(r==='partPn'){el.oninput=()=>{
       const pid=parseInt(el.dataset.pid);

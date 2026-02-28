@@ -292,36 +292,6 @@ const DB = {
   async createEcnLog(d){const[r]=await sbPost('eagle_eye_app_ecn_log',[d]);return r;},
 
   // --- VERSION WRITES ---
-  async assignVersionToUnits(assemblyId, sns, version){
-    const latestVer = this.assemblies.find(a=>a.id===assemblyId)?.version || version;
-    const status = version === latestVer ? 'current' : 'outdated';
-    // If units came from GSheets, sync all to DB first
-    if(this.gsStatus==='gs'){
-      const allUnits=this.units[assemblyId]||[];
-      for(const u of allUnits){
-        try{
-          const existing=await sbGet('eagle_eye_app_production_units',`assembly_id=eq.${assemblyId}&sn=eq.${encodeURIComponent(u.sn)}`);
-          if(existing.length===0){
-            await sbPost('eagle_eye_app_production_units',[{assembly_id:assemblyId,sn:u.sn,status:u.status||'pending',latest_version:latestVer}]);
-          }
-        }catch(e){}
-      }
-    }
-    // Now assign version to selected units
-    for(const sn of sns){
-      try{
-        const existing=await sbGet('eagle_eye_app_production_units',`assembly_id=eq.${assemblyId}&sn=eq.${encodeURIComponent(sn)}`);
-        if(existing.length>0){
-          await sbPatch('eagle_eye_app_production_units',`id=eq.${existing[0].id}`,{version, latest_version:latestVer, status, updated_at:new Date().toISOString()});
-        }else{
-          await sbPost('eagle_eye_app_production_units',[{assembly_id:assemblyId, sn, version, latest_version:latestVer, status}]);
-        }
-      }catch(e){console.error('Assign version for',sn,e);}
-    }
-    // Refresh local cache
-    delete this.units[assemblyId];
-  },
-
   async createVersion(aid,ver,notes){
     const[r]=await sbPost('eagle_eye_app_version_history',[{assembly_id:aid,version:ver,notes:notes||null,created_by:'Aniket'}]);
     delete this.versions[aid];
@@ -365,8 +335,6 @@ const S = {
   newVerModal:false, newVerStr:'', newVerNotes:'',
   ecnModal:false, ecnStep:null, ecnField:'', ecnOld:'', ecnNew:'', ecnReason:'', ecnDisp:'replace', ecnChangeType:'part_changed',
   editGroupModal:false, editGroupData:null,
-  // Version assignment
-  versionAssignModal:false, versionAssignVer:'',
 };
 
 // ============================================================
@@ -383,7 +351,6 @@ function render(){
   if(S.newVerModal) app.innerHTML+=renderNewVersionModal();
   if(S.ecnModal) app.innerHTML+=renderEcnModal();
   if(S.editGroupModal) app.innerHTML+=renderEditGroupModal();
-  if(S.versionAssignModal) app.innerHTML+=renderVersionAssignModal();
   attachEvents();
 }
 
@@ -436,12 +403,9 @@ function renderUnitSelect(){
           <span class="badge" style="background:${out?'rgba(239,68,68,0.12)':u.completed?'rgba(34,197,94,0.12)':'rgba(245,158,11,0.12)'};color:${out?'#ef4444':u.completed?'#22c55e':'#f59e0b'}">${out?'outdated':u.completed?'done':'pending'}</span>
           ${u.version?`<span class="badge" style="background:${needsUpgrade?'rgba(239,68,68,0.12)':'rgba(107,112,128,0.08)'};color:${needsUpgrade?'#ef4444':'var(--muted)'}">v${u.version}</span>`:''}
         </div></div>`;}).join('')}</div>
-    ${S.unitSel.size?`<div style="margin-top:10px;padding:8px 14px;border-radius:10px;background:rgba(245,158,11,0.04);border:1px solid rgba(245,158,11,0.15);display:flex;align-items:center;justify-content:space-between;gap:8px;flex-wrap:wrap">
+    ${S.unitSel.size?`<div style="margin-top:10px;padding:8px 14px;border-radius:10px;background:rgba(245,158,11,0.04);border:1px solid rgba(245,158,11,0.15);display:flex;align-items:center;justify-content:space-between">
       <span style="font-weight:700;font-size:12px">${S.unitSel.size} selected</span>
-      <div style="display:flex;gap:6px;align-items:center">
-        <button style="padding:6px 14px;border-radius:8px;font-size:11px;font-weight:700;border:1px solid rgba(139,92,246,0.3);color:#a78bfa;cursor:pointer;background:rgba(139,92,246,0.08);font-family:'JetBrains Mono',monospace" data-action="openVersionAssign">📋 Assign Version</button>
-        <button style="padding:6px 18px;border-radius:8px;font-size:12px;font-weight:700;border:none;color:#000;cursor:pointer;background:${a.color}" data-action="proceed">Open Assembly View →</button>
-      </div>
+      <button style="padding:6px 18px;border-radius:8px;font-size:12px;font-weight:700;border:none;color:#000;cursor:pointer;background:${a.color}" data-action="proceed">Open Assembly View →</button>
     </div>`:''}`}
   </div></div>`;
 }
@@ -1118,73 +1082,6 @@ function renderNewVersionModal(){
   </div></div>`;
 }
 
-function renderVersionAssignModal(){
-  const a=S.assy;if(!a)return'';
-  const versions=DB.versions[a.id]||[];
-  const latestVer=a.version;
-  const sns=[...S.unitSel];
-  const units=DB.units[a.id]||[];
-  // Build version list: all from history + current assembly ver
-  const verSet=new Set(versions.map(v=>v.version));
-  verSet.add(latestVer);
-  const verList=[...verSet].sort((a,b)=>{
-    const pa=a.split('.').map(Number),pb=b.split('.').map(Number);
-    for(let i=0;i<Math.max(pa.length,pb.length);i++){if((pb[i]||0)!==(pa[i]||0))return(pb[i]||0)-(pa[i]||0);}return 0;
-  });
-  const selVer=S.versionAssignVer||latestVer;
-  const isLatest=selVer===latestVer;
-  const verNote=versions.find(v=>v.version===selVer);
-
-  return `<div class="confirm-overlay" data-action="cancelVersionAssign"><div class="confirm-box" style="width:480px" onclick="event.stopPropagation()">
-    <div style="display:flex;align-items:center;gap:10px;margin-bottom:16px">
-      <span style="font-size:22px">📋</span>
-      <div><div style="font-size:16px;font-weight:700">Assign Version to Units</div>
-        <div style="font-size:11px;color:var(--muted)" class="mono">${sns.length} unit${sns.length>1?'s':''} selected · ${a.name}</div></div>
-    </div>
-
-    <div style="margin-bottom:14px">
-      <div class="dp-label">SELECTED UNITS</div>
-      <div style="display:flex;flex-wrap:wrap;gap:4px;max-height:100px;overflow-y:auto;padding:6px 0">
-        ${sns.map(sn=>{const u=units.find(x=>x.sn===sn);const curV=u?.version;
-          return `<span style="padding:2px 8px;border-radius:4px;font-size:10px;font-weight:600;background:rgba(245,158,11,0.08);border:1px solid rgba(245,158,11,0.15);color:var(--text);font-family:'JetBrains Mono',monospace">${sn}${curV?` <span style="color:var(--muted);font-size:9px">v${curV}</span>`:''}</span>`;
-        }).join('')}
-      </div>
-    </div>
-
-    <div style="margin-bottom:14px">
-      <div class="dp-label">ASSIGN VERSION</div>
-      <div style="display:flex;flex-wrap:wrap;gap:6px;margin-top:4px">
-        ${verList.map(v=>{
-          const isCur=v===latestVer;
-          const isActive=v===selVer;
-          const vInfo=versions.find(x=>x.version===v);
-          return `<button class="btn-sm" style="padding:5px 12px;font-size:11px;${isActive?`background:rgba(139,92,246,0.2);border-color:#8b5cf6;color:#a78bfa`:`background:transparent;color:var(--muted)`}" data-action="pickAssignVer" data-ver="${v}">
-            v${v}${isCur?' <span style="font-size:8px;color:#22c55e">LATEST</span>':''}${vInfo?' 🔒':''}
-          </button>`;
-        }).join('')}
-      </div>
-    </div>
-
-    ${verNote?`<div style="margin-bottom:14px;padding:8px 12px;border-radius:6px;background:rgba(139,92,246,0.04);border:1px solid rgba(139,92,246,0.1)">
-      <div style="font-size:9px;font-weight:700;color:var(--muted);text-transform:uppercase;margin-bottom:3px">VERSION NOTES</div>
-      <div style="font-size:12px;color:var(--text)">${verNote.notes||'No notes'}</div>
-      <div style="font-size:9px;color:var(--dim);margin-top:2px" class="mono">${verNote.created_by||''} · ${verNote.created_at?new Date(verNote.created_at).toLocaleDateString():''}</div>
-    </div>`:''}
-
-    <div style="padding:10px 12px;border-radius:8px;margin-bottom:14px;background:${isLatest?'rgba(34,197,94,0.04)':'rgba(239,68,68,0.04)'};border:1px solid ${isLatest?'rgba(34,197,94,0.12)':'rgba(239,68,68,0.12)'}">
-      <div style="font-size:11px;font-weight:700;color:${isLatest?'#22c55e':'#ef4444'}">${isLatest?'✓ Units will be marked CURRENT':'⚠ Units will be marked OUTDATED'}</div>
-      <div style="font-size:10px;color:var(--muted);margin-top:2px">Latest assembly version: v${latestVer}${isLatest?'':` · Assigning: v${selVer}`}</div>
-    </div>
-
-    <div style="display:flex;gap:8px;justify-content:flex-end">
-      <button class="btn-sm" style="padding:8px 16px;font-size:12px" data-action="cancelVersionAssign">Cancel</button>
-      <button class="btn-sm" style="padding:8px 20px;font-size:12px;background:#8b5cf6;color:#fff;border-color:#8b5cf6;font-weight:700" data-action="confirmVersionAssign">
-        Assign v${selVer} to ${sns.length} unit${sns.length>1?'s':''}
-      </button>
-    </div>
-  </div></div>`;
-}
-
 function renderEcnModal(){
   const step=S.ecnStep;if(!step)return'';
   return `<div class="confirm-overlay"><div class="confirm-box" style="width:480px">
@@ -1234,7 +1131,7 @@ function attachEvents(){
       else if(a==='assy'){
         const assy=DB.assemblies.find(x=>x.id===parseInt(el.dataset.id));
         S.assy=assy;S.page='unitSelect';S.unitSel=new Set();S.unitFilter='all';S.unitSearch='';S.loadingUnits=true;render();
-        await Promise.all([DB.loadUnits(assy.id,assy.tag),DB.loadEcnChanges(assy.id),DB.loadVersions(assy.id)]);S.loadingUnits=false;render();
+        await DB.loadUnits(assy.id,assy.tag);await DB.loadEcnChanges(assy.id);S.loadingUnits=false;render();
       }
       else if(a==='setFilter'){S.unitFilter=el.dataset.f;render();}
       else if(a==='selectAll'){const units=DB.units[S.assy.id]||[];let f=units;if(S.unitFilter==='outdated')f=f.filter(u=>u.status==='outdated');if(S.unitFilter==='current')f=f.filter(u=>u.status==='current'||u.status==='pending');f.forEach(u=>S.unitSel.add(u.sn));render();}
@@ -1244,26 +1141,10 @@ function attachEvents(){
         S.avTab='list';S.page='assembly';render();await DB.loadTree(S.assy.id);if(S.selectedUnits[0])await DB.loadEcnApplied(S.selectedUnits[0].sn);render();
       }
       else if(a==='backToUnits'){S.page='unitSelect';render();}
-      // Version assignment
-      else if(a==='openVersionAssign'){S.versionAssignModal=true;S.versionAssignVer=S.assy.version;render();}
-      else if(a==='cancelVersionAssign'){S.versionAssignModal=false;render();}
-      else if(a==='pickAssignVer'){S.versionAssignVer=el.dataset.ver;render();}
-      else if(a==='confirmVersionAssign'){
-        const sns=[...S.unitSel];const ver=S.versionAssignVer;
-        if(!ver||!sns.length){toast('❌ Select version and units',true);return;}
-        try{
-          toast('⏳ Assigning v'+ver+' to '+sns.length+' units...');
-          await DB.assignVersionToUnits(S.assy.id,sns,ver);
-          await DB.loadUnits(S.assy.id,S.assy.tag);
-          S.versionAssignModal=false;
-          toast('✅ v'+ver+' assigned to '+sns.length+' unit'+(sns.length>1?'s':''));
-          render();
-        }catch(err){toast('❌ '+err.message,true);}
-      }
       else if(a==='avTab'){S.avTab=el.dataset.tab;render();if(el.dataset.tab==='graph')setTimeout(initGV,50);}
       // Graph view controls
-      else if(a==='gvZoomIn'){S.gvZoom=Math.min(3,S.gvZoom+0.12);const c=document.getElementById('gvCanvas');if(c)c.setAttribute('transform',`translate(${S.gvPan.x},${S.gvPan.y}) scale(${S.gvZoom}`);}
-      else if(a==='gvZoomOut'){S.gvZoom=Math.max(0.1,S.gvZoom-0.12);const c=document.getElementById('gvCanvas');if(c)c.setAttribute('transform',`translate(${S.gvPan.x},${S.gvPan.y}) scale(${S.gvZoom}`);}
+      else if(a==='gvZoomIn'){S.gvZoom=Math.min(3,S.gvZoom+0.12);const c=document.getElementById('gvCanvas');if(c)c.setAttribute('transform',`translate(${S.gvPan.x},${S.gvPan.y}) scale(${S.gvZoom})`);}
+      else if(a==='gvZoomOut'){S.gvZoom=Math.max(0.1,S.gvZoom-0.12);const c=document.getElementById('gvCanvas');if(c)c.setAttribute('transform',`translate(${S.gvPan.x},${S.gvPan.y}) scale(${S.gvZoom})`);}
       else if(a==='gvReset'){S.gvZoom=0.65;S.gvPan={x:10,y:0};S.gvTValues={};render();setTimeout(initGV,50);}
       else if(a==='gvTogglePanel'){S.gvPanelOpen=!S.gvPanelOpen;render();setTimeout(initGV,50);}
       else if(a==='gvResetGaps'){S.gvGaps={partsToSteps:150,stepsToGroups:160,groupsToAssy:140};render();setTimeout(initGV,50);}

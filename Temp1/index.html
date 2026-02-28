@@ -146,10 +146,9 @@ const GS_COL = {
 };
 
 const ECN_DISPOSITIONS = {
+  reuse:   {label:'REUSE',   color:'#3b82f6', icon:'♻️', bg:'rgba(59,130,246,0.12)'},
   scrap:   {label:'SCRAP',   color:'#ef4444', icon:'🗑️', bg:'rgba(239,68,68,0.12)'},
-  replace: {label:'REPLACE', color:'#3b82f6', icon:'🔄', bg:'rgba(59,130,246,0.12)'},
-  repair:  {label:'REPAIR',  color:'#f59e0b', icon:'🔧', bg:'rgba(245,158,11,0.12)'},
-  reuse:   {label:'REUSE',   color:'#22c55e', icon:'♻️', bg:'rgba(34,197,94,0.12)'},
+  rework:  {label:'REWORK',  color:'#f59e0b', icon:'🔧', bg:'rgba(245,158,11,0.12)'},
 };
 
 const GROUP_COLORS = ['#8b5cf6','#10b981','#f59e0b','#ef4444','#06b6d4','#ec4899','#6366f1','#f97316','#a855f7','#14b8a6'];
@@ -176,16 +175,35 @@ async function fetchGSheetUnits(tag){const sheet=GS_SHEET_MAP[tag],cols=GS_COL[t
 // ============================================================
 const DB = {
   assemblies:[], units:{}, tree:{}, ecnChanges:{}, ecnApplied:{}, versions:{},
+  masterParts:new Map(),
   status:'loading', gsStatus:'unknown', errors:[],
 
   async init(){
     this.status='loading';render();
     try{
-      this.assemblies=await sbGet('eagle_eye_app_assemblies','order=id');
+      const[assemblies]=await Promise.all([
+        sbGet('eagle_eye_app_assemblies','order=id'),
+        this.loadMasterParts(),
+      ]);
+      this.assemblies=assemblies;
       this.assemblies.forEach(a=>{const m=ASSY_META[a.tag]||{icon:'📦',color:'#6366f1',name:a.tag};a.icon=m.icon;a.color=m.color;a.section=m.section||null;a.name=m.name||a.tag;});
       this.status='ok';
     }catch(e){console.error('Init:',e);this.status='err';this.errors.push(e.message);}
     render();
+  },
+
+  async loadMasterParts(){
+    try{
+      const rows=await sbGet('master_parts_list_all','select=pn,name,category&limit=10000');
+      rows.forEach(r=>{if(r.pn)this.masterParts.set(r.pn.trim(),{name:(r.name||'').trim(),category:(r.category||'').trim()});});
+      console.log(`Master parts: ${this.masterParts.size} loaded`);
+    }catch(e){console.warn('Master parts load:',e);}
+  },
+
+  lookupPN(pn){
+    if(!pn)return null;
+    const hit=this.masterParts.get(pn.trim());
+    return hit?hit.name:null;
   },
 
   async loadUnits(assemblyId,assyTag){
@@ -250,23 +268,23 @@ const DB = {
   async addStep(gid,d){const[r]=await sbPost('eagle_eye_app_steps',[{group_id:gid,...d}]);return r;},
   async updateStep(sid,d){return(await sbPatch('eagle_eye_app_steps',`id=eq.${sid}`,d))[0];},
   async deleteStep(sid){
-    // Delete parts, fasteners, then step
-    await sbDelete('eagle_eye_app_parts',`step_id=eq.${sid}`);
-    await sbDelete('eagle_eye_app_fasteners',`step_id=eq.${sid}`);
+    // Unlink parts & fasteners (keep records), then delete the step
+    await sbPatch('eagle_eye_app_parts',`step_id=eq.${sid}`,{step_id:null});
+    await sbPatch('eagle_eye_app_fasteners',`step_id=eq.${sid}`,{step_id:null});
     await sbDelete('eagle_eye_app_steps',`id=eq.${sid}`);
   },
   async addGroup(aid,ver,d){const[r]=await sbPost('eagle_eye_app_groups',[{assembly_id:aid,version:ver,...d}]);return r;},
   async updateGroup(gid,d){return(await sbPatch('eagle_eye_app_groups',`id=eq.${gid}`,d))[0];},
   async deleteGroup(gid){
-    // Delete all steps in group (and their parts/fasteners)
+    // Unlink parts/fasteners for all steps, delete steps, then group
     const steps=await sbGet('eagle_eye_app_steps',`group_id=eq.${gid}&select=id`);
     for(const s of steps){await this.deleteStep(s.id);}
     await sbDelete('eagle_eye_app_groups',`id=eq.${gid}`);
   },
   async addPart(sid,d){const[r]=await sbPost('eagle_eye_app_parts',[{step_id:sid,...d}]);return r;},
-  async deletePart(pid){await sbDelete('eagle_eye_app_parts',`id=eq.${pid}`);},
+  async unlinkPart(pid){await sbPatch('eagle_eye_app_parts',`id=eq.${pid}`,{step_id:null});},
   async addFastener(sid,d){const[r]=await sbPost('eagle_eye_app_fasteners',[{step_id:sid,...d}]);return r;},
-  async deleteFastener(fid){await sbDelete('eagle_eye_app_fasteners',`id=eq.${fid}`);},
+  async unlinkFastener(fid){await sbPatch('eagle_eye_app_fasteners',`id=eq.${fid}`,{step_id:null});},
   async updatePart(pid,d){await sbPatch('eagle_eye_app_parts',`id=eq.${pid}`,d);},
   async updateFastener(fid,d){await sbPatch('eagle_eye_app_fasteners',`id=eq.${fid}`,d);},
 
@@ -295,11 +313,34 @@ function toast(msg,err){const c=document.createElement('div');c.style.cssText=`p
 function stepsForGroup(tree,gid){return tree.steps.filter(s=>s.group_id===gid);}
 function partsForStep(tree,sid){return tree.partsMap[sid]||[];}
 function fastenersForStep(tree,sid){return tree.fastMap[sid]||[];}
+// Auto-generate step name: manual label > parts auto-name > step PN master > raw PN
+function resolveStepName(step, tree){
+  // Manual label always wins
+  if(step.label) return step.label;
+  // Auto from child parts
+  const parts=partsForStep(tree, step.id);
+  if(parts.length>0){
+    const names=parts.map(p=>{
+      const manName=S.partNames[p.id];
+      if(manName) return manName;
+      const master=DB.lookupPN(p.pn);
+      if(master) return master;
+      return p.pn||'';
+    }).filter(Boolean);
+    if(names.length>0) return names.join(' + ');
+  }
+  // Fallback: master-resolve step PN > raw PN
+  const stepMaster=DB.lookupPN(step.pn);
+  if(stepMaster) return stepMaster;
+  return step.pn||'';
+}
+
 function dbStatus(){
-  const s=DB.status,g=DB.gsStatus;
+  const s=DB.status,g=DB.gsStatus,m=DB.masterParts.size;
   return `<div style="display:flex;gap:4px">
     <div class="db-status ${s==='ok'?'ok':s==='err'?'err':'load'}" title="Supabase: ${s}">${s==='ok'?'●':'○'} DB</div>
     ${g==='db'?'<div class="db-status ok" title="Units from DB">● Units</div>':g==='gs'?'<div class="db-status ok" title="Units from GSheets">● GS</div>':''}
+    ${m>0?`<div class="db-status ok" title="${m} master parts loaded">● ${m} Parts</div>`:''}
   </div>`;
 }
 
@@ -315,8 +356,10 @@ const S = {
   // Modals
   confirmAction:null, confirmMsg:'', confirmData:null,
   newVerModal:false, newVerStr:'', newVerNotes:'',
-  ecnModal:false, ecnStep:null, ecnField:'', ecnOld:'', ecnNew:'', ecnReason:'', ecnDisp:'replace', ecnChangeType:'part_changed',
-  editGroupModal:false, editGroupData:null,
+  // ECN marks: { [stepId]: { note:'', disposition:'scrap' } }
+  teEcnMarks:{},
+  // Manual part/fastener names: { [id]: 'name' }
+  partNames:{}, fastNames:{},
 };
 
 // ============================================================
@@ -331,8 +374,6 @@ function render(){
   // Overlays
   if(S.confirmAction) app.innerHTML+=renderConfirmModal();
   if(S.newVerModal) app.innerHTML+=renderNewVersionModal();
-  if(S.ecnModal) app.innerHTML+=renderEcnModal();
-  if(S.editGroupModal) app.innerHTML+=renderEditGroupModal();
   attachEvents();
 }
 
@@ -431,7 +472,7 @@ function renderAssembly(){
         treeHtml+=`<div class="step-row" style="${done?'opacity:0.4':''}"><span style="color:var(--dim);font-size:12px">⠿</span>${hasEcn?`<span style="font-size:10px">${done?'✅':'🔴'}</span>`:''}
           <span style="font-weight:700;min-width:32px;text-align:center;font-size:13px;padding:3px 8px;border-radius:5px;background:${g.color||'#666'}15;color:${g.color||'#666'}" class="mono">${s.seq_tag||'—'}</span>
           <span style="font-size:12px;font-weight:600;padding:2px 8px;border-radius:4px;color:${s.type==='PREP'?'#a855f7':s.type==='CHECK'?'#ec4899':'#22c55e'};background:${s.type==='PREP'?'rgba(168,85,247,0.1)':s.type==='CHECK'?'rgba(236,72,153,0.1)':'rgba(34,197,94,0.1)'}">${s.type||'STEP'}</span>
-          <span style="flex:1;font-size:14px">${s.label||s.pn||''}</span>
+          <span style="flex:1;font-size:14px">${resolveStepName(s,tree)||''}</span>
           ${pts.length?`<span style="font-size:12px;color:#22c55e;font-weight:600" class="mono">${pts.length}P</span>`:''}
           ${fts.length?`<span style="font-size:12px;color:#ef4444;font-weight:600" class="mono">${fts.length}F</span>`:''}
         </div>`;});
@@ -507,62 +548,77 @@ function renderEditor(){
   // --- RIGHT PANEL ---
   let rightPanel='';
   if(selStep){
-    const ecnRecs=(DB.ecnChanges[a.id]||[]).filter(c=>c.step_id===selStep.id);
     const ro=isFrozen?'readonly disabled':'';
     const roStyle=isFrozen?'opacity:0.6;pointer-events:none':'';
+    const hasEcn=!!S.teEcnMarks[selStep.id];
+    const ecm=S.teEcnMarks[selStep.id]||{};
+    const autoName=resolveStepName(selStep, tree);
+    const hasManualLabel=!!selStep.label;
+    const isAutoNamed=!hasManualLabel&&autoName&&(selParts.length>0||DB.lookupPN(selStep.pn));
+    const dispTitle=selStep.label||autoName||'Untitled';
     rightPanel=`
       ${isFrozen?'<div style="padding:8px 12px;border-radius:8px;margin-bottom:12px;background:rgba(59,130,246,0.06);border:1px solid rgba(59,130,246,0.15);font-size:11px;font-weight:700;color:#3b82f6;text-align:center">🔒 Frozen — unfreeze to edit</div>':''}
       <div class="dp-section" style="${roStyle}">
         <div style="display:flex;align-items:center;gap:8px;margin-bottom:12px">
-          <div style="font-size:18px;font-weight:800;flex:1">${selStep.label||selStep.pn||'Untitled'}</div>
+          <div style="font-size:18px;font-weight:800;flex:1">${dispTitle}</div>
           ${!isFrozen?`<button class="btn-sm" style="background:rgba(239,68,68,0.1);color:#ef4444;border-color:rgba(239,68,68,0.2);font-size:9px" data-action="deleteStep" data-sid="${selStep.id}">🗑 Delete</button>`:''}
         </div>
+        ${isAutoNamed?`<div style="display:flex;align-items:center;gap:4px;margin-bottom:8px"><span style="font-size:8px;color:#22c55e;font-weight:700;background:rgba(34,197,94,0.08);padding:2px 6px;border-radius:3px">⚡ AUTO-NAME</span><span style="font-size:9px;color:var(--dim)">from ${selParts.length>0?'parts':'step PN'} — set label to override</span></div>`:''}
         <div style="display:flex;gap:8px;align-items:flex-start;margin-bottom:12px;flex-wrap:wrap">
           <div><div class="dp-label">SEQ TAG</div><input class="inp" style="width:56px;font-weight:700;font-size:13px;padding:6px 8px" value="${selStep.seq_tag||''}" data-role="teSeqTag" data-sid="${selStep.id}"></div>
           <div><div class="dp-label">TYPE</div><select class="inp" style="font-size:13px;padding:6px 8px" data-role="teType" data-sid="${selStep.id}"><option value="step" ${selStep.type==='STEP'?'selected':''}>STEP</option><option value="prep" ${selStep.type==='PREP'?'selected':''}>PREP</option><option value="check" ${selStep.type==='CHECK'?'selected':''}>CHECK</option></select></div>
-          <div style="flex:1"><div class="dp-label">LABEL</div><input class="inp" style="width:100%;font-size:13px;padding:6px 8px" value="${selStep.label||''}" data-role="teLabel" data-sid="${selStep.id}"></div>
+          <div style="flex:1"><div class="dp-label">LABEL ${isAutoNamed?'<span style="color:#22c55e;font-size:8px">(auto)</span>':''}</div><input class="inp" style="width:100%;font-size:13px;padding:6px 8px;${isAutoNamed?'color:var(--dim);font-style:italic':''}" value="${selStep.label||''}" data-role="teLabel" data-sid="${selStep.id}" placeholder="${autoName||'Step name...'}"></div>
         </div>
         <div><div class="dp-label">PART NUMBER (PN)</div><input class="inp" style="width:100%;font-size:12px;padding:6px 8px;margin-bottom:6px" value="${selStep.pn||''}" data-role="teStepPn" data-sid="${selStep.id}"></div>
         <div style="display:flex;gap:8px">
           <div><div class="dp-label">SORT ORDER</div><input class="inp" type="number" style="width:60px;font-size:12px;padding:6px 8px" value="${selStep.sort_order||0}" data-role="teSortOrder" data-sid="${selStep.id}"></div>
-          <div><div class="dp-label">ECN STATUS</div>
-            <select class="inp" style="font-size:11px;padding:5px 8px" data-role="teEcnStatus" data-sid="${selStep.id}">
-              <option value="" ${!selStep.ecn_status?'selected':''}>None</option>
-              <option value="changed" ${selStep.ecn_status==='changed'?'selected':''}>🔴 Changed</option>
-              <option value="pending" ${selStep.ecn_status==='pending'?'selected':''}>🟡 Pending</option>
-              <option value="reviewed" ${selStep.ecn_status==='reviewed'?'selected':''}>🟢 Reviewed</option>
-            </select>
+        </div>
+      </div>
+
+      <div class="dp-section">
+        <div style="padding:7px 9px;border-radius:7px;background:${hasEcn?'rgba(239,68,68,0.04)':'rgba(139,92,246,0.02)'};border:1px solid ${hasEcn?'rgba(239,68,68,0.12)':'var(--border)'}">
+          <div style="display:flex;align-items:center;gap:6px;${hasEcn?'margin-bottom:6px':''}">
+            <span style="font-size:10px;font-weight:700;color:${hasEcn?'#ef4444':'var(--muted)'}">${hasEcn?'🔴 ECN Marked':'No ECN'}</span>
+            ${!isFrozen?`<button class="btn-sm" style="margin-left:auto;font-size:9px;padding:2px 8px;background:${hasEcn?'rgba(239,68,68,0.12)':'rgba(34,197,94,0.12)'};color:${hasEcn?'#ef4444':'#22c55e'};border-color:${hasEcn?'rgba(239,68,68,0.2)':'rgba(34,197,94,0.2)'}" data-action="toggleEcnMark" data-sid="${selStep.id}">${hasEcn?'✕ Remove':'+ Mark ECN'}</button>`:''}
           </div>
+          ${hasEcn?`
+            <div style="font-size:8px;color:var(--muted);margin-bottom:2px;font-weight:700">DISPOSITION</div>
+            <div style="display:flex;gap:3px;margin-bottom:6px">
+              ${Object.entries(ECN_DISPOSITIONS).map(([k,d])=>`<button class="ecn-disp-btn ${ecm.disposition===k?'active':''}" style="flex:1;padding:4px;border-radius:4px;font-size:9px;${ecm.disposition===k?`border:2px solid ${d.color};background:${d.bg};color:${d.color}`:`border:1px solid var(--border);color:${d.color}`};${isFrozen&&ecm.disposition!==k?'opacity:0.3':''}" data-action="setEcnDisp" data-sid="${selStep.id}" data-d="${k}">${d.icon} ${d.label}</button>`).join('')}
+            </div>
+            ${!isFrozen?`<textarea class="inp" style="width:100%;resize:vertical;line-height:1.3;font-size:11px;padding:6px 8px" rows="2" placeholder="ECN note..." data-role="ecnNote" data-sid="${selStep.id}">${ecm.note||''}</textarea>`
+            :(ecm.note?`<div style="font-size:11px;color:var(--text);opacity:0.6;padding:4px 0">${ecm.note}</div>`:'')}
+          `:''}
         </div>
       </div>
 
       <div class="dp-section" style="${roStyle}">
         <div style="display:flex;align-items:center;margin-bottom:6px"><span class="dp-label" style="flex:1;margin:0">PARTS (${selParts.length})</span>${!isFrozen?`<button class="btn-sm" style="background:rgba(34,197,94,0.12);color:#22c55e;border:none;font-size:11px;padding:4px 10px" data-action="addPart" data-sid="${selStep.id}">+ Part</button>`:''}</div>
-        ${selParts.map(p=>`<div class="dp-row">
-          <input class="inp" style="width:100px;font-weight:700;color:#0ea5e9;font-size:11px" value="${p.pn||''}" data-role="partPn" data-pid="${p.id}" placeholder="PN">
-          <input class="inp" type="number" style="width:40px;text-align:center;font-size:11px" value="${p.qty||1}" data-role="partQty" data-pid="${p.id}">
-          <button style="background:none;border:none;color:#ef4444;font-size:12px;cursor:pointer;padding:2px 4px" data-action="delPart" data-pid="${p.id}">✕</button>
-        </div>`).join('')}
+        ${selParts.map(p=>{const resolved=DB.lookupPN(p.pn);const manName=S.partNames[p.id];
+          return `<div style="margin-bottom:5px;padding:6px 8px;border-radius:6px;border:1px solid var(--border)">
+          <div style="display:flex;gap:4px;align-items:center">
+            <input class="inp" style="width:100px;font-weight:700;color:#0ea5e9;font-size:11px" value="${p.pn||''}" data-role="partPn" data-pid="${p.id}" placeholder="PN">
+            <input class="inp" type="number" style="width:40px;text-align:center;font-size:11px" value="${p.qty||1}" data-role="partQty" data-pid="${p.id}">
+            <button style="background:none;border:none;color:#ef4444;font-size:12px;cursor:pointer;padding:2px 4px" data-action="delPart" data-pid="${p.id}" title="Unlink from step">✕</button>
+          </div>
+          ${resolved?`<div style="display:flex;align-items:center;gap:4px;margin-top:3px"><span style="font-size:9px;color:#22c55e;font-weight:600">📦 ${resolved}</span><span style="font-size:7px;color:var(--dim);background:rgba(34,197,94,0.08);padding:1px 4px;border-radius:3px">MASTER</span></div>`
+          :(p.pn?`<div style="margin-top:3px"><div style="font-size:9px;color:var(--dim);margin-bottom:2px">⚠ Not in master — enter name:</div><input class="inp" style="width:100%;font-size:10px;padding:3px 6px" value="${manName||''}" data-role="partName" data-pid="${p.id}" placeholder="Part name (manual)"></div>`:'')}
+        </div>`;}).join('')}
       </div>
 
       <div class="dp-section" style="${roStyle}">
         <div style="display:flex;align-items:center;margin-bottom:6px"><span class="dp-label" style="flex:1;margin:0">FASTENERS (${selFast.length})</span>${!isFrozen?`<button class="btn-sm" style="background:rgba(245,158,11,0.12);color:#f59e0b;border:none;font-size:11px;padding:4px 10px" data-action="addFastener" data-sid="${selStep.id}">+ Fastener</button>`:''}</div>
-        ${selFast.map(f=>`<div style="display:flex;gap:4px;align-items:center;margin-bottom:4px">
-          <input class="inp" style="width:90px;font-weight:700;color:#f59e0b;font-size:11px" value="${f.pn||''}" data-role="fastPn" data-fid="${f.id}" placeholder="PN">
-          <input class="inp" style="width:50px;font-size:11px" value="${f.torque||''}" placeholder="Torque" data-role="fastTorque" data-fid="${f.id}">
-          <input class="inp" style="width:30px;font-size:11px" value="${f.loctite||''}" placeholder="Loc" data-role="fastLoc" data-fid="${f.id}">
-          <input class="inp" type="number" style="width:32px;text-align:center;font-size:11px" value="${f.qty||1}" data-role="fastQty" data-fid="${f.id}">
-          <button style="background:none;border:none;color:#ef4444;font-size:12px;cursor:pointer" data-action="delFast" data-fid="${f.id}">✕</button>
-        </div>`).join('')}
-      </div>
-
-      <div class="dp-section">
-        <div style="display:flex;align-items:center;margin-bottom:8px"><span class="dp-label" style="flex:1;margin:0">ECN RECORDS (${ecnRecs.length})</span><button class="btn-sm" style="background:rgba(239,68,68,0.12);color:#ef4444;border:none;font-size:11px;padding:4px 10px" data-action="openEcnCreate" data-sid="${selStep.id}">+ ECN Change</button></div>
-        ${ecnRecs.map(c=>{const d=ECN_DISPOSITIONS[c.disposition]||{};return `<div style="padding:8px 10px;border-radius:6px;border:1px solid var(--border);margin-bottom:4px;display:flex;align-items:center;gap:6px">
-          <span style="font-size:11px;font-weight:700;color:var(--muted)" class="mono">${c.seq_tag||'—'}</span>
-          <span style="flex:1;font-size:12px">${c.field||c.change_type}: ${c.old_value||'—'} → ${c.new_value||'—'}</span>
-          ${c.disposition?`<span style="font-size:9px;font-weight:700;padding:2px 6px;border-radius:4px;background:${d.bg||''};color:${d.color||''}">${(c.disposition||'').toUpperCase()}</span>`:''}
-          <button style="background:none;border:none;color:#ef4444;font-size:10px;cursor:pointer" data-action="delEcnRec" data-ecnid="${c.id}">✕</button>
+        ${selFast.map(f=>{const resolved=DB.lookupPN(f.pn);const manName=S.fastNames[f.id];
+          return `<div style="margin-bottom:5px;padding:6px 8px;border-radius:6px;border:1px solid var(--border)">
+          <div style="display:flex;gap:4px;align-items:center">
+            <input class="inp" style="width:90px;font-weight:700;color:#f59e0b;font-size:11px" value="${f.pn||''}" data-role="fastPn" data-fid="${f.id}" placeholder="PN">
+            <input class="inp" style="width:50px;font-size:11px" value="${f.torque||''}" placeholder="Torque" data-role="fastTorque" data-fid="${f.id}">
+            <input class="inp" style="width:30px;font-size:11px" value="${f.loctite||''}" placeholder="Loc" data-role="fastLoc" data-fid="${f.id}">
+            <input class="inp" type="number" style="width:32px;text-align:center;font-size:11px" value="${f.qty||1}" data-role="fastQty" data-fid="${f.id}">
+            <button style="background:none;border:none;color:#ef4444;font-size:12px;cursor:pointer" data-action="delFast" data-fid="${f.id}" title="Unlink from step">✕</button>
+          </div>
+          ${resolved?`<div style="display:flex;align-items:center;gap:4px;margin-top:3px"><span style="font-size:9px;color:#f59e0b;font-weight:600">🔩 ${resolved}</span><span style="font-size:7px;color:var(--dim);background:rgba(245,158,11,0.08);padding:1px 4px;border-radius:3px">MASTER</span></div>`
+          :(f.pn?`<div style="margin-top:3px"><div style="font-size:9px;color:var(--dim);margin-bottom:2px">⚠ Not in master — enter name:</div><input class="inp" style="width:100%;font-size:10px;padding:3px 6px" value="${manName||''}" data-role="fastName" data-fid="${f.id}" placeholder="Fastener name (manual)"></div>`:'')}
         </div>`;}).join('')}
       </div>`;
   } else if(selGrp){
@@ -631,12 +687,12 @@ function renderEditor(){
             <span style="color:var(--muted);font-size:13px">${gSteps.length}</span>
             ${!isFrozen?`<button style="background:none;border:none;color:#22c55e;cursor:pointer;font-size:16px;padding:0 4px" data-action="addStep" data-gid="${g.id}" onclick="event.stopPropagation()">+</button>`:''}
           </div>
-          ${gSteps.map(s=>{const isSel=sel===s.id;const hasEcn=s.ecn_status&&s.ecn_status!=='';
+          ${gSteps.map(s=>{const isSel=sel===s.id;const hasEcn=!!S.teEcnMarks[s.id];const sName=resolveStepName(s,tree);
             return `<div class="te-step ${isSel?'sel':''}" data-action="selStep" data-sid="${s.id}" style="${isSel?'':'border:1px solid transparent'}">
-              ${hasEcn?`<span style="font-size:11px">${s.ecn_status==='changed'?'🔴':s.ecn_status==='pending'?'🟡':'🟢'}</span>`:''}
+              ${hasEcn?'<span style="font-size:11px">🔴</span>':''}
               <span style="font-weight:700;color:${g.color||'#666'};min-width:30px;text-align:center;font-size:13px;background:${g.color||'#666'}15;padding:3px 8px;border-radius:5px" class="mono">${s.seq_tag||'—'}</span>
               <span style="font-size:11px;font-weight:600;padding:2px 8px;border-radius:4px;color:${s.type==='PREP'?'#a855f7':s.type==='CHECK'?'#ec4899':'#22c55e'};background:${s.type==='PREP'?'rgba(168,85,247,0.1)':s.type==='CHECK'?'rgba(236,72,153,0.1)':'rgba(34,197,94,0.1)'}">${s.type||'STEP'}</span>
-              <span style="flex:1;color:${s.label?'var(--text)':'var(--dim)'};font-size:14px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${s.label||s.pn||'untitled'}</span>
+              <span style="flex:1;color:${sName?'var(--text)':'var(--dim)'};font-size:14px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${sName||'untitled'}</span>
               ${partsForStep(tree,s.id).length?`<span style="font-size:11px;color:#22c55e;font-weight:600" class="mono">${partsForStep(tree,s.id).length}P</span>`:''}
               ${fastenersForStep(tree,s.id).length?`<span style="font-size:11px;color:#ef4444;font-weight:600" class="mono">${fastenersForStep(tree,s.id).length}F</span>`:''}
             </div>`;}).join('')}
@@ -689,40 +745,6 @@ function renderNewVersionModal(){
   </div></div>`;
 }
 
-function renderEcnModal(){
-  const step=S.ecnStep;if(!step)return'';
-  return `<div class="confirm-overlay"><div class="confirm-box" style="width:480px">
-    <div style="font-size:16px;font-weight:700;margin-bottom:4px">🔴 Create ECN Change Record</div>
-    <div style="font-size:12px;color:var(--muted);margin-bottom:14px">Step: ${step.label||step.pn||'—'} (${step.seq_tag||'—'})</div>
-    <div style="display:flex;gap:8px;margin-bottom:10px">
-      <div style="flex:1"><div class="dp-label">CHANGE TYPE</div>
-        <select class="inp" style="width:100%;font-size:12px;padding:6px 8px" data-role="ecnChangeType">
-          <option value="part_changed" ${S.ecnChangeType==='part_changed'?'selected':''}>Part Changed</option>
-          <option value="fastener_changed" ${S.ecnChangeType==='fastener_changed'?'selected':''}>Fastener Changed</option>
-          <option value="step_modified" ${S.ecnChangeType==='step_modified'?'selected':''}>Step Modified</option>
-          <option value="step_added" ${S.ecnChangeType==='step_added'?'selected':''}>Step Added</option>
-          <option value="step_removed" ${S.ecnChangeType==='step_removed'?'selected':''}>Step Removed</option>
-        </select>
-      </div>
-      <div style="flex:1"><div class="dp-label">FIELD</div><input class="inp" style="width:100%;font-size:12px;padding:6px 8px" placeholder="e.g. pn, torque, qty" data-role="ecnField" value="${S.ecnField}"></div>
-    </div>
-    <div style="display:flex;gap:8px;margin-bottom:10px">
-      <div style="flex:1"><div class="dp-label">OLD VALUE</div><input class="inp" style="width:100%;font-size:12px;padding:6px 8px" placeholder="Before" data-role="ecnOld" value="${S.ecnOld}"></div>
-      <div style="flex:1"><div class="dp-label">NEW VALUE</div><input class="inp" style="width:100%;font-size:12px;padding:6px 8px" placeholder="After" data-role="ecnNew" value="${S.ecnNew}"></div>
-    </div>
-    <div style="margin-bottom:10px"><div class="dp-label">REASON</div><input class="inp" style="width:100%;font-size:12px;padding:6px 8px" placeholder="Why this change?" data-role="ecnReason" value="${S.ecnReason}"></div>
-    <div style="margin-bottom:14px"><div class="dp-label">DISPOSITION</div>
-      <div style="display:flex;gap:6px;margin-top:4px">${Object.entries(ECN_DISPOSITIONS).map(([k,v])=>`<button class="ecn-disp-btn ${S.ecnDisp===k?'active':''}" style="${S.ecnDisp===k?`background:${v.bg};color:${v.color};border-color:${v.color}`:''}" data-action="setEcnDisp" data-d="${k}">${v.icon} ${v.label}</button>`).join('')}</div>
-    </div>
-    <div style="display:flex;gap:8px;justify-content:flex-end">
-      <button class="btn-sm" style="padding:8px 16px;font-size:12px" data-action="cancelEcn">Cancel</button>
-      <button class="btn-sm" style="padding:8px 16px;font-size:12px;background:#ef4444;color:#fff;border-color:#ef4444" data-action="saveEcn">Create ECN Record</button>
-    </div>
-  </div></div>`;
-}
-
-function renderEditGroupModal(){ return ''; /* inline editing now */ }
-
 // ============================================================
 // EVENT HANDLERS
 // ============================================================
@@ -770,7 +792,7 @@ function attachEvents(){
       }
       // Delete step (confirm)
       else if(a==='deleteStep'){
-        S.confirmMsg=`Delete step <strong>${el.dataset.sid}</strong>? This will also delete all its parts and fasteners. This cannot be undone.`;
+        S.confirmMsg=`Delete step <strong>${el.dataset.sid}</strong>? Its parts and fasteners will be <strong>unlinked</strong> (kept in DB) but the step itself will be removed.`;
         S.confirmData={type:'deleteStep',sid:parseInt(el.dataset.sid)};S.confirmAction=true;render();
       }
       // Add group
@@ -780,14 +802,14 @@ function attachEvents(){
       // Delete group (confirm)
       else if(a==='deleteGroup'){
         const gid=parseInt(el.dataset.gid);const tree=DB.tree[`${S.teAssy}`];const cnt=tree?stepsForGroup(tree,gid).length:0;
-        S.confirmMsg=`Delete this group and <strong>${cnt} steps</strong> inside it? All parts and fasteners will also be deleted. This cannot be undone.`;
+        S.confirmMsg=`Delete this group and <strong>${cnt} steps</strong> inside it? Parts and fasteners will be <strong>unlinked</strong> (kept in DB), but steps and the group will be removed.`;
         S.confirmData={type:'deleteGroup',gid};S.confirmAction=true;render();
       }
       // Parts/fasteners
       else if(a==='addPart'){try{await DB.addPart(parseInt(el.dataset.sid),{pn:'',qty:1,sort_order:999});DB.invalidateTree(S.teAssy);await DB.loadTree(S.teAssy);toast('✅');render();}catch(err){toast('❌ '+err.message,true);}}
-      else if(a==='delPart'){try{await DB.deletePart(parseInt(el.dataset.pid));DB.invalidateTree(S.teAssy);await DB.loadTree(S.teAssy);render();}catch(err){toast('❌ '+err.message,true);}}
+      else if(a==='delPart'){try{await DB.unlinkPart(parseInt(el.dataset.pid));DB.invalidateTree(S.teAssy);await DB.loadTree(S.teAssy);toast('🔗 Unlinked');render();}catch(err){toast('❌ '+err.message,true);}}
       else if(a==='addFastener'){try{await DB.addFastener(parseInt(el.dataset.sid),{pn:'',qty:1,torque:'',loctite:'',sort_order:999});DB.invalidateTree(S.teAssy);await DB.loadTree(S.teAssy);toast('✅');render();}catch(err){toast('❌ '+err.message,true);}}
-      else if(a==='delFast'){try{await DB.deleteFastener(parseInt(el.dataset.fid));DB.invalidateTree(S.teAssy);await DB.loadTree(S.teAssy);render();}catch(err){toast('❌ '+err.message,true);}}
+      else if(a==='delFast'){try{await DB.unlinkFastener(parseInt(el.dataset.fid));DB.invalidateTree(S.teAssy);await DB.loadTree(S.teAssy);toast('🔗 Unlinked');render();}catch(err){toast('❌ '+err.message,true);}}
 
       // Group editing
       else if(a==='setGrpColor'){try{await DB.updateGroup(parseInt(el.dataset.gid),{color:el.dataset.color});DB.invalidateTree(S.teAssy);await DB.loadTree(S.teAssy);render();}catch(err){toast('❌ '+err.message,true);}}
@@ -840,31 +862,16 @@ function attachEvents(){
         S.confirmData={type:'unfreezeVer',ver:S.teVer};S.confirmAction=true;render();
       }
 
-      // --- ECN ---
-      else if(a==='openEcnCreate'){
-        const tree=DB.tree[`${S.teAssy}`];const step=tree?.steps.find(s=>s.id===parseInt(el.dataset.sid));
-        S.ecnStep=step;S.ecnModal=true;S.ecnField='';S.ecnOld='';S.ecnNew='';S.ecnReason='';S.ecnDisp='replace';S.ecnChangeType='part_changed';render();
+      // --- ECN MARKING ---
+      else if(a==='toggleEcnMark'){
+        const sid=parseInt(el.dataset.sid);
+        if(S.teEcnMarks[sid]){delete S.teEcnMarks[sid];toast('✕ ECN removed');}
+        else{S.teEcnMarks[sid]={note:'',disposition:'scrap'};toast('🔴 ECN marked');}
+        render();
       }
-      else if(a==='setEcnDisp'){S.ecnDisp=el.dataset.d;render();}
-      else if(a==='cancelEcn'){S.ecnModal=false;S.ecnStep=null;render();}
-      else if(a==='saveEcn'){
-        try{
-          const step=S.ecnStep;const grp=(DB.tree[`${S.teAssy}`]?.groups||[]).find(g=>g.id===step.group_id);
-          await DB.createEcnChangeRecord({
-            ecn_log_id:null, step_id:step.id, seq_tag:step.seq_tag||'',
-            step_name:step.label||step.pn||'', change_type:S.ecnChangeType,
-            field:S.ecnField, old_value:S.ecnOld, new_value:S.ecnNew,
-            reason:S.ecnReason, group_name:grp?.label||'', disposition:S.ecnDisp,
-          });
-          // Mark step as changed
-          await DB.updateStep(step.id,{ecn_status:'changed'});
-          delete DB.ecnChanges[S.teAssy];await DB.loadEcnChanges(S.teAssy);
-          DB.invalidateTree(S.teAssy);await DB.loadTree(S.teAssy);
-          S.ecnModal=false;S.ecnStep=null;toast('🔴 ECN record created');render();
-        }catch(err){toast('❌ '+err.message,true);}
-      }
-      else if(a==='delEcnRec'){
-        try{await DB.deleteEcnChangeRecord(parseInt(el.dataset.ecnid));delete DB.ecnChanges[S.teAssy];await DB.loadEcnChanges(S.teAssy);toast('🗑 ECN record deleted');render();}catch(err){toast('❌ '+err.message,true);}
+      else if(a==='setEcnDisp'){
+        const sid=parseInt(el.dataset.sid),d=el.dataset.d;
+        if(S.teEcnMarks[sid]){S.teEcnMarks[sid].disposition=d;render();}
       }
     };
   });
@@ -879,18 +886,38 @@ function attachEvents(){
     // Step fields
     if(r==='teSeqTag') el.oninput=()=>ds(()=>DB.updateStep(parseInt(el.dataset.sid),{seq_tag:el.value}));
     if(r==='teType') el.onchange=()=>ds(()=>DB.updateStep(parseInt(el.dataset.sid),{type:el.value}));
-    if(r==='teLabel') el.oninput=()=>ds(()=>DB.updateStep(parseInt(el.dataset.sid),{label:el.value}));
+    if(r==='teLabel') el.oninput=()=>ds(async()=>{await DB.updateStep(parseInt(el.dataset.sid),{label:el.value});DB.invalidateTree(S.teAssy);await DB.loadTree(S.teAssy);render();});
     if(r==='teStepPn') el.oninput=()=>ds(()=>DB.updateStep(parseInt(el.dataset.sid),{pn:el.value}));
     if(r==='teSortOrder') el.oninput=()=>ds(()=>DB.updateStep(parseInt(el.dataset.sid),{sort_order:parseInt(el.value)||0}));
-    if(r==='teEcnStatus') el.onchange=()=>ds(async()=>{await DB.updateStep(parseInt(el.dataset.sid),{ecn_status:el.value||null});DB.invalidateTree(S.teAssy);await DB.loadTree(S.teAssy);render();});
+    // ECN note (local only)
+    if(r==='ecnNote'){el.oninput=()=>{const sid=parseInt(el.dataset.sid);if(S.teEcnMarks[sid])S.teEcnMarks[sid].note=el.value;};}
     // Part fields
-    if(r==='partPn') el.oninput=()=>ds(()=>DB.updatePart(parseInt(el.dataset.pid),{pn:el.value}));
+    if(r==='partPn') el.oninput=()=>{
+      const pid=parseInt(el.dataset.pid);
+      // Clear manual name if master now resolves
+      if(DB.lookupPN(el.value)) delete S.partNames[pid];
+      ds(async()=>{await DB.updatePart(pid,{pn:el.value});DB.invalidateTree(S.teAssy);await DB.loadTree(S.teAssy);render();});
+    };
     if(r==='partQty') el.oninput=()=>ds(()=>DB.updatePart(parseInt(el.dataset.pid),{qty:parseInt(el.value)||1}));
+    if(r==='partName') el.oninput=()=>{
+      const pid=parseInt(el.dataset.pid);
+      S.partNames[pid]=el.value||'';
+      if(!el.value) delete S.partNames[pid];
+    };
     // Fastener fields
-    if(r==='fastPn') el.oninput=()=>ds(()=>DB.updateFastener(parseInt(el.dataset.fid),{pn:el.value}));
+    if(r==='fastPn') el.oninput=()=>{
+      const fid=parseInt(el.dataset.fid);
+      if(DB.lookupPN(el.value)) delete S.fastNames[fid];
+      ds(async()=>{await DB.updateFastener(fid,{pn:el.value});DB.invalidateTree(S.teAssy);await DB.loadTree(S.teAssy);render();});
+    };
     if(r==='fastTorque') el.oninput=()=>ds(()=>DB.updateFastener(parseInt(el.dataset.fid),{torque:el.value}));
     if(r==='fastLoc') el.oninput=()=>ds(()=>DB.updateFastener(parseInt(el.dataset.fid),{loctite:el.value}));
     if(r==='fastQty') el.oninput=()=>ds(()=>DB.updateFastener(parseInt(el.dataset.fid),{qty:parseInt(el.value)||1}));
+    if(r==='fastName') el.oninput=()=>{
+      const fid=parseInt(el.dataset.fid);
+      S.fastNames[fid]=el.value||'';
+      if(!el.value) delete S.fastNames[fid];
+    };
     // Group fields
     if(r==='grpLabel') el.oninput=()=>ds(async()=>{await DB.updateGroup(parseInt(el.dataset.gid),{label:el.value});DB.invalidateTree(S.teAssy);await DB.loadTree(S.teAssy);render();});
     if(r==='grpSort') el.oninput=()=>ds(async()=>{await DB.updateGroup(parseInt(el.dataset.gid),{sort_order:parseInt(el.value)||0});DB.invalidateTree(S.teAssy);await DB.loadTree(S.teAssy);render();});
@@ -898,11 +925,6 @@ function attachEvents(){
     // Modal fields
     if(r==='newVerStr'){el.oninput=()=>{S.newVerStr=el.value;};}
     if(r==='newVerNotes'){el.oninput=()=>{S.newVerNotes=el.value;};}
-    if(r==='ecnChangeType'){el.onchange=()=>{S.ecnChangeType=el.value;};}
-    if(r==='ecnField'){el.oninput=()=>{S.ecnField=el.value;};}
-    if(r==='ecnOld'){el.oninput=()=>{S.ecnOld=el.value;};}
-    if(r==='ecnNew'){el.oninput=()=>{S.ecnNew=el.value;};}
-    if(r==='ecnReason'){el.oninput=()=>{S.ecnReason=el.value;};}
   });
 }
 

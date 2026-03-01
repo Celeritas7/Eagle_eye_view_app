@@ -402,10 +402,10 @@ const S = {
   // Graph view
   gvZoom:0.65, gvPan:{x:10,y:0}, gvTValues:{}, gvPanelOpen:false,
   gvGaps:{partsToSteps:150,stepsToGroups:160,groupsToAssy:140},
-  gvLocked:true, gvEcnView:true, gvYOffsets:{},
+  gvLocked:true, gvEcnView:false, gvYOffsets:{},
   gvShapes:{assy:'octagon',group:'ellipse',step:'diamond',part:'hexagon'},
   // Tree editor
-  teAssy:null, teVer:null, teSel:null, teSelGroup:null, teGraphView:false,
+  teAssy:null, teVer:null, teSel:null, teSelGroup:null,
   teVersions:[], teFrozen:false,
   // Modals
   confirmAction:null, confirmMsg:'', confirmData:null,
@@ -661,15 +661,11 @@ function gvBuildSvg(tree,assy,ecnRecords,G,forExport){
     groupEcnState[g.id]=st;
   });
 
-  // Layout pass — in ECN mode, skip groups with no ECN for compact layout
-  const ecnViewLayout=S.gvEcnView;
+  // Layout pass
   const nodes=[],edges=[];let y=50;
   tree.groups.forEach(g=>{
-    const gEcnSt=groupEcnState[g.id];
-    // In ECN mode, skip entire groups that have no ECN → compact layout
-    if(ecnViewLayout && !gEcnSt) return;
-
     const gy0=y,gSteps=stepsForGroup(tree,g.id),stepNds=[];
+    const gEcnSt=groupEcnState[g.id];
     gSteps.forEach(step=>{
       const pts=partsForStep(tree,step.id),fts=fastenersForStep(tree,step.id),np=pts.length;
       const isSingle=np===1,isMulti=np>1;
@@ -843,10 +839,7 @@ function gvBuildSvg(tree,assy,ecnRecords,G,forExport){
   return{svgE,svgN,svgL,nodes,edges,totalH,COL_CHILD,COL_STEP,COL_GRP,COL_ASSY,STEP_W,STEP_H,PART_W,PART_H,GRP_W,GRP_H,ASSY_W,ASSY_H,MAX_FAST};
 }
 
-function renderGraphView(tree, assy, ecnRecords, unit, context) {
-  // context: 'home' = homepage graph (ECN forced, no toggle), 'editor' = tree editor (toggle available)
-  const ctx=context||'home';
-  if(ctx==='home') S.gvEcnView=true;// Force ECN on for homepage
+function renderGraphView(tree, assy, ecnRecords, unit) {
   if (!tree || !tree.groups.length) return '<div class="loading-wrap"><div style="color:var(--dim)">No tree data</div></div>';
   const G=S.gvGaps;
   const r=gvBuildSvg(tree,assy,ecnRecords,G,false);
@@ -854,7 +847,6 @@ function renderGraphView(tree, assy, ecnRecords, unit, context) {
   const partCount=r.nodes.filter(n=>n.type==='part').length;
   const stepCount=r.nodes.filter(n=>n.type==='step').length;
   const L=LEVELS;
-  const ecnBtn=ctx==='editor'?`<button class="gv-btn" style="width:auto;padding:0 8px;font-size:9px;${S.gvEcnView?'color:#c62828;border-color:#c62828;background:rgba(198,40,40,0.06)':''}" data-action="gvToggleEcn">${S.gvEcnView?'🔴 ECN View':'🔴 ECN'}</button>`:`<span style="font-size:9px;color:#c62828;font-weight:700;padding:0 6px;font-family:'JetBrains Mono',monospace">🔴 ECN View</span>`;
 
   return `<div class="gv-wrap" id="gvWrap">
     <div class="gv-header">
@@ -867,7 +859,7 @@ function renderGraphView(tree, assy, ecnRecords, unit, context) {
       <button class="gv-btn" style="width:auto;padding:0 8px;font-size:9px;${S.gvLocked?'':'color:#c62828;border-color:#c62828;background:rgba(198,40,40,0.06)'}" data-action="gvToggleLock" title="${S.gvLocked?'Unlock positions (admin only)':'Lock positions'}">${S.gvLocked?'🔒 Locked':'🔓 Unlocked'}</button>
       ${!S.gvLocked?`<button class="gv-btn" style="width:auto;padding:0 8px;font-size:9px;color:#2e7d32;border-color:#2e7d32;background:rgba(46,125,50,0.06)" data-action="gvSavePositions">💾 Save</button>`:''}
       <span style="width:1px;height:16px;background:#ddd;margin:0 2px"></span>
-      ${ecnBtn}
+      <button class="gv-btn" style="width:auto;padding:0 8px;font-size:9px;${S.gvEcnView?'color:#c62828;border-color:#c62828;background:rgba(198,40,40,0.06)':''}" data-action="gvToggleEcn">${S.gvEcnView?'🔴 ECN View':'🔴 ECN'}</button>
       <button class="gv-btn" style="width:auto;padding:0 8px;font-size:9px;margin-left:4px" data-action="gvExport">📷 Export</button>
     </div>
     ${S.gvPanelOpen?`<div class="gv-panel">
@@ -1064,34 +1056,6 @@ function initGV(){
   if(!wrap||!svg)return;
   let dragging=false,dragX=0,dragY=0;
   let nodeDragging=null,nodeStartY=0,nodeOrigOffset=0;
-  // Track child relationships for linked dragging
-  const nodeChildren={};// nid -> [child nids]
-  if(window._gvNodes){
-    // Steps own their child parts
-    window._gvNodes.filter(n=>n.type==='step').forEach(sn=>{
-      const kids=window._gvNodes.filter(n=>n.type==='part'&&n.id.startsWith('cp-'+sn.stepId+'-')).map(n=>n.id);
-      if(kids.length)nodeChildren[sn.id]=kids;
-    });
-    // Groups own their steps (and transitively their parts)
-    window._gvNodes.filter(n=>n.type==='group').forEach(gn=>{
-      const gid=gn.groupId;
-      const kids=[];
-      window._gvNodes.filter(n=>n.type==='step'&&n.groupId===gid).forEach(sn=>{
-        kids.push(sn.id);
-        if(nodeChildren[sn.id])kids.push(...nodeChildren[sn.id]);
-      });
-      if(kids.length)nodeChildren[gn.id]=kids;
-    });
-    // Assembly owns all groups (and transitively everything)
-    const assyKids=[];
-    window._gvNodes.filter(n=>n.type==='group').forEach(gn=>{
-      assyKids.push(gn.id);
-      if(nodeChildren[gn.id])assyKids.push(...nodeChildren[gn.id]);
-    });
-    if(assyKids.length)nodeChildren['assy']=assyKids;
-  }
-  // Store original offsets of children for linked drag
-  let childOrigOffsets={};
 
   // Pan (only when not dragging a node)
   svg.addEventListener('mousedown',e=>{
@@ -1105,11 +1069,6 @@ function initGV(){
         nodeDragging=nid;
         nodeStartY=e.clientY;
         nodeOrigOffset=S.gvYOffsets[nid]||0;
-        // Capture children offsets for linked drag
-        childOrigOffsets={};
-        if(nodeChildren[nid]){
-          nodeChildren[nid].forEach(cid=>{childOrigOffsets[cid]=S.gvYOffsets[cid]||0;});
-        }
         wrap.classList.add('dragging');
         return;
       }
@@ -1122,12 +1081,6 @@ function initGV(){
     if(nodeDragging){
       const dy=(e.clientY-nodeStartY)/S.gvZoom;
       S.gvYOffsets[nodeDragging]=nodeOrigOffset+dy;
-      // Move children along with parent
-      if(nodeChildren[nodeDragging]){
-        nodeChildren[nodeDragging].forEach(cid=>{
-          S.gvYOffsets[cid]=(childOrigOffsets[cid]||0)+dy;
-        });
-      }
       // Live re-render
       reRenderGvSvg();
       return;
@@ -1363,7 +1316,6 @@ function renderEditor(){
         <span style="font-size:18px">${a.icon}</span>
         <span style="font-weight:700;font-size:16px;color:${a.color}">${a.name}</span>
         <span class="badge" style="background:${a.color}15;color:${a.color}">v${currentVer}</span>
-        <button class="btn-sm" style="margin-left:8px;padding:4px 12px;font-size:10px;${S.teGraphView?'color:#1b5e20;border-color:#1b5e20;background:rgba(27,94,32,0.08)':'color:var(--muted)'}" data-action="teToggleGraph">◈ ${S.teGraphView?'Close Graph':'Full Tree'}</button>
         <div style="margin-left:auto;display:flex;gap:6px">${dbStatus()}</div>
       </div>
       ${verBar}
@@ -1390,7 +1342,7 @@ function renderEditor(){
         ${!isFrozen?`<button class="btn-sm" style="width:100%;margin-top:8px;padding:10px;background:rgba(99,102,241,0.12);color:#6366f1;border:none;font-size:12px" data-action="addGroup">+ Add Group</button>`:''}
       </div>
     </div>
-    <div class="te-right" style="${S.teGraphView?'width:auto;flex:2;padding:0;overflow:hidden':''}">${S.teGraphView?renderGraphView(tree,a,ecnRecords,null,'editor'):rightPanel}</div>
+    <div class="te-right">${rightPanel}</div>
   </div>`;
 }
 
@@ -1580,7 +1532,6 @@ function attachEvents(){
       else if(a==='avTab'){
         S.avTab=el.dataset.tab;
         if(el.dataset.tab==='graph'){
-          S.gvEcnView=true;// Homepage graph always shows ECN-only view
           // Load saved layout
           const assy=S.assy;
           const layout=await DB.loadGraphLayout(assy.id,assy.version);
@@ -1626,9 +1577,8 @@ function attachEvents(){
         await Promise.all([DB.loadTree(S.teAssy),DB.loadVersions(S.teAssy),DB.loadEcnChanges(S.teAssy)]);
         S.teVersions=DB.versions[S.teAssy]||[];render();
       }
-      else if(a==='teBack'){S.teAssy=null;S.teSel=null;S.teSelGroup=null;S.teGraphView=false;render();}
-      else if(a==='teToggleGraph'){S.teGraphView=!S.teGraphView;S.gvEcnView=false;render();if(S.teGraphView)setTimeout(initGV,50);}
-      else if(a==='selStep'){S.teSel=parseInt(el.dataset.sid);S.teSelGroup=null;S.teGraphView=false;render();}
+      else if(a==='teBack'){S.teAssy=null;S.teSel=null;S.teSelGroup=null;render();}
+      else if(a==='selStep'){S.teSel=parseInt(el.dataset.sid);S.teSelGroup=null;render();}
       else if(a==='selGroup'){S.teSelGroup=parseInt(el.dataset.gid);S.teSel=null;render();}
 
       // Add step

@@ -946,35 +946,43 @@ function exportGraphImage(){
   // White background
   ctx.fillStyle='#ffffff';ctx.fillRect(0,0,cW/sc2,cH/sc2);
 
+  const ecnExport=S.gvEcnView;
+
   // Watermark
   ctx.fillStyle='#ccc';ctx.font='bold 11px monospace';ctx.textAlign='right';
-  ctx.fillText(`${S.assy.name} · v${S.assy.version} · ${new Date().toLocaleDateString()}`,cW/sc2-20,22);
+  ctx.fillText(`${S.assy.name} · v${S.assy.version}${ecnExport?' · 🔴 ECN View':''} · ${new Date().toLocaleDateString()}`,cW/sc2-20,22);
   ctx.textAlign='left';
 
   // Helpers
   function bezier(x1,y1,x2,y2,t){const d=Math.abs(x2-x1)*0.42,cx1=x1+d,cy1=y1,cx2=x2-d,cy2=y2,u=1-t;return{x:u*u*u*x1+3*u*u*t*cx1+3*u*t*t*cx2+t*t*t*x2,y:u*u*u*y1+3*u*u*t*cy1+3*u*t*t*cy2+t*t*t*y2};}
   function bezPath(x1,y1,x2,y2){const d=Math.abs(x2-x1)*0.42;ctx.beginPath();ctx.moveTo(ox+x1,oy+y1);ctx.bezierCurveTo(ox+x1+d,oy+y1,ox+x2-d,oy+y2,ox+x2,oy+y2);ctx.stroke();}
 
-  // Draw edges — highlight ECN: red for direct, amber for cascade
+  // Draw edges — highlight ECN: red for direct, amber for cascade; blur non-affected
   edges.forEach(e=>{
     const x1=e.from.x+e.from.w,y1=e.from.y,x2=e.to.x,y2=e.to.y;
     const isHi=e.kind==='grp-assy';
     const fD=e.from.ecnState==='direct',tD=e.to.ecnState==='direct';
     const fC=e.from.ecnState==='cascade',tC=e.to.ecnState==='cascade';
     const isDirect=fD||tD,isCascade=!isDirect&&(fC||tC);
+    const fAff=fD||fC||e.from.ecnState,tAff=tD||tC||e.to.ecnState;
+    const doBlur=ecnExport&&!fAff&&!tAff;
+    if(doBlur) ctx.globalAlpha=0.15;
     ctx.strokeStyle=isDirect?'rgba(239,68,68,0.5)':isCascade?'rgba(245,158,11,0.45)':(isHi?'#777':'#aaa');
     ctx.lineWidth=isHi?2:1.2;
     bezPath(x1,y1,x2,y2);
     ctx.fillStyle=ctx.strokeStyle;
     ctx.beginPath();ctx.arc(ox+x2,oy+y2,2.5,0,Math.PI*2);ctx.fill();
+    if(doBlur) ctx.globalAlpha=1.0;
   });
 
-  // Draw nodes — level-based shapes with ECN cascade: 🔴 direct, ⚠️ cascade
+  // Draw nodes — level-based shapes with ECN cascade: 🔴 direct, ⚠️ cascade; blur non-affected
   const L=LEVELS;
   nodes.forEach(n=>{
     const li=lvl(n.type),lv=L[li]||L[7];
     const cx=ox+n.x+n.w/2,cy=oy+n.y,hW=n.w/2,hH=n.h/2;
     const isDirect=n.ecnState==='direct',isCascade=n.ecnState==='cascade',isAff=isDirect||isCascade;
+    const doBlur=ecnExport&&!isAff&&n.type!=='assy';
+    if(doBlur) ctx.globalAlpha=0.15;
     const ecnStroke=isDirect?LC.ecn:isCascade?'#f59e0b':lv.stroke;
     const shapeType=S.gvShapes[n.type]||lv.shape;
 
@@ -1018,13 +1026,17 @@ function exportGraphImage(){
     else if(n.type==='assy'){
       ctx.textAlign='center';ctx.textBaseline='middle';
       ctx.fillStyle=lv.text;ctx.font='800 14px sans-serif';ctx.fillText(S.assy.name||S.assy.tag,cx,cy-6);
-      ctx.fillStyle=lv.stroke;ctx.font='700 9px monospace';ctx.globalAlpha=0.6;ctx.fillText('v'+(S.assy.version||'?'),cx,cy+10);ctx.globalAlpha=1;
+      ctx.fillStyle=lv.stroke;ctx.font='700 9px monospace';const prevA=ctx.globalAlpha;ctx.globalAlpha=prevA*0.6;ctx.fillText('v'+(S.assy.version||'?'),cx,cy+10);ctx.globalAlpha=prevA;
       ctx.textAlign='left';ctx.textBaseline='alphabetic';
     }
+    if(doBlur) ctx.globalAlpha=1.0;
   });
 
-  // Draw fastener labels — simple colored text
+  // Draw fastener labels — simple colored text; blur non-affected
   edges.filter(e=>e.fts&&e.fts.length>0).forEach(e=>{
+    const fAff=e.from.ecnState,tAff=e.to.ecnState;
+    const doBlur=ecnExport&&!fAff&&!tAff;
+    if(doBlur) ctx.globalAlpha=0.15;
     const tVal=S.gvTValues[e.id]??e.defT;
     const x1=e.from.x+e.from.w,y1=e.from.y,x2=e.to.x,y2=e.to.y;
     const pt=bezier(x1,y1,x2,y2,tVal);
@@ -1038,7 +1050,8 @@ function exportGraphImage(){
       if(fi<show.length-1)lines.push({t:'',c:'',sz:4});
     });
     if(extra>0)lines.push({t:'+'+extra+' more',c:'#999',sz:8});
-    ctx.fillStyle=LC.fastPN;ctx.globalAlpha=0.6;ctx.beginPath();ctx.arc(px,py+10,3,0,Math.PI*2);ctx.fill();ctx.globalAlpha=1;
+    const prevAlpha=ctx.globalAlpha;
+    ctx.fillStyle=LC.fastPN;ctx.globalAlpha=prevAlpha*0.6;ctx.beginPath();ctx.arc(px,py+10,3,0,Math.PI*2);ctx.fill();ctx.globalAlpha=prevAlpha;
     let ty=py;
     ctx.textAlign='end';
     for(let i=lines.length-1;i>=0;i--){
@@ -1046,6 +1059,7 @@ function exportGraphImage(){
       ty-=12;ctx.fillStyle=l.c;ctx.font='600 '+l.sz+'px monospace';ctx.fillText(l.t,px,ty+9);
     }
     ctx.textAlign='left';
+    if(doBlur) ctx.globalAlpha=1.0;
   });
 
   // Export PNG

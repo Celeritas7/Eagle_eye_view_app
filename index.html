@@ -526,18 +526,28 @@ function renderAssembly(){
       </div>`;
     }
     let treeHtml='<div class="tree-list">';
+    // Build cascade map for list view
+    const listCascadeIds=new Set();
+    tree.groups.forEach(grp=>{
+      const gs=stepsForGroup(tree,grp.id);let lastEcnIdx=-1;
+      gs.forEach((s,i)=>{if(s.ecn_status==='changed'||ecnRecords.some(c=>c.step_id===s.id))lastEcnIdx=i;});
+      if(lastEcnIdx>=0)for(let i=lastEcnIdx+1;i<gs.length;i++){const sid=gs[i].id;if(!(gs[i].ecn_status==='changed'||ecnRecords.some(c=>c.step_id===sid)))listCascadeIds.add(sid);}
+    });
+
     tree.groups.forEach(g=>{const gSteps=stepsForGroup(tree,g.id);
       treeHtml+=`<div style="margin-bottom:6px"><div class="grp-hdr" style="background:${g.color||'#666'}08;border-left:4px solid ${g.color||'#666'}"><span style="font-size:11px;color:var(--muted)">▼</span><span style="font-size:16px">${g.icon||'📦'}</span><span style="font-weight:700;color:${g.color||'#666'};flex:1;font-size:15px">${g.label}</span><span style="color:var(--muted);font-size:13px" class="mono">${gSteps.length}</span></div>`;
-      gSteps.forEach(s=>{const pts=partsForStep(tree,s.id),fts=fastenersForStep(tree,s.id),hasEcn=s.ecn_status==='changed'||ecnRecords.some(c=>c.step_id===s.id),done=DB.isApplied(unit.sn,s.seq_tag);
+      gSteps.forEach(s=>{const pts=partsForStep(tree,s.id),fts=fastenersForStep(tree,s.id),isDirect=s.ecn_status==='changed'||ecnRecords.some(c=>c.step_id===s.id),isCascade=listCascadeIds.has(s.id),isAff=isDirect||isCascade,done=DB.isApplied(unit.sn,s.seq_tag);
         const ecnRec=ecnRecords.find(c=>c.step_id===s.id);
         const disp=ecnRec?.disposition;const dispInfo=disp?ECN_DISPOSITIONS[disp]:null;
-        treeHtml+=`<div class="step-row" style="${done?'opacity:0.4':''}${hasEcn?';border-left:3px solid #ef4444;padding-left:6px':''}"><span style="color:var(--dim);font-size:12px">⠿</span>${hasEcn?`<span style="font-size:10px">${done?'✅':'🔴'}</span>`:''}
-          <span style="font-weight:700;min-width:32px;text-align:center;font-size:13px;padding:3px 8px;border-radius:5px;background:${g.color||'#666'}15;color:${g.color||'#666'}" class="mono">${s.seq_tag||'—'}</span>
+        const borderCol=isDirect?'#ef4444':isCascade?'#f59e0b':'transparent';
+        const ecnIcon=isDirect?(done?'✅':'🔴'):isCascade?'⚠️':'';
+        treeHtml+=`<div class="step-row" style="${done?'opacity:0.4':''}${isAff?';border-left:3px solid '+borderCol+';padding-left:6px':''}"><span style="color:var(--dim);font-size:12px">⠿</span>${ecnIcon?`<span style="font-size:10px">${ecnIcon}</span>`:''}
+          <span style="font-weight:700;min-width:32px;text-align:center;font-size:13px;padding:3px 8px;border-radius:5px;background:${isDirect?'rgba(239,68,68,0.1)':isCascade?'rgba(245,158,11,0.1)':(g.color||'#666')+'15'};color:${isDirect?'#c62828':isCascade?'#e65100':(g.color||'#666')}" class="mono">${s.seq_tag||'—'}</span>
           <span style="font-size:12px;font-weight:600;padding:2px 8px;border-radius:4px;color:${s.type==='PREP'?'#a855f7':s.type==='CHECK'?'#ec4899':'#22c55e'};background:${s.type==='PREP'?'rgba(168,85,247,0.1)':s.type==='CHECK'?'rgba(236,72,153,0.1)':'rgba(34,197,94,0.1)'}">${s.type||'STEP'}</span>
-          <span style="flex:1;font-size:14px">${s.label||s.pn||''}</span>
-          ${dispInfo?`<span style="font-size:9px;font-weight:700;padding:2px 6px;border-radius:4px;background:${dispInfo.bg};color:${dispInfo.color}">${dispInfo.icon} ${dispInfo.label}</span>`:''}
-          ${pts.length?`<span style="font-size:12px;color:${hasEcn?'#ef4444':'#22c55e'};font-weight:600" class="mono">${hasEcn?'🔴 ':''}${pts.length}P</span>`:''}
-          ${fts.length?`<span style="font-size:12px;color:${hasEcn?'#ef4444':'var(--red)'};font-weight:600" class="mono">${hasEcn?'🔴 ':''}${fts.length}F</span>`:''}
+          <span style="flex:1;font-size:14px;${isDirect?'font-weight:700;color:#ef4444':isCascade?'color:#e65100':''}">${s.label||s.pn||''}</span>
+          ${dispInfo&&isAff?`<span style="font-size:9px;font-weight:700;padding:2px 6px;border-radius:4px;background:${dispInfo.bg};color:${dispInfo.color}">${dispInfo.icon} ${dispInfo.label}</span>`:''}
+          ${pts.length?`<span style="font-size:12px;color:${isAff?'#ef4444':'#22c55e'};font-weight:600" class="mono">${isAff?'⚠️ ':''}${pts.length}P</span>`:''}
+          ${fts.length?`<span style="font-size:12px;color:${isAff?'#ef4444':'var(--red)'};font-weight:600" class="mono">${isAff?'⚠️ ':''}${fts.length}F</span>`:''}
         </div>`;});
       treeHtml+='</div>';});
     treeHtml+='</div>';
@@ -622,6 +632,10 @@ function gvBuildSvg(tree,assy,ecnRecords,G,forExport){
   function bezPt(x1,y1,x2,y2,t){const d=Math.abs(x2-x1)*0.42,cx1=x1+d,cy1=y1,cx2=x2-d,cy2=y2,u=1-t;return{x:u*u*u*x1+3*u*u*t*cx1+3*u*t*t*cx2+t*t*t*x2,y:u*u*u*y1+3*u*u*t*cy1+3*u*t*t*cy2+t*t*t*y2};}
 
   // Build ECN-affected step IDs + their dispositions
+  // ═══ 3-STATE ECN CASCADE ENGINE ═══
+  // "direct"  → the ECN-changed step itself (🔴 red border)
+  // "cascade" → steps AFTER the ECN step that must be UNDONE to reach it (⚠️ amber)
+  // null      → not affected (blurred in ECN view, or hidden if entire group is clean)
   const ecnStepIds=new Set();
   const ecnStepDisp={};// stepId -> disposition
   ecnRecords.forEach(c=>{
@@ -629,66 +643,82 @@ function gvBuildSvg(tree,assy,ecnRecords,G,forExport){
   });
   tree.steps.forEach(s=>{if(s.ecn_status==='changed')ecnStepIds.add(s.id);});
 
-  // ECN cascade: parts and fasteners of affected steps are also affected
-  const ecnCascadeIds=new Set();// node IDs that cascade from ECN
-  const ecnCascadeDisp={};// node ID -> disposition (inherited from step)
+  // Build cascade: steps AFTER the last direct ECN step in each group must be undone
+  const ecnCascadeIds=new Set();
+  tree.groups.forEach(g=>{
+    const gSteps=stepsForGroup(tree,g.id);
+    let lastEcnIdx=-1;
+    gSteps.forEach((s,i)=>{if(ecnStepIds.has(s.id))lastEcnIdx=i;});
+    if(lastEcnIdx>=0) for(let i=lastEcnIdx+1;i<gSteps.length;i++) if(!ecnStepIds.has(gSteps[i].id)) ecnCascadeIds.add(gSteps[i].id);
+  });
+
+  // Per-group ECN tracking
+  const groupEcnState={};// groupId -> 'direct'|'cascade'|null
+  tree.groups.forEach(g=>{
+    const gSteps=stepsForGroup(tree,g.id);
+    let st=null;
+    gSteps.forEach(s=>{if(ecnStepIds.has(s.id))st='direct';else if(ecnCascadeIds.has(s.id)&&st!=='direct')st='cascade';});
+    groupEcnState[g.id]=st;
+  });
 
   // Layout pass
   const nodes=[],edges=[];let y=50;
   tree.groups.forEach(g=>{
     const gy0=y,gSteps=stepsForGroup(tree,g.id),stepNds=[];
-    let groupHasEcn=false;
+    const gEcnSt=groupEcnState[g.id];
     gSteps.forEach(step=>{
       const pts=partsForStep(tree,step.id),fts=fastenersForStep(tree,step.id),np=pts.length;
       const isSingle=np===1,isMulti=np>1;
-      const hasEcn=ecnStepIds.has(step.id);
-      const disp=ecnStepDisp[step.id]||null;
-      if(hasEcn)groupHasEcn=true;
+      const isDirect=ecnStepIds.has(step.id);
+      const isCascade=ecnCascadeIds.has(step.id);
+      const ecnState=isDirect?'direct':isCascade?'cascade':null;
+      const disp=ecnStepDisp[step.id]||(isDirect||isCascade?ecnRecords[0]?.disposition:null)||null;
       const childNds=[];
       if(isMulti){const tCH=np*(PART_H+12)-12;const cy0=y-tCH/2+PART_H/2;pts.forEach((p,pi)=>{
         const nid='cp-'+step.id+'-'+pi;
         let py=cy0+pi*(PART_H+12)+(S.gvYOffsets[nid]||0);
-        const cn={id:nid,type:'part',x:COL_CHILD,y:py,w:PART_W,h:PART_H,pn:p.pn||'',name:p.name||p.pn||'Part',qty:p.qty||1,hasEcn:false,disp:null};
-        if(hasEcn){cn.hasEcn=true;cn.disp=disp;ecnCascadeIds.add(nid);if(disp)ecnCascadeDisp[nid]=disp;}
+        const cn={id:nid,type:'part',x:COL_CHILD,y:py,w:PART_W,h:PART_H,pn:p.pn||'',name:p.name||p.pn||'Part',qty:p.qty||1,ecnState,disp:ecnState?disp:null,groupId:g.id};
         nodes.push(cn);childNds.push(cn);
       });}
       const nid='s-'+step.id;
-      const sn={id:nid,type:'step',x:COL_STEP,y:y+(S.gvYOffsets[nid]||0),w:STEP_W,h:STEP_H,stepId:step.id,seq:step.seq_tag||'',name:step.label||step.pn||'',stepType:(step.type||'STEP').toUpperCase(),isSingle,isMulti,hasEcn,disp,inlineName:isSingle?(pts[0].name||pts[0].pn||''):'',inlinePn:isSingle?(pts[0].pn||''):'',fts};
+      const sn={id:nid,type:'step',x:COL_STEP,y:y+(S.gvYOffsets[nid]||0),w:STEP_W,h:STEP_H,stepId:step.id,seq:step.seq_tag||'',name:step.label||step.pn||'',stepType:(step.type||'STEP').toUpperCase(),isSingle,isMulti,ecnState,disp,inlineName:isSingle?(pts[0].name||pts[0].pn||''):'',inlinePn:isSingle?(pts[0].pn||''):'',fts,groupId:g.id};
       nodes.push(sn);stepNds.push(sn);
-      // Single-part inline: cascade ECN to that part too
-      if(isSingle&&hasEcn){ecnCascadeIds.add('inline-'+step.id);if(disp)ecnCascadeDisp['inline-'+step.id]=disp;}
       if(isMulti){childNds.forEach((cn,ci)=>{edges.push({id:'e-cp-'+step.id+'-'+ci,from:cn,to:sn,kind:'part-step',fts:ci===0?fts:[],defT:0.45});});}
       y+=(isMulti?Math.max(STEP_H,np*(PART_H+12)):STEP_H)+26;
     });
     const gnid='g-'+g.id;
     const gmid=(gy0+y-26)/2+(S.gvYOffsets[gnid]||0);
-    const gn={id:gnid,type:'group',x:COL_GRP,y:gmid,w:GRP_W,h:GRP_H,label:g.label,icon:g.icon||'📦',color:g.color||'#6b7280',stepCount:gSteps.length,hasEcn:groupHasEcn};
+    const gn={id:gnid,type:'group',x:COL_GRP,y:gmid,w:GRP_W,h:GRP_H,label:g.label,icon:g.icon||'📦',color:g.color||'#6b7280',stepCount:gSteps.length,ecnState:gEcnSt,groupId:g.id};
     nodes.push(gn);
     stepNds.forEach(sn=>{edges.push({id:'e-sg-'+sn.stepId,from:sn,to:gn,kind:'step-grp',fts:sn.isMulti?[]:sn.fts,defT:0.35});});
     y+=44;
   });
   const grps=nodes.filter(n=>n.type==='group'),ay=grps.length?grps.reduce((a,n)=>a+n.y,0)/grps.length:200;
-  const anyEcn=grps.some(n=>n.hasEcn);
-  const an={id:'assy',type:'assy',x:COL_ASSY,y:ay,w:ASSY_W,h:ASSY_H,hasEcn:anyEcn};nodes.push(an);
+  const anyEcn=grps.some(n=>n.ecnState);
+  const an={id:'assy',type:'assy',x:COL_ASSY,y:ay,w:ASSY_W,h:ASSY_H,ecnState:anyEcn?'direct':null,groupId:null};nodes.push(an);
   grps.forEach(gn=>{edges.push({id:'e-ga-'+gn.id,from:gn,to:an,kind:'grp-assy',fts:[],defT:0.5});});
   const totalH=y+80;
   window._gvEdges=edges;
   window._gvNodes=nodes;
 
-  // ECN view mode — which nodes to dim
+  // ═══ ECN VIEW: 3-tier visibility ═══
+  // Groups with zero ECN → HIDE entirely
+  // Nodes in ECN groups but not affected → BLUR
+  // Direct/cascade nodes → VIVID
   const ecnView=S.gvEcnView;
-  function isAffected(n){
-    if(n.hasEcn)return true;
-    if(ecnCascadeIds.has(n.id))return true;
-    if(n.type==='group'&&n.hasEcn)return true;
-    if(n.type==='assy'&&anyEcn)return true;
-    return false;
+  function ecnVis(n){
+    // Returns: 'hide' | 'blur' | 'direct' | 'cascade' | 'show'
+    if(!ecnView) return 'show';
+    if(n.type==='assy') return n.ecnState||'show';
+    const gid=n.groupId;
+    if(gid!=null && !groupEcnState[gid]) return 'hide'; // entire group clean
+    if(n.ecnState==='direct') return 'direct';
+    if(n.ecnState==='cascade') return 'cascade';
+    return 'blur'; // in an ECN group but this node is not affected
   }
-  function getDisp(n){
-    if(n.disp)return n.disp;
-    if(ecnCascadeDisp[n.id])return ecnCascadeDisp[n.id];
-    return null;
-  }
+  // Backward compat helpers
+  function isAffected(n){const v=ecnVis(n);return v==='direct'||v==='cascade';}
+  function getDisp(n){return n.disp||null;}
 
   // Build SVG
   let svgE='',svgN='',svgL='';
@@ -701,36 +731,47 @@ function gvBuildSvg(tree,assy,ecnRecords,G,forExport){
     svgE+=`<text x="${g.x+4}" y="-8" fill="${g.c}" font-size="8" font-weight="700" opacity="0.5" font-family="${mono}">${g.l}</text>`;
   });
 
-  // Edges — hide in ECN view if neither endpoint is affected
+  // Edges — 3-state: hide if group clean, blur if not affected, vivid if ECN
   edges.forEach(e=>{
     const x1=e.from.x+e.from.w,y1=e.from.y,x2=e.to.x,y2=e.to.y;
     const isHi=e.kind==='grp-assy',sw=isHi?2:1.2;
-    const eAffected=isAffected(e.from)||isAffected(e.to);
-    if(ecnView&&!eAffected)return;// HIDE entirely
-    const ecn=e.to.hasEcn||e.from.hasEcn;
-    const col=ecn?'rgba(239,68,68,0.35)':(isHi?LC.edgeHi:LC.edge);
+    const vF=ecnVis(e.from),vT=ecnVis(e.to);
+    if(vF==='hide'||vT==='hide')return;// group has no ECN at all
+    const fAff=vF==='direct'||vF==='cascade',tAff=vT==='direct'||vT==='cascade';
+    const isDirect=vF==='direct'||vT==='direct';
+    const isCascade=!isDirect&&(vF==='cascade'||vT==='cascade');
+    const doBlur=ecnView&&!fAff&&!tAff;
+    const col=isDirect?'rgba(239,68,68,0.5)':isCascade?'rgba(245,158,11,0.45)':(isHi?LC.edgeHi:LC.edge);
+    if(doBlur)svgE+=`<g opacity="0.15" filter="url(#ecnBlur)">`;
     svgE+=`<path d="${bezP(x1,y1,x2,y2)}" fill="none" stroke="${col}" stroke-width="${sw}"/>`;
     svgE+=`<circle cx="${x2}" cy="${y2}" r="2.5" fill="${col}"/>`;
+    if(doBlur)svgE+=`</g>`;
   });
 
-  // Nodes — level-based shapes; HIDE non-affected in ECN view
+  // Nodes — 3-state ECN: hide clean groups, blur non-affected, vivid for direct/cascade
   nodes.forEach(n=>{
     const li=lvl(n.type),lv=L[li]||L[7];
     const cx=n.x+n.w/2,cy=n.y,hW=n.w/2,hH=n.h/2;
-    const affected=isAffected(n);
-    if(ecnView&&!affected)return;// HIDE entirely
+    const vis=ecnVis(n);
+    if(vis==='hide')return;// entire group has no ECN
+    const isDirect=vis==='direct',isCascade=vis==='cascade';
+    const affected=isDirect||isCascade;
     const disp=getDisp(n);
     const dp=disp?DISP_PRINT[disp]:null;
-    const ecnStroke=n.hasEcn?LC.ecn:(affected&&ecnView?'#ef9a9a':lv.stroke);
+    const doBlur=vis==='blur';
+    const ecnStroke=isDirect?LC.ecn:isCascade?'#f59e0b':(affected&&ecnView?'#ef9a9a':lv.stroke);
 
-    // Wrap in g for dragging
-    svgN+=`<g data-role="gvNode" data-nid="${n.id}" style="cursor:${S.gvLocked?'default':'ns-resize'}">`;
+    // Wrap in g for dragging + blur
+    if(doBlur)svgN+=`<g data-role="gvNode" data-nid="${n.id}" style="cursor:${S.gvLocked?'default':'ns-resize'}" opacity="0.15" filter="url(#ecnBlur)">`;
+    else svgN+=`<g data-role="gvNode" data-nid="${n.id}" style="cursor:${S.gvLocked?'default':'ns-resize'}">`;
     // Shape — use customizable shape from settings
     const shapeType=S.gvShapes[n.type]||lv.shape;
-    svgN+=svgShape(shapeType,cx,cy,hW,hH,lv.fill,ecnStroke,n.hasEcn?2.5:1.5);
+    svgN+=svgShape(shapeType,cx,cy,hW,hH,lv.fill,ecnStroke,isDirect?3:isCascade?2.5:1.5);
 
-    // ECN indicator dot
-    if(n.hasEcn)svgN+=`<circle cx="${n.x+12}" cy="${cy-hH+10}" r="4.5" fill="${LC.ecn}"/>`;
+    // 🔴 ECN indicator dot for direct
+    if(isDirect)svgN+=`<circle cx="${n.x+12}" cy="${cy-hH+10}" r="4.5" fill="${LC.ecn}"/>`;
+    // ⚠️ Cascade warning for undo-needed
+    if(isCascade)svgN+=`<text x="${n.x+4}" y="${cy-hH+14}" font-size="12">⚠️</text>`;
 
     // Disposition marker — show on affected nodes
     if(dp&&affected){
@@ -763,9 +804,12 @@ function gvBuildSvg(tree,assy,ecnRecords,G,forExport){
     svgN+=`</g>`;
   });
 
-  // Fastener labels — hide if edge is hidden in ECN view
+  // Fastener labels — hide if group clean, blur if not affected
   edges.filter(e=>e.fts&&e.fts.length>0).forEach(e=>{
-    if(ecnView&&!isAffected(e.from)&&!isAffected(e.to))return;
+    const vF=ecnVis(e.from),vT=ecnVis(e.to);
+    if(vF==='hide'||vT==='hide')return;
+    const fAff=vF==='direct'||vF==='cascade',tAff=vT==='direct'||vT==='cascade';
+    const doBlur=ecnView&&!fAff&&!tAff;
     const tVal=S.gvTValues[e.id]??e.defT;
     const x1=e.from.x+e.from.w,y1=e.from.y,x2=e.to.x,y2=e.to.y;
     const pt=bezPt(x1,y1,x2,y2,tVal);
@@ -778,14 +822,18 @@ function gvBuildSvg(tree,assy,ecnRecords,G,forExport){
       if(fi<show.length-1)lines.push(null);
     });
     if(extra>0)lines.push({t:'+'+extra+' more',c:LC.dim});
-    let lbl=`<g data-role="gvLabel" data-eid="${e.id}" data-x1="${x1}" data-y1="${y1}" data-x2="${x2}" data-y2="${y2}" transform="translate(${pt.x},${pt.y-10})" style="cursor:ew-resize">`;
+    let lbl='';
+    if(doBlur)lbl+=`<g opacity="0.15" filter="url(#ecnBlur)">`;
+    lbl+=`<g data-role="gvLabel" data-eid="${e.id}" data-x1="${x1}" data-y1="${y1}" data-x2="${x2}" data-y2="${y2}" transform="translate(${pt.x},${pt.y-10})" style="cursor:ew-resize">`;
     lbl+=`<circle cx="0" cy="10" r="3" fill="${LC.fastPN}" opacity="0.6"/>`;
     let ty=0;
     for(let i=lines.length-1;i>=0;i--){
       const l=lines[i];if(!l){ty-=4;continue;}
       ty-=12;lbl+=`<text x="0" y="${ty+9}" fill="${l.c}" font-size="9" font-weight="600" text-anchor="end" font-family="${mono}">${l.t}</text>`;
     }
-    lbl+=`</g>`;svgL+=lbl;
+    lbl+=`</g>`;
+    if(doBlur)lbl+=`</g>`;
+    svgL+=lbl;
   });
 
   return{svgE,svgN,svgL,nodes,edges,totalH,COL_CHILD,COL_STEP,COL_GRP,COL_ASSY,STEP_W,STEP_H,PART_W,PART_H,GRP_W,GRP_H,ASSY_W,ASSY_H,MAX_FAST};
@@ -833,11 +881,12 @@ function renderGraphView(tree, assy, ecnRecords, unit) {
       </div>
     </div>`:''}
     <svg id="gvSvg" width="100%" height="100%" style="position:absolute;top:0;left:0">
+      <defs><filter id="ecnBlur"><feGaussianBlur in="SourceGraphic" stdDeviation="1.8"/></filter></defs>
       <g id="gvCanvas" transform="translate(${px},${py}) scale(${z})">
         ${r.svgE}${r.svgN}${r.svgL}
       </g>
     </svg>
-    <div class="gv-footer">Scroll to zoom · Drag to pan · ↔ Slide labels · 📷 Export · ${partCount} parts · ${stepCount} steps</div>
+    <div class="gv-footer">Scroll to zoom · Drag to pan · ↔ Slide labels · 📷 Export · ${partCount} parts · ${stepCount} steps${S.gvEcnView?' · 🔴 Direct ECN · ⚠️ Cascade (undo) · Blur = not affected':''}</div>
     <div class="gv-legend">
       <span><i style="background:${L[3].fill};border:1px solid ${L[3].stroke}"></i>L4 Part</span>
       <span><i style="background:${L[2].fill};border:1px solid ${L[2].stroke}"></i>L3 Step</span>
@@ -898,35 +947,40 @@ function exportGraphImage(){
   function bezier(x1,y1,x2,y2,t){const d=Math.abs(x2-x1)*0.42,cx1=x1+d,cy1=y1,cx2=x2-d,cy2=y2,u=1-t;return{x:u*u*u*x1+3*u*u*t*cx1+3*u*t*t*cx2+t*t*t*x2,y:u*u*u*y1+3*u*u*t*cy1+3*u*t*t*cy2+t*t*t*y2};}
   function bezPath(x1,y1,x2,y2){const d=Math.abs(x2-x1)*0.42;ctx.beginPath();ctx.moveTo(ox+x1,oy+y1);ctx.bezierCurveTo(ox+x1+d,oy+y1,ox+x2-d,oy+y2,ox+x2,oy+y2);ctx.stroke();}
 
-  // Draw edges — highlight ECN affected
+  // Draw edges — highlight ECN: red for direct, amber for cascade
   edges.forEach(e=>{
     const x1=e.from.x+e.from.w,y1=e.from.y,x2=e.to.x,y2=e.to.y;
     const isHi=e.kind==='grp-assy';
-    const ecnEdge=e.to.hasEcn||e.from.hasEcn;
-    ctx.strokeStyle=ecnEdge?'rgba(239,68,68,0.4)':(isHi?'#777':'#aaa');
+    const fD=e.from.ecnState==='direct',tD=e.to.ecnState==='direct';
+    const fC=e.from.ecnState==='cascade',tC=e.to.ecnState==='cascade';
+    const isDirect=fD||tD,isCascade=!isDirect&&(fC||tC);
+    ctx.strokeStyle=isDirect?'rgba(239,68,68,0.5)':isCascade?'rgba(245,158,11,0.45)':(isHi?'#777':'#aaa');
     ctx.lineWidth=isHi?2:1.2;
     bezPath(x1,y1,x2,y2);
     ctx.fillStyle=ctx.strokeStyle;
     ctx.beginPath();ctx.arc(ox+x2,oy+y2,2.5,0,Math.PI*2);ctx.fill();
   });
 
-  // Draw nodes — level-based shapes with ECN cascade
+  // Draw nodes — level-based shapes with ECN cascade: 🔴 direct, ⚠️ cascade
   const L=LEVELS;
   nodes.forEach(n=>{
     const li=lvl(n.type),lv=L[li]||L[7];
     const cx=ox+n.x+n.w/2,cy=oy+n.y,hW=n.w/2,hH=n.h/2;
-    const ecnStroke=n.hasEcn?LC.ecn:lv.stroke;
+    const isDirect=n.ecnState==='direct',isCascade=n.ecnState==='cascade',isAff=isDirect||isCascade;
+    const ecnStroke=isDirect?LC.ecn:isCascade?'#f59e0b':lv.stroke;
     const shapeType=S.gvShapes[n.type]||lv.shape;
 
-    ctx.fillStyle=lv.fill;ctx.strokeStyle=ecnStroke;ctx.lineWidth=n.hasEcn?2.5:1.5;
+    ctx.fillStyle=lv.fill;ctx.strokeStyle=ecnStroke;ctx.lineWidth=isDirect?3:isCascade?2.5:1.5;
     canvasShape(ctx,shapeType,cx,cy,hW,hH);
 
-    // ECN dot
-    if(n.hasEcn){ctx.fillStyle=LC.ecn;ctx.beginPath();ctx.arc(ox+n.x+12,cy-hH+10,4,0,Math.PI*2);ctx.fill();}
+    // 🔴 ECN dot for direct
+    if(isDirect){ctx.fillStyle=LC.ecn;ctx.beginPath();ctx.arc(ox+n.x+12,cy-hH+10,4,0,Math.PI*2);ctx.fill();}
+    // ⚠️ for cascade
+    if(isCascade){ctx.font='12px sans-serif';ctx.textAlign='left';ctx.textBaseline='alphabetic';ctx.fillText('⚠️',ox+n.x+4,cy-hH+14);}
 
-    // Disposition marker on export (works for all node types)
+    // Disposition marker on export
     const dp=n.disp?DISP_PRINT[n.disp]:null;
-    if(dp&&n.hasEcn){ctx.font='14px sans-serif';ctx.fillText(dp.icon,ox+n.x+n.w+4,cy+5);}
+    if(dp&&isAff){ctx.font='14px sans-serif';ctx.textAlign='left';ctx.textBaseline='alphabetic';ctx.fillText(dp.icon,ox+n.x+n.w+4,cy+5);}
 
     if(n.type==='part'){
       ctx.fillStyle=lv.text;ctx.font='600 9.5px monospace';ctx.textAlign='center';ctx.textBaseline='middle';ctx.fillText(clip(n.name||n.pn,16),cx,cy);
@@ -1078,7 +1132,7 @@ function reRenderGvSvg(){
   if(!tree)return;
   const r=gvBuildSvg(tree,S.assy,ecnRecords,S.gvGaps,false);
   const z=S.gvZoom,px=S.gvPan.x,py=S.gvPan.y;
-  svg.innerHTML=`<g id="gvCanvas" transform="translate(${px},${py}) scale(${z})">${r.svgE}${r.svgN}${r.svgL}</g>`;
+  svg.innerHTML=`<defs><filter id="ecnBlur"><feGaussianBlur in="SourceGraphic" stdDeviation="1.8"/></filter></defs><g id="gvCanvas" transform="translate(${px},${py}) scale(${z})">${r.svgE}${r.svgN}${r.svgL}</g>`;
   attachGvLabels(svg);
 }
 

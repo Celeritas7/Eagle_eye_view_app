@@ -366,15 +366,6 @@ const DB = {
   async updateAssemblyVersion(aid,ver){
     await sbPatch('eagle_eye_app_assemblies',`id=eq.${aid}`,{version:ver,updated_at:new Date().toISOString()});
     const a=this.assemblies.find(x=>x.id===aid);if(a)a.version=ver;
-    // Update ALL units: set latest_version to new ver, mark outdated if not on this ver
-    try{
-      const allUnits=await sbGet('eagle_eye_app_production_units',`assembly_id=eq.${aid}`);
-      for(const u of allUnits){
-        const newStatus=u.version===ver?'current':'outdated';
-        await sbPatch('eagle_eye_app_production_units',`id=eq.${u.id}`,{latest_version:ver,status:newStatus,updated_at:new Date().toISOString()});
-      }
-      delete this.units[aid];// force reload
-    }catch(e){console.error('Bulk update units:',e);}
   },
 };
 
@@ -528,15 +519,12 @@ function renderAssembly(){
     tree.groups.forEach(g=>{const gSteps=stepsForGroup(tree,g.id);
       treeHtml+=`<div style="margin-bottom:6px"><div class="grp-hdr" style="background:${g.color||'#666'}08;border-left:4px solid ${g.color||'#666'}"><span style="font-size:11px;color:var(--muted)">▼</span><span style="font-size:16px">${g.icon||'📦'}</span><span style="font-weight:700;color:${g.color||'#666'};flex:1;font-size:15px">${g.label}</span><span style="color:var(--muted);font-size:13px" class="mono">${gSteps.length}</span></div>`;
       gSteps.forEach(s=>{const pts=partsForStep(tree,s.id),fts=fastenersForStep(tree,s.id),hasEcn=s.ecn_status==='changed'||ecnRecords.some(c=>c.step_id===s.id),done=DB.isApplied(unit.sn,s.seq_tag);
-        const ecnRec=ecnRecords.find(c=>c.step_id===s.id);
-        const disp=ecnRec?.disposition;const dispInfo=disp?ECN_DISPOSITIONS[disp]:null;
-        treeHtml+=`<div class="step-row" style="${done?'opacity:0.4':''}${hasEcn?';border-left:3px solid #ef4444;padding-left:6px':''}"><span style="color:var(--dim);font-size:12px">⠿</span>${hasEcn?`<span style="font-size:10px">${done?'✅':'🔴'}</span>`:''}
+        treeHtml+=`<div class="step-row" style="${done?'opacity:0.4':''}"><span style="color:var(--dim);font-size:12px">⠿</span>${hasEcn?`<span style="font-size:10px">${done?'✅':'🔴'}</span>`:''}
           <span style="font-weight:700;min-width:32px;text-align:center;font-size:13px;padding:3px 8px;border-radius:5px;background:${g.color||'#666'}15;color:${g.color||'#666'}" class="mono">${s.seq_tag||'—'}</span>
           <span style="font-size:12px;font-weight:600;padding:2px 8px;border-radius:4px;color:${s.type==='PREP'?'#a855f7':s.type==='CHECK'?'#ec4899':'#22c55e'};background:${s.type==='PREP'?'rgba(168,85,247,0.1)':s.type==='CHECK'?'rgba(236,72,153,0.1)':'rgba(34,197,94,0.1)'}">${s.type||'STEP'}</span>
           <span style="flex:1;font-size:14px">${s.label||s.pn||''}</span>
-          ${dispInfo?`<span style="font-size:9px;font-weight:700;padding:2px 6px;border-radius:4px;background:${dispInfo.bg};color:${dispInfo.color}">${dispInfo.icon} ${dispInfo.label}</span>`:''}
-          ${pts.length?`<span style="font-size:12px;color:${hasEcn?'#ef4444':'#22c55e'};font-weight:600" class="mono">${hasEcn?'🔴 ':''}${pts.length}P</span>`:''}
-          ${fts.length?`<span style="font-size:12px;color:${hasEcn?'#ef4444':'var(--red)'};font-weight:600" class="mono">${hasEcn?'🔴 ':''}${fts.length}F</span>`:''}
+          ${pts.length?`<span style="font-size:12px;color:#22c55e;font-weight:600" class="mono">${pts.length}P</span>`:''}
+          ${fts.length?`<span style="font-size:12px;color:#ef4444;font-weight:600" class="mono">${fts.length}F</span>`:''}
         </div>`;});
       treeHtml+='</div>';});
     treeHtml+='</div>';
@@ -647,8 +635,8 @@ function gvBuildSvg(tree,assy,ecnRecords,G,forExport){
       if(isMulti){const tCH=np*(PART_H+12)-12;const cy0=y-tCH/2+PART_H/2;pts.forEach((p,pi)=>{
         const nid='cp-'+step.id+'-'+pi;
         let py=cy0+pi*(PART_H+12)+(S.gvYOffsets[nid]||0);
-        const cn={id:nid,type:'part',x:COL_CHILD,y:py,w:PART_W,h:PART_H,pn:p.pn||'',name:p.name||p.pn||'Part',qty:p.qty||1,hasEcn:false,disp:null};
-        if(hasEcn){cn.hasEcn=true;cn.disp=disp;ecnCascadeIds.add(nid);if(disp)ecnCascadeDisp[nid]=disp;}
+        const cn={id:nid,type:'part',x:COL_CHILD,y:py,w:PART_W,h:PART_H,pn:p.pn||'',name:p.name||p.pn||'Part',qty:p.qty||1,hasEcn:false};
+        if(hasEcn){cn.hasEcn=true;ecnCascadeIds.add(nid);if(disp)ecnCascadeDisp[nid]=disp;}
         nodes.push(cn);childNds.push(cn);
       });}
       const nid='s-'+step.id;
@@ -700,30 +688,32 @@ function gvBuildSvg(tree,assy,ecnRecords,G,forExport){
     svgE+=`<text x="${g.x+4}" y="-8" fill="${g.c}" font-size="8" font-weight="700" opacity="0.5" font-family="${mono}">${g.l}</text>`;
   });
 
-  // Edges — hide in ECN view if neither endpoint is affected
+  // Edges — dim in ECN view if neither endpoint is affected
   edges.forEach(e=>{
     const x1=e.from.x+e.from.w,y1=e.from.y,x2=e.to.x,y2=e.to.y;
     const isHi=e.kind==='grp-assy',sw=isHi?2:1.2;
     const eAffected=isAffected(e.from)||isAffected(e.to);
-    if(ecnView&&!eAffected)return;// HIDE entirely
+    const dimEdge=ecnView&&!eAffected;
     const ecn=e.to.hasEcn||e.from.hasEcn;
     const col=ecn?'rgba(239,68,68,0.35)':(isHi?LC.edgeHi:LC.edge);
-    svgE+=`<path d="${bezP(x1,y1,x2,y2)}" fill="none" stroke="${col}" stroke-width="${sw}"/>`;
-    svgE+=`<circle cx="${x2}" cy="${y2}" r="2.5" fill="${col}"/>`;
+    svgE+=`<path d="${bezP(x1,y1,x2,y2)}" fill="none" stroke="${col}" stroke-width="${sw}" ${dimEdge?'opacity="0.15"':''}/>`;
+    svgE+=`<circle cx="${x2}" cy="${y2}" r="2.5" fill="${col}" ${dimEdge?'opacity="0.15"':''}/>`;
   });
 
-  // Nodes — level-based shapes; HIDE non-affected in ECN view
+  // Nodes — level-based shapes with ECN view dimming + disposition markers
   nodes.forEach(n=>{
     const li=lvl(n.type),lv=L[li]||L[7];
     const cx=n.x+n.w/2,cy=n.y,hW=n.w/2,hH=n.h/2;
     const affected=isAffected(n);
-    if(ecnView&&!affected)return;// HIDE entirely
+    const dimNode=ecnView&&!affected;
     const disp=getDisp(n);
     const dp=disp?DISP_PRINT[disp]:null;
     const ecnStroke=n.hasEcn?LC.ecn:(affected&&ecnView?'#ef9a9a':lv.stroke);
+    const opacity=dimNode?0.2:1;
 
     // Wrap in g for dragging
-    svgN+=`<g data-role="gvNode" data-nid="${n.id}" style="cursor:${S.gvLocked?'default':'ns-resize'}">`;
+    svgN+=`<g data-role="gvNode" data-nid="${n.id}" style="cursor:${S.gvLocked?'default':'ns-resize'}" ${dimNode?`opacity="${opacity}"`:''}>`;
+
     // Shape
     svgN+=svgShape(lv.shape,cx,cy,hW,hH,lv.fill,ecnStroke,n.hasEcn?2.5:1.5);
 
@@ -763,9 +753,8 @@ function gvBuildSvg(tree,assy,ecnRecords,G,forExport){
     svgN+=`</g>`;
   });
 
-  // Fastener labels — hide if edge is hidden in ECN view
+  // Fastener labels — simple colored text, no dark box
   edges.filter(e=>e.fts&&e.fts.length>0).forEach(e=>{
-    if(ecnView&&!isAffected(e.from)&&!isAffected(e.to))return;
     const tVal=S.gvTValues[e.id]??e.defT;
     const x1=e.from.x+e.from.w,y1=e.from.y,x2=e.to.x,y2=e.to.y;
     const pt=bezPt(x1,y1,x2,y2,tVal);
@@ -889,19 +878,18 @@ function exportGraphImage(){
   function bezier(x1,y1,x2,y2,t){const d=Math.abs(x2-x1)*0.42,cx1=x1+d,cy1=y1,cx2=x2-d,cy2=y2,u=1-t;return{x:u*u*u*x1+3*u*u*t*cx1+3*u*t*t*cx2+t*t*t*x2,y:u*u*u*y1+3*u*u*t*cy1+3*u*t*t*cy2+t*t*t*y2};}
   function bezPath(x1,y1,x2,y2){const d=Math.abs(x2-x1)*0.42;ctx.beginPath();ctx.moveTo(ox+x1,oy+y1);ctx.bezierCurveTo(ox+x1+d,oy+y1,ox+x2-d,oy+y2,ox+x2,oy+y2);ctx.stroke();}
 
-  // Draw edges — highlight ECN affected
+  // Draw edges — light gray
   edges.forEach(e=>{
     const x1=e.from.x+e.from.w,y1=e.from.y,x2=e.to.x,y2=e.to.y;
     const isHi=e.kind==='grp-assy';
-    const ecnEdge=e.to.hasEcn||e.from.hasEcn;
-    ctx.strokeStyle=ecnEdge?'rgba(239,68,68,0.4)':(isHi?'#777':'#aaa');
+    ctx.strokeStyle=e.to.hasEcn?'rgba(239,68,68,0.4)':(isHi?'#777':'#aaa');
     ctx.lineWidth=isHi?2:1.2;
     bezPath(x1,y1,x2,y2);
     ctx.fillStyle=ctx.strokeStyle;
     ctx.beginPath();ctx.arc(ox+x2,oy+y2,2.5,0,Math.PI*2);ctx.fill();
   });
 
-  // Draw nodes — level-based shapes with ECN cascade
+  // Draw nodes — level-based shapes
   const L=LEVELS;
   nodes.forEach(n=>{
     const li=lvl(n.type),lv=L[li]||L[7];
@@ -911,12 +899,12 @@ function exportGraphImage(){
     ctx.fillStyle=lv.fill;ctx.strokeStyle=ecnStroke;ctx.lineWidth=n.hasEcn?2.5:1.5;
     canvasShape(ctx,lv.shape,cx,cy,hW,hH);
 
-    // ECN dot
     if(n.hasEcn){ctx.fillStyle=LC.ecn;ctx.beginPath();ctx.arc(ox+n.x+12,cy-hH+10,4,0,Math.PI*2);ctx.fill();}
 
-    // Disposition marker on export (works for all node types)
-    const dp=n.disp?DISP_PRINT[n.disp]:null;
-    if(dp&&n.hasEcn){ctx.font='14px sans-serif';ctx.fillText(dp.icon,ox+n.x+n.w+4,cy+5);}
+    // Disposition marker on export
+    const disp=n.disp||(n.hasEcn?null:null);
+    const dp=disp?DISP_PRINT[disp]:null;
+    if(dp){ctx.font='14px sans-serif';ctx.fillText(dp.icon,ox+n.x+n.w+4,cy+5);}
 
     if(n.type==='part'){
       ctx.fillStyle=lv.text;ctx.font='600 9.5px monospace';ctx.textAlign='center';ctx.fillText(clip(n.name||n.pn,16),cx,cy+3);
@@ -1025,8 +1013,7 @@ function initGV(){
   });
   const stopDrag=()=>{
     if(nodeDragging){nodeDragging=null;wrap.classList.remove('dragging');return;}
-    if(dragging&&!S.gvLocked)saveGvLayout();// Only auto-save when unlocked
-    dragging=false;wrap.classList.remove('dragging');
+    if(dragging)saveGvLayout();dragging=false;wrap.classList.remove('dragging');
   };
   svg.addEventListener('mouseup',stopDrag);
   svg.addEventListener('mouseleave',stopDrag);
@@ -1037,7 +1024,7 @@ function initGV(){
     S.gvZoom=Math.min(3,Math.max(0.1,S.gvZoom+(e.deltaY>0?-0.06:0.06)));
     const c=document.getElementById('gvCanvas');
     if(c)c.setAttribute('transform',`translate(${S.gvPan.x},${S.gvPan.y}) scale(${S.gvZoom})`);
-    if(!S.gvLocked)saveGvLayout();
+    saveGvLayout();
   },{passive:false});
 
   // Column gap sliders (live update) — only when unlocked
@@ -1261,15 +1248,14 @@ function renderEditor(){
             <span style="color:var(--muted);font-size:13px">${gSteps.length}</span>
             ${!isFrozen?`<button style="background:none;border:none;color:#22c55e;cursor:pointer;font-size:16px;padding:0 4px" data-action="addStep" data-gid="${g.id}" onclick="event.stopPropagation()">+</button>`:''}
           </div>
-          ${gSteps.map(s=>{const isSel=sel===s.id;const ecnRecs=DB.ecnChanges[S.teAssy]||[];const hasEcn=(s.ecn_status&&s.ecn_status!=='')||ecnRecs.some(c=>c.step_id===s.id);const stepEcnRec=ecnRecs.find(c=>c.step_id===s.id);const stepDisp=stepEcnRec?.disposition;const dInfo=stepDisp?ECN_DISPOSITIONS[stepDisp]:null;
-            return `<div class="te-step ${isSel?'sel':''}" data-action="selStep" data-sid="${s.id}" style="${isSel?'':'border:1px solid transparent'}${hasEcn&&s.ecn_status==='changed'?';border-left:3px solid #ef4444':''}">
+          ${gSteps.map(s=>{const isSel=sel===s.id;const hasEcn=s.ecn_status&&s.ecn_status!=='';
+            return `<div class="te-step ${isSel?'sel':''}" data-action="selStep" data-sid="${s.id}" style="${isSel?'':'border:1px solid transparent'}">
               ${hasEcn?`<span style="font-size:11px">${s.ecn_status==='changed'?'🔴':s.ecn_status==='pending'?'🟡':'🟢'}</span>`:''}
               <span style="font-weight:700;color:${g.color||'#666'};min-width:30px;text-align:center;font-size:13px;background:${g.color||'#666'}15;padding:3px 8px;border-radius:5px" class="mono">${s.seq_tag||'—'}</span>
               <span style="font-size:11px;font-weight:600;padding:2px 8px;border-radius:4px;color:${s.type==='PREP'?'#a855f7':s.type==='CHECK'?'#ec4899':'#22c55e'};background:${s.type==='PREP'?'rgba(168,85,247,0.1)':s.type==='CHECK'?'rgba(236,72,153,0.1)':'rgba(34,197,94,0.1)'}">${s.type||'STEP'}</span>
               <span style="flex:1;color:${s.label?'var(--text)':'var(--dim)'};font-size:14px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${s.label||s.pn||'untitled'}</span>
-              ${partsForStep(tree,s.id).length?`<span style="font-size:11px;color:${hasEcn?'#ef4444':'#22c55e'};font-weight:600" class="mono">${hasEcn?'🔴':''}${partsForStep(tree,s.id).length}P</span>`:''}
-              ${fastenersForStep(tree,s.id).length?`<span style="font-size:11px;color:${hasEcn?'#ef4444':'var(--red)'};font-weight:600" class="mono">${hasEcn?'🔴':''}${fastenersForStep(tree,s.id).length}F</span>`:''}
-              ${dInfo?`<span style="font-size:8px;font-weight:700;padding:1px 4px;border-radius:3px;background:${dInfo.bg};color:${dInfo.color}">${dInfo.icon}</span>`:''}
+              ${partsForStep(tree,s.id).length?`<span style="font-size:11px;color:#22c55e;font-weight:600" class="mono">${partsForStep(tree,s.id).length}P</span>`:''}
+              ${fastenersForStep(tree,s.id).length?`<span style="font-size:11px;color:#ef4444;font-weight:600" class="mono">${fastenersForStep(tree,s.id).length}F</span>`:''}
             </div>`;}).join('')}
         </div>`;}).join('')}
         ${!isFrozen?`<button class="btn-sm" style="width:100%;margin-top:8px;padding:10px;background:rgba(99,102,241,0.12);color:#6366f1;border:none;font-size:12px" data-action="addGroup">+ Add Group</button>`:''}
@@ -1481,9 +1467,9 @@ function attachEvents(){
       // Graph export
       else if(a==='gvExport'){exportGraphImage();}
       // Graph view controls
-      else if(a==='gvZoomIn'){S.gvZoom=Math.min(3,S.gvZoom+0.12);const c=document.getElementById('gvCanvas');if(c)c.setAttribute('transform',`translate(${S.gvPan.x},${S.gvPan.y}) scale(${S.gvZoom}`);if(!S.gvLocked)saveGvLayout();}
-      else if(a==='gvZoomOut'){S.gvZoom=Math.max(0.1,S.gvZoom-0.12);const c=document.getElementById('gvCanvas');if(c)c.setAttribute('transform',`translate(${S.gvPan.x},${S.gvPan.y}) scale(${S.gvZoom}`);if(!S.gvLocked)saveGvLayout();}
-      else if(a==='gvReset'){S.gvZoom=0.65;S.gvPan={x:10,y:0};S.gvTValues={};if(!S.gvLocked){S.gvYOffsets={};saveGvLayout();}render();setTimeout(initGV,50);}
+      else if(a==='gvZoomIn'){S.gvZoom=Math.min(3,S.gvZoom+0.12);const c=document.getElementById('gvCanvas');if(c)c.setAttribute('transform',`translate(${S.gvPan.x},${S.gvPan.y}) scale(${S.gvZoom}`);saveGvLayout();}
+      else if(a==='gvZoomOut'){S.gvZoom=Math.max(0.1,S.gvZoom-0.12);const c=document.getElementById('gvCanvas');if(c)c.setAttribute('transform',`translate(${S.gvPan.x},${S.gvPan.y}) scale(${S.gvZoom}`);saveGvLayout();}
+      else if(a==='gvReset'){S.gvZoom=0.65;S.gvPan={x:10,y:0};S.gvTValues={};if(!S.gvLocked)S.gvYOffsets={};render();setTimeout(initGV,50);saveGvLayout();}
       else if(a==='gvTogglePanel'){S.gvPanelOpen=!S.gvPanelOpen;render();setTimeout(initGV,50);}
       else if(a==='gvResetGaps'){if(S.gvLocked){toast('🔒 Unlock first',true);return;}S.gvGaps={partsToSteps:150,stepsToGroups:160,groupsToAssy:140};render();setTimeout(initGV,50);}
       // Lock/unlock positions (admin only — requires name)
@@ -1570,7 +1556,7 @@ function attachEvents(){
         }catch(err){toast('❌ '+err.message,true);}
       }
       else if(a==='setProduction'){
-        try{toast('🏭 Updating all units...');await DB.updateAssemblyVersion(S.teAssy,S.teVer);toast(`🏭 v${S.teVer} is now production — all older units marked outdated`);render();}catch(err){toast('❌ '+err.message,true);}
+        try{await DB.updateAssemblyVersion(S.teAssy,S.teVer);toast(`🏭 v${S.teVer} is now production`);render();}catch(err){toast('❌ '+err.message,true);}
       }
       else if(a==='freezeVer'){
         const exists=S.teVersions.some(v=>v.version===S.teVer);

@@ -76,7 +76,7 @@ input[type=number]::-webkit-inner-spin-button,input[type=number]::-webkit-outer-
 .gv-header{position:absolute;top:8px;left:8px;z-index:20;display:flex;gap:4px;align-items:center}
 .gv-btn{background:rgba(255,255,255,0.95);border:1px solid #ddd;border-radius:5px;color:#666;width:26px;height:26px;cursor:pointer;font-size:13px;font-family:'JetBrains Mono',monospace;display:flex;align-items:center;justify-content:center}
 .gv-btn:hover{color:#7b1fa2;border-color:#7b1fa2}
-.gv-panel{position:absolute;top:38px;right:8px;z-index:20;padding:12px 14px;border-radius:10px;background:rgba(255,255,255,0.96);border:1px solid #ddd;width:310px;max-height:calc(100vh - 200px);overflow-y:auto;backdrop-filter:blur(10px);font-family:'JetBrains Mono',monospace;box-shadow:0 2px 12px rgba(0,0,0,0.08)}
+.gv-panel{position:absolute;top:38px;right:8px;z-index:20;padding:12px 14px;border-radius:10px;background:rgba(255,255,255,0.96);border:1px solid #ddd;width:250px;backdrop-filter:blur(10px);font-family:'JetBrains Mono',monospace;box-shadow:0 2px 12px rgba(0,0,0,0.08)}
 .gv-panel label{display:flex;justify-content:space-between;align-items:center;margin-bottom:4px;font-size:9px;color:#888}
 .gv-panel label .val{font-size:10px;font-weight:700;color:#7b1fa2;background:rgba(123,31,162,0.08);padding:1px 6px;border-radius:4px}
 .gv-panel input[type=range]{-webkit-appearance:none;appearance:none;width:100%;height:4px;border-radius:2px;background:#ddd;outline:none;cursor:pointer;margin-bottom:10px}
@@ -403,7 +403,6 @@ const S = {
   gvZoom:0.65, gvPan:{x:10,y:0}, gvTValues:{}, gvPanelOpen:false,
   gvGaps:{partsToSteps:150,stepsToGroups:160,groupsToAssy:140},
   gvLocked:true, gvEcnView:false, gvYOffsets:{},
-  gvShapes:{assy:'octagon',group:'ellipse',step:'diamond',part:'hexagon'},
   // Tree editor
   teAssy:null, teVer:null, teSel:null, teSelGroup:null,
   teVersions:[], teFrozen:false,
@@ -725,9 +724,8 @@ function gvBuildSvg(tree,assy,ecnRecords,G,forExport){
 
     // Wrap in g for dragging
     svgN+=`<g data-role="gvNode" data-nid="${n.id}" style="cursor:${S.gvLocked?'default':'ns-resize'}">`;
-    // Shape — use customizable shape from settings
-    const shapeType=S.gvShapes[n.type]||lv.shape;
-    svgN+=svgShape(shapeType,cx,cy,hW,hH,lv.fill,ecnStroke,n.hasEcn?2.5:1.5);
+    // Shape
+    svgN+=svgShape(lv.shape,cx,cy,hW,hH,lv.fill,ecnStroke,n.hasEcn?2.5:1.5);
 
     // ECN indicator dot
     if(n.hasEcn)svgN+=`<circle cx="${n.x+12}" cy="${cy-hH+10}" r="4.5" fill="${LC.ecn}"/>`;
@@ -738,27 +736,29 @@ function gvBuildSvg(tree,assy,ecnRecords,G,forExport){
     }
 
     if(n.type==='part'){
-      svgN+=`<text x="${cx}" y="${cy}" fill="${lv.text}" font-size="9.5" font-weight="600" text-anchor="middle" dominant-baseline="central" font-family="${mono}">${clip(n.name||n.pn,16)}</text>`;
+      svgN+=`<text x="${cx}" y="${cy+1}" fill="${lv.text}" font-size="9.5" font-weight="600" text-anchor="middle" font-family="${mono}">${clip(n.name||n.pn,16)}</text>`;
       if(n.qty>1)svgN+=`<text x="${cx+hW-8}" y="${cy+hH-4}" fill="${lv.stroke}" font-size="7" font-weight="700" text-anchor="end" font-family="${mono}">×${n.qty}</text>`;
     }
     else if(n.type==='step'){
       if(n.seq&&n.seq!=='—')svgN+=`<text x="${n.x+n.w-6}" y="${cy-hH-4}" fill="${LC.seqText}" font-size="14" font-weight="900" text-anchor="end" font-family="${sans}">${n.seq}</text>`;
-      // Centered two-line text
+      const tx=n.hasEcn?n.x+26:n.x+14;
       if(n.isSingle&&n.inlineName){
-        svgN+=`<text x="${cx}" y="${cy-6}" fill="${lv.text}" font-size="13" font-weight="700" text-anchor="middle" dominant-baseline="central" font-family="${sans}">${clip(n.inlineName,20)}</text>`;
-        svgN+=`<text x="${cx}" y="${cy+9}" fill="${LC.dim}" font-size="8.5" text-anchor="middle" dominant-baseline="central" font-family="${mono}">${n.inlinePn}</text>`;
+        svgN+=`<text x="${tx}" y="${cy-2}" fill="${lv.text}" font-size="13" font-weight="700" font-family="${sans}">${clip(n.inlineName,22)}</text>`;
+        svgN+=`<text x="${tx}" y="${cy+12}" fill="${LC.dim}" font-size="8.5" font-family="${mono}">${n.inlinePn}</text>`;
       }else{
-        svgN+=`<text x="${cx}" y="${cy-6}" fill="${lv.text}" font-size="13" font-weight="700" text-anchor="middle" dominant-baseline="central" font-family="${sans}">${clip(n.name,20)}</text>`;
-        svgN+=`<text x="${cx}" y="${cy+9}" fill="${LC.dim}" font-size="8" font-weight="600" text-anchor="middle" dominant-baseline="central" font-family="${mono}">${n.stepType}</text>`;
+        svgN+=`<text x="${tx}" y="${cy-2}" fill="${lv.text}" font-size="13" font-weight="700" font-family="${sans}">${clip(n.name,20)}</text>`;
+        svgN+=`<text x="${tx}" y="${cy+12}" fill="${LC.dim}" font-size="8" font-weight="600" font-family="${mono}">${n.stepType}</text>`;
       }
     }
     else if(n.type==='group'){
-      svgN+=`<text x="${cx}" y="${cy-6}" fill="${lv.text}" font-size="13" font-weight="700" text-anchor="middle" dominant-baseline="central" font-family="${sans}">${n.icon} ${n.label}</text>`;
-      svgN+=`<text x="${cx}" y="${cy+9}" fill="${LC.dim}" font-size="8.5" font-weight="600" text-anchor="middle" dominant-baseline="central" font-family="${mono}">完了 · ${n.stepCount} steps</text>`;
+      svgN+=`<text x="${cx-hW+16}" y="${cy+2}" font-size="15">${n.icon}</text>`;
+      svgN+=`<text x="${cx-hW+36}" y="${cy-5}" fill="${lv.text}" font-size="13" font-weight="700" font-family="${sans}">${n.label}</text>`;
+      svgN+=`<text x="${cx-hW+36}" y="${cy+10}" fill="${LC.dim}" font-size="8.5" font-weight="600" font-family="${mono}">完了 · ${n.stepCount} steps</text>`;
     }
     else if(n.type==='assy'){
-      svgN+=`<text x="${cx}" y="${cy-6}" fill="${lv.text}" font-size="14" font-weight="800" text-anchor="middle" dominant-baseline="central" font-family="${sans}">${assy.name||assy.tag}</text>`;
-      svgN+=`<text x="${cx}" y="${cy+10}" fill="${lv.stroke}" font-size="9" font-weight="700" text-anchor="middle" dominant-baseline="central" opacity="0.6" font-family="${mono}">v${assy.version||'?'}</text>`;
+      svgN+=`<circle cx="${cx-hW+18}" cy="${cy}" r="5" fill="${lv.stroke}" opacity="0.4"/>`;
+      svgN+=`<text x="${cx+6}" y="${cy-3}" fill="${lv.text}" font-size="14" font-weight="800" text-anchor="middle" font-family="${sans}">${assy.name||assy.tag}</text>`;
+      svgN+=`<text x="${cx+6}" y="${cy+13}" fill="${lv.stroke}" font-size="9" font-weight="700" text-anchor="middle" opacity="0.6" font-family="${mono}">v${assy.version||'?'}</text>`;
     }
     svgN+=`</g>`;
   });
@@ -822,15 +822,6 @@ function renderGraphView(tree, assy, ecnRecords, unit) {
       <label><span>⬮→⯃ Groups ↔ Assembly</span><span class="val">${G.groupsToAssy}px</span></label>
       <input type="range" min="60" max="400" value="${G.groupsToAssy}" data-role="gvGap" data-key="groupsToAssy">
       <button class="btn-sm" style="width:100%;margin-top:4px;text-align:center;color:#7b1fa2;border-color:rgba(123,31,162,0.2);background:rgba(123,31,162,0.05)" data-action="gvResetGaps">Reset Spacing</button>
-      <div style="border-top:1px solid #e0e0e0;margin-top:8px;padding-top:8px">
-        <label style="margin-bottom:6px"><span style="font-weight:700;color:#555">🔷 Node Shapes</span></label>
-        ${['assy','group','step','part'].map(tp=>{
-          const lb={assy:'L1 Assy',group:'L2 Group',step:'L3 Step',part:'L4 Part'};
-          const shs=['octagon','ellipse','diamond','hexagon','pentagon','stadium','rounded_rectangle'];
-          return '<div style="display:flex;align-items:center;gap:3px;margin-bottom:3px;flex-wrap:wrap"><span style="font-size:7px;font-weight:700;color:#888;min-width:46px">'+lb[tp]+'</span>'+shs.map(sh=>'<button class="btn-sm" style="padding:1px 4px;font-size:6px;'+(S.gvShapes[tp]===sh?'color:#1b5e20;border-color:#1b5e20;background:rgba(27,94,32,0.06)':'')+'" data-action="gvSetShape" data-stype="'+tp+'" data-shape="'+sh+'">'+sh.replace('rounded_rectangle','rect').slice(0,5)+'</button>').join('')+'</div>';
-        }).join('')}
-        <button class="btn-sm" style="width:100%;margin-top:4px;text-align:center;color:#e65100;border-color:rgba(230,81,0,0.2);background:rgba(230,81,0,0.05)" data-action="gvResetShapes">Reset Shapes</button>
-      </div>
     </div>`:''}
     <svg id="gvSvg" width="100%" height="100%" style="position:absolute;top:0;left:0">
       <g id="gvCanvas" transform="translate(${px},${py}) scale(${z})">
@@ -857,7 +848,7 @@ function saveGvLayout(){
   clearTimeout(_gvSaveTimer);
   _gvSaveTimer=setTimeout(()=>{
     if(!S.assy)return;
-    const data={zoom:S.gvZoom,panX:S.gvPan.x,panY:S.gvPan.y,tVals:S.gvTValues,gaps:{...S.gvGaps},yOffsets:{...S.gvYOffsets},shapes:{...S.gvShapes}};
+    const data={zoom:S.gvZoom,panX:S.gvPan.x,panY:S.gvPan.y,tVals:S.gvTValues,gaps:{...S.gvGaps},yOffsets:{...S.gvYOffsets}};
     DB.saveGraphLayout(S.assy.id,S.assy.version,data);
   },1500);
 }
@@ -916,10 +907,9 @@ function exportGraphImage(){
     const li=lvl(n.type),lv=L[li]||L[7];
     const cx=ox+n.x+n.w/2,cy=oy+n.y,hW=n.w/2,hH=n.h/2;
     const ecnStroke=n.hasEcn?LC.ecn:lv.stroke;
-    const shapeType=S.gvShapes[n.type]||lv.shape;
 
     ctx.fillStyle=lv.fill;ctx.strokeStyle=ecnStroke;ctx.lineWidth=n.hasEcn?2.5:1.5;
-    canvasShape(ctx,shapeType,cx,cy,hW,hH);
+    canvasShape(ctx,lv.shape,cx,cy,hW,hH);
 
     // ECN dot
     if(n.hasEcn){ctx.fillStyle=LC.ecn;ctx.beginPath();ctx.arc(ox+n.x+12,cy-hH+10,4,0,Math.PI*2);ctx.fill();}
@@ -929,35 +919,32 @@ function exportGraphImage(){
     if(dp&&n.hasEcn){ctx.font='14px sans-serif';ctx.fillText(dp.icon,ox+n.x+n.w+4,cy+5);}
 
     if(n.type==='part'){
-      ctx.fillStyle=lv.text;ctx.font='600 9.5px monospace';ctx.textAlign='center';ctx.textBaseline='middle';ctx.fillText(clip(n.name||n.pn,16),cx,cy);
-      if(n.qty>1){ctx.fillStyle=lv.stroke;ctx.font='700 7px monospace';ctx.textAlign='end';ctx.textBaseline='alphabetic';ctx.fillText('×'+n.qty,cx+hW-8,cy+hH-4);}
-      ctx.textAlign='left';ctx.textBaseline='alphabetic';
+      ctx.fillStyle=lv.text;ctx.font='600 9.5px monospace';ctx.textAlign='center';ctx.fillText(clip(n.name||n.pn,16),cx,cy+3);
+      if(n.qty>1){ctx.fillStyle=lv.stroke;ctx.font='700 7px monospace';ctx.textAlign='end';ctx.fillText('×'+n.qty,cx+hW-8,cy+hH-4);}
+      ctx.textAlign='left';
     }
     else if(n.type==='step'){
       // Seq tag — bold text above shape
       if(n.seq&&n.seq!=='—'){ctx.fillStyle='#333';ctx.font='900 14px sans-serif';ctx.textAlign='end';ctx.fillText(n.seq,ox+n.x+n.w-6,cy-hH-4);ctx.textAlign='left';}
-      // Centered two-line text
-      ctx.textAlign='center';ctx.textBaseline='middle';
+      const tx=ox+(n.hasEcn?n.x+26:n.x+14);
       if(n.isSingle&&n.inlineName){
-        ctx.fillStyle=lv.text;ctx.font='700 13px sans-serif';ctx.fillText(clip(n.inlineName,20),cx,cy-6);
-        ctx.fillStyle='#999';ctx.font='400 8.5px monospace';ctx.fillText(n.inlinePn,cx,cy+9);
+        ctx.fillStyle=lv.text;ctx.font='700 13px sans-serif';ctx.fillText(clip(n.inlineName,22),tx,cy-2);
+        ctx.fillStyle='#999';ctx.font='400 8.5px monospace';ctx.fillText(n.inlinePn,tx,cy+12);
       }else{
-        ctx.fillStyle=lv.text;ctx.font='700 13px sans-serif';ctx.fillText(clip(n.name,20),cx,cy-6);
-        ctx.fillStyle='#999';ctx.font='600 8px monospace';ctx.fillText(n.stepType,cx,cy+9);
+        ctx.fillStyle=lv.text;ctx.font='700 13px sans-serif';ctx.fillText(clip(n.name,20),tx,cy-2);
+        ctx.fillStyle='#999';ctx.font='600 8px monospace';ctx.fillText(n.stepType,tx,cy+12);
       }
-      ctx.textAlign='left';ctx.textBaseline='alphabetic';
     }
     else if(n.type==='group'){
-      ctx.textAlign='center';ctx.textBaseline='middle';
-      ctx.fillStyle=lv.text;ctx.font='700 13px sans-serif';ctx.fillText(n.icon+' '+n.label,cx,cy-6);
-      ctx.fillStyle='#999';ctx.font='600 8.5px monospace';ctx.fillText('完了 · '+n.stepCount+' steps',cx,cy+9);
-      ctx.textAlign='left';ctx.textBaseline='alphabetic';
+      ctx.font='15px sans-serif';ctx.fillText(n.icon,cx-hW+16,cy+5);
+      ctx.fillStyle=lv.text;ctx.font='700 13px sans-serif';ctx.fillText(n.label,cx-hW+36,cy-4);
+      ctx.fillStyle='#999';ctx.font='600 8.5px monospace';ctx.fillText('完了 · '+n.stepCount+' steps',cx-hW+36,cy+10);
     }
     else if(n.type==='assy'){
-      ctx.textAlign='center';ctx.textBaseline='middle';
-      ctx.fillStyle=lv.text;ctx.font='800 14px sans-serif';ctx.fillText(S.assy.name||S.assy.tag,cx,cy-6);
-      ctx.fillStyle=lv.stroke;ctx.font='700 9px monospace';ctx.globalAlpha=0.6;ctx.fillText('v'+(S.assy.version||'?'),cx,cy+10);ctx.globalAlpha=1;
-      ctx.textAlign='left';ctx.textBaseline='alphabetic';
+      ctx.fillStyle=lv.stroke;ctx.globalAlpha=0.4;ctx.beginPath();ctx.arc(cx-hW+18,cy,5,0,Math.PI*2);ctx.fill();ctx.globalAlpha=1;
+      ctx.fillStyle=lv.text;ctx.font='800 14px sans-serif';ctx.textAlign='center';ctx.fillText(S.assy.name||S.assy.tag,cx+6,cy-2);
+      ctx.fillStyle=lv.stroke;ctx.font='700 9px monospace';ctx.globalAlpha=0.6;ctx.fillText('v'+(S.assy.version||'?'),cx+6,cy+14);ctx.globalAlpha=1;
+      ctx.textAlign='left';
     }
   });
 
@@ -1487,7 +1474,6 @@ function attachEvents(){
             if(layout.tVals)S.gvTValues=layout.tVals;
             if(layout.gaps)S.gvGaps=layout.gaps;
             if(layout.yOffsets)S.gvYOffsets=layout.yOffsets;
-            if(layout.shapes)S.gvShapes={...S.gvShapes,...layout.shapes};
           }
           render();setTimeout(initGV,50);
         }else{render();}
@@ -1500,8 +1486,6 @@ function attachEvents(){
       else if(a==='gvReset'){S.gvZoom=0.65;S.gvPan={x:10,y:0};S.gvTValues={};if(!S.gvLocked){S.gvYOffsets={};saveGvLayout();}render();setTimeout(initGV,50);}
       else if(a==='gvTogglePanel'){S.gvPanelOpen=!S.gvPanelOpen;render();setTimeout(initGV,50);}
       else if(a==='gvResetGaps'){if(S.gvLocked){toast('🔒 Unlock first',true);return;}S.gvGaps={partsToSteps:150,stepsToGroups:160,groupsToAssy:140};render();setTimeout(initGV,50);}
-      else if(a==='gvSetShape'){if(S.gvLocked){toast('🔒 Unlock first',true);return;}const tp=el.dataset.stype,sh=el.dataset.shape;if(tp&&sh){S.gvShapes[tp]=sh;render();setTimeout(initGV,50);}}
-      else if(a==='gvResetShapes'){if(S.gvLocked){toast('🔒 Unlock first',true);return;}S.gvShapes={assy:'octagon',group:'ellipse',step:'diamond',part:'hexagon'};render();setTimeout(initGV,50);}
       // Lock/unlock positions (admin only — requires name)
       else if(a==='gvToggleLock'){
         if(S.gvLocked){const name=prompt('🔒 Admin unlock required.\\nEnter your name:');if(!name||name.trim().toLowerCase()!=='aniket'){toast('❌ Unauthorized',true);return;}S.gvLocked=false;toast('🔓 Unlocked — drag nodes, adjust gaps, then Save');}

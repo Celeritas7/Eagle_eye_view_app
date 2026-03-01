@@ -235,42 +235,6 @@ const DB = {
 
   invalidateTree(aid){delete this.tree[`${aid}`];},
 
-  // --- GRAPH LAYOUT PERSISTENCE ---
-  graphLayouts:{},
-  async loadGraphLayout(assemblyId, version){
-    const key=`${assemblyId}-${version}`;
-    if(this.graphLayouts[key])return this.graphLayouts[key];
-    try{
-      const rows=await sbGet('eagle_eye_app_graph_layouts',`assembly_id=eq.${assemblyId}&version=eq.${encodeURIComponent(version)}`);
-      if(rows.length>0){
-        this.graphLayouts[key]=JSON.parse(rows[0].layout_data||'{}');
-        this.graphLayouts[key]._id=rows[0].id;
-        return this.graphLayouts[key];
-      }
-    }catch(e){console.warn('Graph layout load:',e);}
-    return null;
-  },
-  async saveGraphLayout(assemblyId, version, data){
-    const key=`${assemblyId}-${version}`;
-    const existing=this.graphLayouts[key];
-    const json=JSON.stringify(data);
-    try{
-      if(existing&&existing._id){
-        await sbPatch('eagle_eye_app_graph_layouts',`id=eq.${existing._id}`,{layout_data:json,updated_at:new Date().toISOString()});
-      }else{
-        const rows=await sbGet('eagle_eye_app_graph_layouts',`assembly_id=eq.${assemblyId}&version=eq.${encodeURIComponent(version)}`);
-        if(rows.length>0){
-          await sbPatch('eagle_eye_app_graph_layouts',`id=eq.${rows[0].id}`,{layout_data:json,updated_at:new Date().toISOString()});
-          data._id=rows[0].id;
-        }else{
-          const[r]=await sbPost('eagle_eye_app_graph_layouts',[{assembly_id:assemblyId,version,layout_data:json,updated_by:'Aniket'}]);
-          data._id=r.id;
-        }
-      }
-      this.graphLayouts[key]=data;
-    }catch(e){console.warn('Graph layout save:',e);}
-  },
-
   async loadEcnChanges(aid){
     if(this.ecnChanges[aid])return this.ecnChanges[aid];
     try{
@@ -753,7 +717,6 @@ function renderGraphView(tree, assy, ecnRecords, unit) {
       <button class="gv-btn" data-action="gvZoomIn">+</button>
       <button class="gv-btn" style="width:auto;padding:0 8px;font-size:9px" data-action="gvReset">Reset</button>
       <button class="gv-btn" style="width:auto;padding:0 8px;font-size:10px;${S.gvPanelOpen?'color:var(--accent);border-color:var(--accent)':''}" data-action="gvTogglePanel">⇔</button>
-      <button class="gv-btn" style="width:auto;padding:0 8px;font-size:9px;margin-left:4px" data-action="gvExport">📷 Export</button>
     </div>
     ${S.gvPanelOpen?`<div class="gv-panel">
       <label><span>⬡→▣ Parts ↔ Steps</span><span class="val">${G.partsToSteps}px</span></label>
@@ -770,7 +733,7 @@ function renderGraphView(tree, assy, ecnRecords, unit) {
         ${svgEdges}${svgNodes}${svgLabels}
       </g>
     </svg>
-    <div class="gv-footer">Scroll to zoom · Drag to pan · ↔ Slide labels · 📷 Export · Layout auto-saves to DB · ${partCount} parts · ${stepCount} steps</div>
+    <div class="gv-footer">Scroll to zoom · Drag to pan · ↔ Slide labels along arrows · ${partCount} parts · ${stepCount} steps</div>
     <div class="gv-legend">
       <span><i style="background:#2563eb"></i>Part</span><span><i style="background:#7c3aed"></i>Step</span>
       <span><i style="background:#d97706"></i>Prep</span><span><i style="background:#16a34a"></i>Kanryo</span>
@@ -778,83 +741,6 @@ function renderGraphView(tree, assy, ecnRecords, unit) {
       <span><i style="background:#a78bfa"></i>Loctite</span><span><i style="background:#22c55e"></i>Torque</span>
     </div>
   </div>`;
-}
-
-// --- GRAPH LAYOUT AUTO-SAVE ---
-let _gvSaveTimer=null;
-function saveGvLayout(){
-  clearTimeout(_gvSaveTimer);
-  _gvSaveTimer=setTimeout(()=>{
-    if(!S.assy)return;
-    const data={zoom:S.gvZoom,panX:S.gvPan.x,panY:S.gvPan.y,tVals:S.gvTValues,gaps:{...S.gvGaps}};
-    DB.saveGraphLayout(S.assy.id,S.assy.version,data);
-  },1500);
-}
-
-// --- GRAPH EXPORT ---
-function exportGraphImage(){
-  const svg=document.getElementById('gvSvg');
-  if(!svg)return;
-  toast('📷 Preparing export...');
-
-  // Get the actual graph bounds from layout
-  const tree=DB.tree[`${S.assy.id}`];
-  const ecnRecords=DB.ecnChanges[S.assy.id]||[];
-  if(!tree)return;
-
-  // Calculate needed dimensions
-  const G=S.gvGaps;
-  const COL_ASSY=50+140+G.partsToSteps+220+G.stepsToGroups+185+G.groupsToAssy+200;
-  const stepCount=tree.steps.length;
-  const estH=Math.max(800,stepCount*80+200);
-  const W=Math.max(1600,COL_ASSY+300);
-  const H=estH;
-  const scale=0.9;
-
-  // Build a standalone SVG with embedded fonts
-  const fontStyle=`@import url('https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;600;700;800&family=DM+Sans:wght@400;500;600;700&display=swap');`;
-  // Re-render SVG content at a fixed scale
-  const oldZoom=S.gvZoom,oldPan={...S.gvPan};
-  S.gvZoom=scale;S.gvPan={x:40,y:40};
-  const svgInner=renderGvSvgInner(tree,S.assy,ecnRecords);
-  S.gvZoom=oldZoom;S.gvPan=oldPan;
-
-  const svgStr=`<svg xmlns="http://www.w3.org/2000/svg" width="${W}" height="${H}" viewBox="0 0 ${W} ${H}">
-    <defs><style>${fontStyle}</style>
-      <filter id="gvGlow" x="-50%" y="-50%" width="200%" height="200%"><feGaussianBlur in="SourceGraphic" stdDeviation="6" result="b"/><feMerge><feMergeNode in="b"/><feMergeNode in="SourceGraphic"/></feMerge></filter>
-    </defs>
-    <rect width="${W}" height="${H}" fill="#08090d"/>
-    <text x="${W-20}" y="24" fill="#363950" font-size="11" font-weight="700" text-anchor="end" font-family="'JetBrains Mono',monospace">${S.assy.name} · v${S.assy.version} · ${new Date().toLocaleDateString()}</text>
-    ${svgInner.replace(/<defs>.*?<\/defs>/s,'').replace(/<g id="gvCanvas"[^>]*>/,`<g transform="translate(40,40) scale(${scale})">`)}
-  </svg>`;
-
-  // Try PNG export via canvas
-  const svgBlob=new Blob([svgStr],{type:'image/svg+xml;charset=utf-8'});
-  const url=URL.createObjectURL(svgBlob);
-  const img=new Image();
-  img.onload=()=>{
-    const c=document.createElement('canvas');
-    c.width=W;c.height=H;
-    const ctx=c.getContext('2d');
-    ctx.fillStyle='#08090d';ctx.fillRect(0,0,W,H);
-    ctx.drawImage(img,0,0);
-    URL.revokeObjectURL(url);
-    c.toBlob(blob=>{
-      if(blob&&blob.size>5000){
-        const a=document.createElement('a');a.href=URL.createObjectURL(blob);
-        a.download=`${S.assy?.name||'graph'}_v${S.assy?.version||''}_tree.png`;a.click();
-        URL.revokeObjectURL(a.href);toast('✅ Exported as PNG');
-      }else{downloadSvgFallback(svgStr);}
-    },'image/png');
-  };
-  img.onerror=()=>downloadSvgFallback(svgStr);
-  img.src=url;
-}
-function downloadSvgFallback(svgStr){
-  const blob=new Blob([svgStr],{type:'image/svg+xml'});
-  const a=document.createElement('a');a.href=URL.createObjectURL(blob);
-  a.download=`${S.assy?.name||'graph'}_v${S.assy?.version||''}_tree.svg`;a.click();
-  URL.revokeObjectURL(a.href);toast('✅ Exported as SVG (open in browser to print)');
 }
 
 function initGV(){
@@ -876,7 +762,7 @@ function initGV(){
     const c=document.getElementById('gvCanvas');
     if(c)c.setAttribute('transform',`translate(${S.gvPan.x},${S.gvPan.y}) scale(${S.gvZoom})`);
   });
-  const stopDrag=()=>{if(dragging)saveGvLayout();dragging=false;wrap.classList.remove('dragging');};
+  const stopDrag=()=>{dragging=false;wrap.classList.remove('dragging');};
   svg.addEventListener('mouseup',stopDrag);
   svg.addEventListener('mouseleave',stopDrag);
 
@@ -886,7 +772,6 @@ function initGV(){
     S.gvZoom=Math.min(3,Math.max(0.1,S.gvZoom+(e.deltaY>0?-0.06:0.06)));
     const c=document.getElementById('gvCanvas');
     if(c)c.setAttribute('transform',`translate(${S.gvPan.x},${S.gvPan.y}) scale(${S.gvZoom})`);
-    saveGvLayout();
   },{passive:false});
 
   // Column gap sliders (live update)
@@ -894,10 +779,11 @@ function initGV(){
     slider.addEventListener('input',()=>{
       const key=slider.dataset.key;
       S.gvGaps[key]=parseInt(slider.value);
+      // Update displayed value
       const valEl=slider.previousElementSibling?.querySelector('.val');
       if(valEl)valEl.textContent=slider.value+'px';
+      // Re-render SVG only (not the full app)
       reRenderGvSvg();
-      saveGvLayout();
     });
   });
 
@@ -994,7 +880,7 @@ function attachGvLabels(svg){
       ev.stopPropagation();startX=ev.clientX;t0=S.gvTValues[eid]??defT;
       function bezPt(t){const d=Math.abs(x2-x1)*0.42,cx1=x1+d,cy1=y1,cx2=x2-d,cy2=y2,u=1-t;return{x:u*u*u*x1+3*u*u*t*cx1+3*u*t*t*cx2+t*t*t*x2,y:u*u*u*y1+3*u*u*t*cy1+3*u*t*t*cy2+t*t*t*y2};}
       const onMove=e=>{if(startX===null)return;const dx=(e.clientX-startX)/S.gvZoom,dt=dx/Math.abs(x2-x1),newT=Math.max(0.05,Math.min(0.95,t0+dt));S.gvTValues[eid]=newT;const pt=bezPt(newT);el.setAttribute('transform',`translate(${pt.x},${pt.y-10})`);};
-      const onUp=()=>{startX=null;window.removeEventListener('mousemove',onMove);window.removeEventListener('mouseup',onUp);saveGvLayout();};
+      const onUp=()=>{startX=null;window.removeEventListener('mousemove',onMove);window.removeEventListener('mouseup',onUp);};
       window.addEventListener('mousemove',onMove);window.addEventListener('mouseup',onUp);
     });
   });
@@ -1374,29 +1260,13 @@ function attachEvents(){
           render();
         }catch(err){toast('❌ '+err.message,true);}
       }
-      else if(a==='avTab'){
-        S.avTab=el.dataset.tab;
-        if(el.dataset.tab==='graph'){
-          // Load saved layout
-          const assy=S.assy;
-          const layout=await DB.loadGraphLayout(assy.id,assy.version);
-          if(layout){
-            if(layout.zoom!==undefined)S.gvZoom=layout.zoom;
-            if(layout.panX!==undefined)S.gvPan={x:layout.panX,y:layout.panY||0};
-            if(layout.tVals)S.gvTValues=layout.tVals;
-            if(layout.gaps)S.gvGaps=layout.gaps;
-          }
-          render();setTimeout(initGV,50);
-        }else{render();}
-      }
-      // Graph export
-      else if(a==='gvExport'){exportGraphImage();}
+      else if(a==='avTab'){S.avTab=el.dataset.tab;render();if(el.dataset.tab==='graph')setTimeout(initGV,50);}
       // Graph view controls
-      else if(a==='gvZoomIn'){S.gvZoom=Math.min(3,S.gvZoom+0.12);const c=document.getElementById('gvCanvas');if(c)c.setAttribute('transform',`translate(${S.gvPan.x},${S.gvPan.y}) scale(${S.gvZoom}`);saveGvLayout();}
-      else if(a==='gvZoomOut'){S.gvZoom=Math.max(0.1,S.gvZoom-0.12);const c=document.getElementById('gvCanvas');if(c)c.setAttribute('transform',`translate(${S.gvPan.x},${S.gvPan.y}) scale(${S.gvZoom}`);saveGvLayout();}
-      else if(a==='gvReset'){S.gvZoom=0.65;S.gvPan={x:10,y:0};S.gvTValues={};render();setTimeout(initGV,50);saveGvLayout();}
+      else if(a==='gvZoomIn'){S.gvZoom=Math.min(3,S.gvZoom+0.12);const c=document.getElementById('gvCanvas');if(c)c.setAttribute('transform',`translate(${S.gvPan.x},${S.gvPan.y}) scale(${S.gvZoom}`);}
+      else if(a==='gvZoomOut'){S.gvZoom=Math.max(0.1,S.gvZoom-0.12);const c=document.getElementById('gvCanvas');if(c)c.setAttribute('transform',`translate(${S.gvPan.x},${S.gvPan.y}) scale(${S.gvZoom}`);}
+      else if(a==='gvReset'){S.gvZoom=0.65;S.gvPan={x:10,y:0};S.gvTValues={};render();setTimeout(initGV,50);}
       else if(a==='gvTogglePanel'){S.gvPanelOpen=!S.gvPanelOpen;render();setTimeout(initGV,50);}
-      else if(a==='gvResetGaps'){S.gvGaps={partsToSteps:150,stepsToGroups:160,groupsToAssy:140};render();setTimeout(initGV,50);saveGvLayout();}
+      else if(a==='gvResetGaps'){S.gvGaps={partsToSteps:150,stepsToGroups:160,groupsToAssy:140};render();setTimeout(initGV,50);}
       else if(a==='openChange'){S.modal=parseInt(el.dataset.idx);render();}
       else if(a==='closeModal'){S.modal=null;render();}
       else if(a==='toggleApply'){try{await DB.toggleApplied(S.selectedUnits[0].sn,el.dataset.seq,parseInt(el.dataset.sid));S.modal=null;toast('💾 Saved');render();}catch(err){toast('❌ '+err.message,true);}}
@@ -1528,13 +1398,7 @@ function attachEvents(){
     if(r==='teSeqTag') el.oninput=()=>ds(()=>DB.updateStep(parseInt(el.dataset.sid),{seq_tag:el.value}));
     if(r==='teType') el.onchange=()=>ds(()=>DB.updateStep(parseInt(el.dataset.sid),{type:el.value}));
     if(r==='teLabel') el.oninput=()=>ds(()=>DB.updateStep(parseInt(el.dataset.sid),{label:el.value}));
-    if(r==='teStepPn') el.oninput=()=>{
-      const sid=parseInt(el.dataset.sid);
-      // Auto-fill label if it's blank
-      const lblInput=document.querySelector('[data-role="teLabel"][data-sid="'+sid+'"]');
-      if(lblInput&&!lblInput.value.trim()){lblInput.value=el.value;ds(()=>DB.updateStep(sid,{pn:el.value,label:el.value}));}
-      else{ds(()=>DB.updateStep(sid,{pn:el.value}));}
-    };
+    if(r==='teStepPn') el.oninput=()=>ds(()=>DB.updateStep(parseInt(el.dataset.sid),{pn:el.value}));
     if(r==='teSortOrder') el.oninput=()=>ds(()=>DB.updateStep(parseInt(el.dataset.sid),{sort_order:parseInt(el.value)||0}));
     if(r==='teEcnStatus') el.onchange=()=>ds(async()=>{await DB.updateStep(parseInt(el.dataset.sid),{ecn_status:el.value||null});DB.invalidateTree(S.teAssy);await DB.loadTree(S.teAssy);render();});
     // Part fields

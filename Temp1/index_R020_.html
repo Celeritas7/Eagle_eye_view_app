@@ -71,18 +71,18 @@ input[type=number]::-webkit-inner-spin-button,input[type=number]::-webkit-outer-
 .step-row:hover{background:rgba(255,255,255,0.02)}
 
 /* GRAPH VIEW */
-.gv-wrap{position:relative;width:100%;height:calc(100vh - 130px);overflow:hidden;cursor:grab;background:#fafafa}
+.gv-wrap{position:relative;width:100%;height:calc(100vh - 130px);overflow:hidden;cursor:grab;background:var(--bg)}
 .gv-wrap.dragging{cursor:grabbing}
 .gv-header{position:absolute;top:8px;left:8px;z-index:20;display:flex;gap:4px;align-items:center}
-.gv-btn{background:rgba(255,255,255,0.95);border:1px solid #ddd;border-radius:5px;color:#666;width:26px;height:26px;cursor:pointer;font-size:13px;font-family:'JetBrains Mono',monospace;display:flex;align-items:center;justify-content:center}
-.gv-btn:hover{color:#7b1fa2;border-color:#7b1fa2}
-.gv-panel{position:absolute;top:38px;right:8px;z-index:20;padding:12px 14px;border-radius:10px;background:rgba(255,255,255,0.96);border:1px solid #ddd;width:250px;backdrop-filter:blur(10px);font-family:'JetBrains Mono',monospace;box-shadow:0 2px 12px rgba(0,0,0,0.08)}
-.gv-panel label{display:flex;justify-content:space-between;align-items:center;margin-bottom:4px;font-size:9px;color:#888}
-.gv-panel label .val{font-size:10px;font-weight:700;color:#7b1fa2;background:rgba(123,31,162,0.08);padding:1px 6px;border-radius:4px}
-.gv-panel input[type=range]{-webkit-appearance:none;appearance:none;width:100%;height:4px;border-radius:2px;background:#ddd;outline:none;cursor:pointer;margin-bottom:10px}
-.gv-panel input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:14px;height:14px;border-radius:50%;background:#7b1fa2;cursor:pointer}
-.gv-footer{position:absolute;bottom:8px;left:8px;padding:5px 12px;background:rgba(255,255,255,0.9);border:1px solid #ddd;border-radius:6px;font-size:9px;color:#999;font-family:'JetBrains Mono',monospace}
-.gv-legend{position:absolute;bottom:8px;right:8px;display:flex;gap:8px;padding:5px 10px;background:rgba(255,255,255,0.9);border:1px solid #ddd;border-radius:6px;font-size:8px;color:#666;font-family:'JetBrains Mono',monospace;flex-wrap:wrap}
+.gv-btn{background:rgba(14,15,22,0.95);border:1px solid var(--border);border-radius:5px;color:var(--muted);width:26px;height:26px;cursor:pointer;font-size:13px;font-family:'JetBrains Mono',monospace;display:flex;align-items:center;justify-content:center}
+.gv-btn:hover{color:var(--accent)}
+.gv-panel{position:absolute;top:38px;right:8px;z-index:20;padding:12px 14px;border-radius:10px;background:rgba(14,15,22,0.96);border:1px solid var(--border);width:250px;backdrop-filter:blur(10px);font-family:'JetBrains Mono',monospace}
+.gv-panel label{display:flex;justify-content:space-between;align-items:center;margin-bottom:4px;font-size:9px;color:var(--muted)}
+.gv-panel label .val{font-size:10px;font-weight:700;color:var(--accent);background:rgba(245,158,11,0.1);padding:1px 6px;border-radius:4px}
+.gv-panel input[type=range]{-webkit-appearance:none;appearance:none;width:100%;height:4px;border-radius:2px;background:var(--border);outline:none;cursor:pointer;margin-bottom:10px}
+.gv-panel input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:14px;height:14px;border-radius:50%;background:var(--accent);cursor:pointer}
+.gv-footer{position:absolute;bottom:8px;left:8px;padding:5px 12px;background:rgba(14,15,22,0.9);border:1px solid var(--border);border-radius:6px;font-size:9px;color:var(--dim);font-family:'JetBrains Mono',monospace}
+.gv-legend{position:absolute;bottom:8px;right:8px;display:flex;gap:8px;padding:5px 10px;background:rgba(14,15,22,0.9);border:1px solid var(--border);border-radius:6px;font-size:8px;color:var(--muted);font-family:'JetBrains Mono',monospace;flex-wrap:wrap}
 .gv-legend i{width:7px;height:7px;border-radius:2px;display:inline-block;vertical-align:middle;margin-right:3px}
 
 /* TREE EDITOR */
@@ -550,150 +550,165 @@ function renderAssembly(){
 }
 
 // ============================================================
-// GRAPH VIEW — Level-based shapes, print-friendly light theme
+// GRAPH VIEW
 // ============================================================
-const LEVELS=[
-  {shape:'octagon',fill:'#a5d6a7',stroke:'#2e7d32',text:'#1b5e20',name:'L1'},
-  {shape:'ellipse',fill:'#e1bee7',stroke:'#7b1fa2',text:'#4a148c',name:'L2'},
-  {shape:'diamond',fill:'#b3e5fc',stroke:'#0277bd',text:'#01579b',name:'L3'},
-  {shape:'hexagon',fill:'#c8e6c9',stroke:'#388e3c',text:'#1b5e20',name:'L4'},
-  {shape:'pentagon',fill:'#fff9c4',stroke:'#f9a825',text:'#f57f17',name:'L5'},
-  {shape:'parallelogram',fill:'#ffe0b2',stroke:'#e65100',text:'#bf360c',name:'L6'},
-  {shape:'stadium',fill:'#ffcdd2',stroke:'#c62828',text:'#b71c1c',name:'L7'},
-  {shape:'rounded_rectangle',fill:'#e8e8e8',stroke:'#616161',text:'#333',name:'L8+'},
-];
-function lvl(type){return type==='assy'?0:type==='group'?1:type==='step'?2:type==='part'?3:7;}
+function renderGraphView(tree, assy, ecnRecords, unit) {
+  if (!tree || !tree.groups.length) return '<div class="loading-wrap"><div style="color:var(--dim)">No tree data</div></div>';
 
-function svgShape(sh,cx,cy,hW,hH,fill,stroke,sw){
-  switch(sh){
-    case 'octagon':{const c=Math.min(hW,hH)*0.35;return `<polygon points="${cx-hW+c},${cy-hH} ${cx+hW-c},${cy-hH} ${cx+hW},${cy-hH+c} ${cx+hW},${cy+hH-c} ${cx+hW-c},${cy+hH} ${cx-hW+c},${cy+hH} ${cx-hW},${cy+hH-c} ${cx-hW},${cy-hH+c}" fill="${fill}" stroke="${stroke}" stroke-width="${sw}"/>`;}
-    case 'ellipse':return `<ellipse cx="${cx}" cy="${cy}" rx="${hW}" ry="${hH}" fill="${fill}" stroke="${stroke}" stroke-width="${sw}"/>`;
-    case 'diamond':return `<polygon points="${cx},${cy-hH} ${cx+hW},${cy} ${cx},${cy+hH} ${cx-hW},${cy}" fill="${fill}" stroke="${stroke}" stroke-width="${sw}"/>`;
-    case 'hexagon':{const i=hW*0.14;return `<polygon points="${cx-hW+i},${cy-hH} ${cx+hW-i},${cy-hH} ${cx+hW},${cy} ${cx+hW-i},${cy+hH} ${cx-hW+i},${cy+hH} ${cx-hW},${cy}" fill="${fill}" stroke="${stroke}" stroke-width="${sw}"/>`;}
-    case 'pentagon':{const a=(2*Math.PI)/5,sa=-Math.PI/2;const pts=Array.from({length:5},(_,i)=>`${cx+hW*0.85*Math.cos(sa+i*a)},${cy+hH*0.9*Math.sin(sa+i*a)}`).join(' ');return `<polygon points="${pts}" fill="${fill}" stroke="${stroke}" stroke-width="${sw}"/>`;}
-    case 'parallelogram':{const sk=hW*0.12;return `<polygon points="${cx-hW+sk},${cy-hH} ${cx+hW+sk},${cy-hH} ${cx+hW-sk},${cy+hH} ${cx-hW-sk},${cy+hH}" fill="${fill}" stroke="${stroke}" stroke-width="${sw}"/>`;}
-    case 'stadium':return `<rect x="${cx-hW}" y="${cy-hH}" width="${hW*2}" height="${hH*2}" rx="${hH}" fill="${fill}" stroke="${stroke}" stroke-width="${sw}"/>`;
-    case 'rounded_rectangle':return `<rect x="${cx-hW}" y="${cy-hH}" width="${hW*2}" height="${hH*2}" rx="6" fill="${fill}" stroke="${stroke}" stroke-width="${sw}"/>`;
-    default:return `<rect x="${cx-hW}" y="${cy-hH}" width="${hW*2}" height="${hH*2}" fill="${fill}" stroke="${stroke}" stroke-width="${sw}"/>`;
+  const G = S.gvGaps;
+  const STEP_W=220,STEP_H=54,PART_W=140,PART_H=32,GRP_W=185,GRP_H=54,ASSY_W=200,ASSY_H=60,MAX_FAST=2;
+  const COL_CHILD=50, COL_STEP=COL_CHILD+PART_W+G.partsToSteps, COL_GRP=COL_STEP+STEP_W+G.stepsToGroups, COL_ASSY=COL_GRP+GRP_W+G.groupsToAssy;
+
+  // Colors
+  const GC={
+    partFill:'#0c1824',partStroke:'#2563eb',partText:'#7dd3fc',
+    stepFill:'#140c24',stepStroke:'#7c3aed',stepText:'#c4b5fd',
+    prepFill:'#1a1406',prepStroke:'#d97706',prepText:'#fbbf24',
+    checkFill:'#1a0820',checkStroke:'#db2777',checkText:'#f9a8d4',
+    kanryoFill:'#061a12',kanryoStroke:'#16a34a',kanryoText:'#86efac',
+    grpFill:'#0e0f14',assyFill:'#0a1e12',assyStroke:'#22c55e',assyText:'#4ade80',
+    ecnGlow:'#ef4444',cascadeGlow:'#f59e0b',
+    fastName:'#f59e0b',loctite:'#a78bfa',torque:'#22c55e',
+    arrow:'#252838',arrowHi:'#3d4160',seqBg:'#1a1408',seqCol:'#f59e0b',
+    dim:'#363950',dimText:'#4a4e68',labelBg:'rgba(8,9,13,0.8)',labelDot:'#f59e0b',
+  };
+  function sc(type,ecn,casc){
+    let f=GC.stepFill,s=GC.stepStroke,t=GC.stepText;
+    if(type==='PREP'){f=GC.prepFill;s=GC.prepStroke;t=GC.prepText;}
+    if(type==='CHECK'){f=GC.checkFill;s=GC.checkStroke;t=GC.checkText;}
+    if(type==='KANRYO'){f=GC.kanryoFill;s=GC.kanryoStroke;t=GC.kanryoText;}
+    if(ecn)s=GC.ecnGlow; else if(casc)s=GC.cascadeGlow;
+    return{f,s,t};
   }
-}
-
-function canvasShape(ctx,sh,cx,cy,hW,hH){
-  ctx.beginPath();
-  switch(sh){
-    case 'octagon':{const c=Math.min(hW,hH)*0.35;ctx.moveTo(cx-hW+c,cy-hH);ctx.lineTo(cx+hW-c,cy-hH);ctx.lineTo(cx+hW,cy-hH+c);ctx.lineTo(cx+hW,cy+hH-c);ctx.lineTo(cx+hW-c,cy+hH);ctx.lineTo(cx-hW+c,cy+hH);ctx.lineTo(cx-hW,cy+hH-c);ctx.lineTo(cx-hW,cy-hH+c);ctx.closePath();break;}
-    case 'ellipse':ctx.ellipse(cx,cy,hW,hH,0,0,Math.PI*2);break;
-    case 'diamond':ctx.moveTo(cx,cy-hH);ctx.lineTo(cx+hW,cy);ctx.lineTo(cx,cy+hH);ctx.lineTo(cx-hW,cy);ctx.closePath();break;
-    case 'hexagon':{const i=hW*0.14;ctx.moveTo(cx-hW+i,cy-hH);ctx.lineTo(cx+hW-i,cy-hH);ctx.lineTo(cx+hW,cy);ctx.lineTo(cx+hW-i,cy+hH);ctx.lineTo(cx-hW+i,cy+hH);ctx.lineTo(cx-hW,cy);ctx.closePath();break;}
-    case 'pentagon':{const a=(2*Math.PI)/5,sa=-Math.PI/2;for(let i=0;i<5;i++){const px=cx+hW*0.85*Math.cos(sa+i*a),py=cy+hH*0.9*Math.sin(sa+i*a);i===0?ctx.moveTo(px,py):ctx.lineTo(px,py);}ctx.closePath();break;}
-    case 'parallelogram':{const sk=hW*0.12;ctx.moveTo(cx-hW+sk,cy-hH);ctx.lineTo(cx+hW+sk,cy-hH);ctx.lineTo(cx+hW-sk,cy+hH);ctx.lineTo(cx-hW-sk,cy+hH);ctx.closePath();break;}
-    case 'stadium':{const r=Math.min(hH,hW);ctx.moveTo(cx-hW+r,cy-hH);ctx.lineTo(cx+hW-r,cy-hH);ctx.arc(cx+hW-r,cy,hH,-Math.PI/2,Math.PI/2);ctx.lineTo(cx-hW+r,cy+hH);ctx.arc(cx-hW+r,cy,hH,Math.PI/2,3*Math.PI/2);ctx.closePath();break;}
-    case 'rounded_rectangle':{const r=6;ctx.moveTo(cx-hW+r,cy-hH);ctx.lineTo(cx+hW-r,cy-hH);ctx.quadraticCurveTo(cx+hW,cy-hH,cx+hW,cy-hH+r);ctx.lineTo(cx+hW,cy+hH-r);ctx.quadraticCurveTo(cx+hW,cy+hH,cx+hW-r,cy+hH);ctx.lineTo(cx-hW+r,cy+hH);ctx.quadraticCurveTo(cx-hW,cy+hH,cx-hW,cy+hH-r);ctx.lineTo(cx-hW,cy-hH+r);ctx.quadraticCurveTo(cx-hW,cy-hH,cx-hW+r,cy-hH);ctx.closePath();break;}
-    default:ctx.rect(cx-hW,cy-hH,hW*2,hH*2);break;
-  }
-  ctx.fill();ctx.stroke();
-}
-
-// Light-theme color constants
-const LC={edge:'#aaa',edgeHi:'#777',ecn:'#ef4444',fastPN:'#e65100',fastLoc:'#7b1fa2',fastTq:'#1b5e20',dim:'#999',seqText:'#333',guideCol:'#ccc'};
-
-function gvBuildSvg(tree,assy,ecnRecords,G,forExport){
-  const STEP_W=220,STEP_H=54,PART_W=140,PART_H=36,GRP_W=185,GRP_H=54,ASSY_W=200,ASSY_H=60,MAX_FAST=2;
-  const COL_CHILD=50,COL_STEP=COL_CHILD+PART_W+G.partsToSteps,COL_GRP=COL_STEP+STEP_W+G.stepsToGroups,COL_ASSY=COL_GRP+GRP_W+G.groupsToAssy;
   function clip(s,n){return s&&s.length>n?s.slice(0,n-1)+'…':s||'';}
   function bezP(x1,y1,x2,y2){const d=Math.abs(x2-x1)*0.42;return`M${x1},${y1} C${x1+d},${y1} ${x2-d},${y2} ${x2},${y2}`;}
   function bezPt(x1,y1,x2,y2,t){const d=Math.abs(x2-x1)*0.42,cx1=x1+d,cy1=y1,cx2=x2-d,cy2=y2,u=1-t;return{x:u*u*u*x1+3*u*u*t*cx1+3*u*t*t*cx2+t*t*t*x2,y:u*u*u*y1+3*u*u*t*cy1+3*u*t*t*cy2+t*t*t*y2};}
 
-  // Layout pass (unchanged)
-  const nodes=[],edges=[];let y=50;
+  // Layout
+  const nodes=[],edges=[];
+  let y=50;
+
   tree.groups.forEach(g=>{
-    const gy0=y,gSteps=stepsForGroup(tree,g.id),stepNds=[];
+    const gy0=y;
+    const gSteps=stepsForGroup(tree,g.id);
+    const stepNds=[];
+
     gSteps.forEach(step=>{
-      const pts=partsForStep(tree,step.id),fts=fastenersForStep(tree,step.id),np=pts.length;
-      const isSingle=np===1,isMulti=np>1;
+      const pts=partsForStep(tree,step.id);
+      const fts=fastenersForStep(tree,step.id);
+      const np=pts.length;
+      const isSingle=np===1, isMulti=np>1;
       const hasEcn=step.ecn_status==='changed'||ecnRecords.some(c=>c.step_id===step.id);
+      const colors=sc((step.type||'STEP').toUpperCase(),hasEcn,false);
       const childNds=[];
-      if(isMulti){const tCH=np*(PART_H+12)-12;const cy0=y-tCH/2+PART_H/2;pts.forEach((p,pi)=>{const py=cy0+pi*(PART_H+12);const cn={id:'cp-'+step.id+'-'+pi,type:'part',x:COL_CHILD,y:py,w:PART_W,h:PART_H,pn:p.pn||'',name:p.name||p.pn||'Part',qty:p.qty||1};nodes.push(cn);childNds.push(cn);});}
-      const sn={id:'s-'+step.id,type:'step',x:COL_STEP,y,w:STEP_W,h:STEP_H,stepId:step.id,seq:step.seq_tag||'',name:step.label||step.pn||'',stepType:(step.type||'STEP').toUpperCase(),isSingle,isMulti,hasEcn,inlineName:isSingle?(pts[0].name||pts[0].pn||''):'',inlinePn:isSingle?(pts[0].pn||''):'',fts};
+
+      if(isMulti){
+        const totalCH=np*(PART_H+12)-12;
+        const cy0=y-totalCH/2+PART_H/2;
+        pts.forEach((p,pi)=>{
+          const py=cy0+pi*(PART_H+12);
+          const cn={id:'cp-'+step.id+'-'+pi,type:'part',x:COL_CHILD,y:py,w:PART_W,h:PART_H,pn:p.pn||'',name:p.name||p.pn||'Part',qty:p.qty||1};
+          nodes.push(cn);childNds.push(cn);
+        });
+      }
+
+      const sn={id:'s-'+step.id,type:'step',x:COL_STEP,y,w:STEP_W,h:STEP_H,
+        stepId:step.id,seq:step.seq_tag||'',name:step.label||step.pn||'',stepType:(step.type||'STEP').toUpperCase(),
+        colors,isSingle,isMulti,hasEcn,
+        inlinePartName:isSingle?(pts[0].name||pts[0].pn||''):'',
+        inlinePartPn:isSingle?(pts[0].pn||''):'',
+        fts};
       nodes.push(sn);stepNds.push(sn);
-      if(isMulti){childNds.forEach((cn,ci)=>{edges.push({id:'e-cp-'+step.id+'-'+ci,from:cn,to:sn,kind:'part-step',fts:ci===0?fts:[],defT:0.45});});}
-      y+=(isMulti?Math.max(STEP_H,np*(PART_H+12)):STEP_H)+26;
+
+      if(isMulti){
+        childNds.forEach((cn,ci)=>{
+          edges.push({id:'e-cp-'+step.id+'-'+ci,from:cn,to:sn,kind:'part-step',fts:ci===0?fts:[],defT:0.45});
+        });
+      }
+
+      const blockH=isMulti?Math.max(STEP_H,np*(PART_H+12)):STEP_H;
+      y+=blockH+26;
     });
+
     const gmid=(gy0+y-26)/2;
     const gn={id:'g-'+g.id,type:'group',x:COL_GRP,y:gmid,w:GRP_W,h:GRP_H,label:g.label,icon:g.icon||'📦',color:g.color||'#6b7280',stepCount:gSteps.length};
     nodes.push(gn);
-    stepNds.forEach(sn=>{edges.push({id:'e-sg-'+sn.stepId,from:sn,to:gn,kind:'step-grp',fts:sn.isMulti?[]:sn.fts,defT:0.35});});
+
+    stepNds.forEach(sn=>{
+      edges.push({id:'e-sg-'+sn.stepId,from:sn,to:gn,kind:'step-grp',fts:sn.isMulti?[]:sn.fts,defT:0.35});
+    });
     y+=44;
   });
-  const grps=nodes.filter(n=>n.type==='group'),ay=grps.length?grps.reduce((a,n)=>a+n.y,0)/grps.length:200;
-  const an={id:'assy',type:'assy',x:COL_ASSY,y:ay,w:ASSY_W,h:ASSY_H};nodes.push(an);
+
+  const grps=nodes.filter(n=>n.type==='group');
+  const ay=grps.length?grps.reduce((a,n)=>a+n.y,0)/grps.length:200;
+  const an={id:'assy',type:'assy',x:COL_ASSY,y:ay,w:ASSY_W,h:ASSY_H};
+  nodes.push(an);
   grps.forEach(gn=>{edges.push({id:'e-ga-'+gn.id,from:gn,to:an,kind:'grp-assy',fts:[],defT:0.5});});
+
   const totalH=y+80;
   window._gvEdges=edges;
 
-  // Build SVG
-  let svgE='',svgN='',svgL='';
-  const mono="'JetBrains Mono',monospace",sans="'DM Sans',sans-serif";
+  // Build SVG strings
+  let svgEdges='', svgNodes='', svgLabels='';
 
   // Column guides
-  const L=LEVELS;
-  [{x:COL_CHILD,l:'Parts (L4)',c:L[3].stroke},{x:COL_STEP,l:'Steps (L3)',c:L[2].stroke},{x:COL_GRP,l:'Groups (L2)',c:L[1].stroke},{x:COL_ASSY,l:'Assembly (L1)',c:L[0].stroke}].forEach(g=>{
-    svgE+=`<line x1="${g.x}" y1="-20" x2="${g.x}" y2="${totalH}" stroke="${LC.guideCol}" stroke-width="0.5" opacity="0.3" stroke-dasharray="6 4"/>`;
-    svgE+=`<text x="${g.x+4}" y="-8" fill="${g.c}" font-size="8" font-weight="700" opacity="0.5" font-family="${mono}">${g.l}</text>`;
+  [{x:COL_CHILD,l:'Parts',c:GC.partStroke},{x:COL_STEP,l:'Steps',c:GC.stepStroke},{x:COL_GRP,l:'Groups',c:'#6b7280'},{x:COL_ASSY,l:'Assembly',c:GC.assyStroke}].forEach(g=>{
+    svgEdges+=`<line x1="${g.x}" y1="-20" x2="${g.x}" y2="${totalH}" stroke="${g.c}" stroke-width="0.5" opacity="0.08" stroke-dasharray="6 4"/>`;
+    svgEdges+=`<text x="${g.x+4}" y="-8" fill="${g.c}" font-size="8" font-weight="700" opacity="0.2" font-family="'JetBrains Mono',monospace">${g.l}</text>`;
   });
 
   // Edges
   edges.forEach(e=>{
     const x1=e.from.x+e.from.w,y1=e.from.y,x2=e.to.x,y2=e.to.y;
-    const isHi=e.kind==='grp-assy',sw=isHi?2:1.2;
+    const isHi=e.kind==='grp-assy',sw=isHi?2.2:1.2;
     const ecn=e.to.hasEcn;
-    const col=ecn?'rgba(239,68,68,0.35)':(isHi?LC.edgeHi:LC.edge);
-    svgE+=`<path d="${bezP(x1,y1,x2,y2)}" fill="none" stroke="${col}" stroke-width="${sw}"/>`;
-    svgE+=`<circle cx="${x2}" cy="${y2}" r="2.5" fill="${col}"/>`;
+    const col=ecn?(GC.ecnGlow+'40'):(isHi?GC.arrowHi:GC.arrow);
+    svgEdges+=`<path d="${bezP(x1,y1,x2,y2)}" fill="none" stroke="${col}" stroke-width="${sw}"/>`;
+    svgEdges+=`<circle cx="${x2}" cy="${y2}" r="2.8" fill="${col}"/>`;
   });
 
-  // Nodes — level-based shapes
+  // Nodes
   nodes.forEach(n=>{
-    const li=lvl(n.type),lv=L[li]||L[7];
-    const cx=n.x+n.w/2,cy=n.y,hW=n.w/2,hH=n.h/2;
-    const ecnStroke=n.hasEcn?LC.ecn:lv.stroke;
-
-    // Shape
-    svgN+=svgShape(lv.shape,cx,cy,hW,hH,lv.fill,ecnStroke,n.hasEcn?2.5:1.5);
-
-    // ECN indicator dot
-    if(n.hasEcn)svgN+=`<circle cx="${n.x+12}" cy="${cy-hH+10}" r="4.5" fill="${LC.ecn}"/>`;
-
     if(n.type==='part'){
-      svgN+=`<text x="${cx}" y="${cy+1}" fill="${lv.text}" font-size="9.5" font-weight="600" text-anchor="middle" font-family="${mono}">${clip(n.name||n.pn,16)}</text>`;
-      if(n.qty>1)svgN+=`<text x="${cx+hW-8}" y="${cy+hH-4}" fill="${lv.stroke}" font-size="7" font-weight="700" text-anchor="end" font-family="${mono}">×${n.qty}</text>`;
+      const ind=11,pts=`${n.x+ind},${n.y-n.h/2} ${n.x+n.w-ind},${n.y-n.h/2} ${n.x+n.w},${n.y} ${n.x+n.w-ind},${n.y+n.h/2} ${n.x+ind},${n.y+n.h/2} ${n.x},${n.y}`;
+      svgNodes+=`<polygon points="${pts}" fill="${GC.partFill}" stroke="${GC.partStroke}" stroke-width="1.2"/>`;
+      svgNodes+=`<text x="${n.x+n.w/2}" y="${n.y+1}" fill="${GC.partText}" font-size="9" font-weight="600" text-anchor="middle" font-family="'JetBrains Mono',monospace">${clip(n.name||n.pn,17)}</text>`;
+      if(n.qty>1)svgNodes+=`<text x="${n.x+n.w-ind-2}" y="${n.y+n.h/2-3}" fill="${GC.partStroke}" font-size="7" font-weight="700" text-anchor="end" font-family="'JetBrains Mono',monospace">×${n.qty}</text>`;
     }
     else if(n.type==='step'){
-      // Seq tag — bold text above/right of shape
-      if(n.seq&&n.seq!=='—')svgN+=`<text x="${n.x+n.w-6}" y="${cy-hH-4}" fill="${LC.seqText}" font-size="14" font-weight="900" text-anchor="end" font-family="${sans}">${n.seq}</text>`;
-      // Content
-      const tx=n.hasEcn?n.x+26:n.x+14;
-      if(n.isSingle&&n.inlineName){
-        svgN+=`<text x="${tx}" y="${cy-2}" fill="${lv.text}" font-size="13" font-weight="700" font-family="${sans}">${clip(n.inlineName,22)}</text>`;
-        svgN+=`<text x="${tx}" y="${cy+12}" fill="${LC.dim}" font-size="8.5" font-family="${mono}">${n.inlinePn}</text>`;
-      }else{
-        svgN+=`<text x="${tx}" y="${cy-2}" fill="${lv.text}" font-size="13" font-weight="700" font-family="${sans}">${clip(n.name,20)}</text>`;
-        svgN+=`<text x="${tx}" y="${cy+12}" fill="${LC.dim}" font-size="8" font-weight="600" font-family="${mono}">${n.stepType}</text>`;
+      const r=10,c=n.colors,glow=n.hasEcn?GC.ecnGlow:null;
+      const iconX=n.hasEcn?28:12;
+      if(glow)svgNodes+=`<rect x="${n.x-5}" y="${n.y-n.h/2-5}" width="${n.w+10}" height="${n.h+10}" rx="${r+4}" fill="none" stroke="${glow}" stroke-width="2.5" opacity="0.28" filter="url(#gvGlow)"/>`;
+      svgNodes+=`<rect x="${n.x}" y="${n.y-n.h/2}" width="${n.w}" height="${n.h}" rx="${r}" fill="${c.f}" stroke="${c.s}" stroke-width="1.5"/>`;
+      if(n.seq&&n.seq!=='—'){
+        svgNodes+=`<rect x="${n.x+n.w-38}" y="${n.y-n.h/2-10}" width="36" height="20" rx="5" fill="${GC.seqBg}" stroke="${GC.seqCol}" stroke-width="1.2"/>`;
+        svgNodes+=`<text x="${n.x+n.w-20}" y="${n.y-n.h/2+5}" fill="${GC.seqCol}" font-size="11" font-weight="800" text-anchor="middle" font-family="'JetBrains Mono',monospace">${n.seq}</text>`;
+      }
+      if(n.hasEcn)svgNodes+=`<circle cx="${n.x+14}" cy="${n.y-n.h/2+15}" r="5.5" fill="${GC.ecnGlow}"/>`;
+      if(n.isSingle&&n.inlinePartName){
+        svgNodes+=`<text x="${n.x+iconX}" y="${n.y-4}" fill="${c.t}" font-size="14" font-weight="700" font-family="'DM Sans',sans-serif">${clip(n.inlinePartName,24)}</text>`;
+        svgNodes+=`<text x="${n.x+iconX}" y="${n.y+12}" fill="${GC.dim}" font-size="9" font-family="'JetBrains Mono',monospace">${n.inlinePartPn}</text>`;
+      } else {
+        svgNodes+=`<text x="${n.x+iconX}" y="${n.y-4}" fill="${c.t}" font-size="13" font-weight="700" font-family="'DM Sans',sans-serif">${clip(n.name,22)}</text>`;
+        svgNodes+=`<text x="${n.x+iconX}" y="${n.y+10}" fill="${c.s}" font-size="8" font-weight="700" opacity="0.4" font-family="'JetBrains Mono',monospace">${n.stepType}</text>`;
       }
     }
     else if(n.type==='group'){
-      svgN+=`<text x="${cx-hW+16}" y="${cy+2}" font-size="15">${n.icon}</text>`;
-      svgN+=`<text x="${cx-hW+36}" y="${cy-5}" fill="${lv.text}" font-size="13" font-weight="700" font-family="${sans}">${n.label}</text>`;
-      svgN+=`<text x="${cx-hW+36}" y="${cy+10}" fill="${LC.dim}" font-size="8.5" font-weight="600" font-family="${mono}">完了 · ${n.stepCount} steps</text>`;
+      svgNodes+=`<rect x="${n.x}" y="${n.y-n.h/2}" width="${n.w}" height="${n.h}" rx="14" fill="${GC.grpFill}" stroke="${n.color}" stroke-width="2"/>`;
+      svgNodes+=`<text x="${n.x+16}" y="${n.y+2}" font-size="16">${n.icon}</text>`;
+      svgNodes+=`<text x="${n.x+38}" y="${n.y-6}" fill="${n.color}" font-size="13" font-weight="700" font-family="'DM Sans',sans-serif">${n.label}</text>`;
+      svgNodes+=`<text x="${n.x+38}" y="${n.y+10}" fill="#4b5563" font-size="9" font-weight="600" font-family="'JetBrains Mono',monospace">完了 · ${n.stepCount} steps</text>`;
     }
     else if(n.type==='assy'){
-      svgN+=`<circle cx="${cx-hW+18}" cy="${cy}" r="5" fill="${lv.stroke}" opacity="0.4"/>`;
-      svgN+=`<text x="${cx+6}" y="${cy-3}" fill="${lv.text}" font-size="14" font-weight="800" text-anchor="middle" font-family="${sans}">${assy.name||assy.tag}</text>`;
-      svgN+=`<text x="${cx+6}" y="${cy+13}" fill="${lv.stroke}" font-size="9" font-weight="700" text-anchor="middle" opacity="0.6" font-family="${mono}">v${assy.version||'?'}</text>`;
+      svgNodes+=`<rect x="${n.x}" y="${n.y-n.h/2}" width="${n.w}" height="${n.h}" rx="${n.h/2}" fill="${GC.assyFill}" stroke="${GC.assyStroke}" stroke-width="2.5"/>`;
+      svgNodes+=`<circle cx="${n.x+22}" cy="${n.y}" r="6" fill="${GC.assyStroke}" opacity="0.3"/>`;
+      svgNodes+=`<text x="${n.x+n.w/2+8}" y="${n.y-3}" fill="${GC.assyText}" font-size="14" font-weight="800" text-anchor="middle" font-family="'DM Sans',sans-serif">${assy.name||assy.tag}</text>`;
+      svgNodes+=`<text x="${n.x+n.w/2+8}" y="${n.y+13}" fill="${GC.assyStroke}" font-size="9" font-weight="700" text-anchor="middle" opacity="0.5" font-family="'JetBrains Mono',monospace">v${assy.version||'?'}</text>`;
     }
   });
 
-  // Fastener labels — simple colored text, no dark box
+  // Fastener labels on edges
   edges.filter(e=>e.fts&&e.fts.length>0).forEach(e=>{
     const tVal=S.gvTValues[e.id]??e.defT;
     const x1=e.from.x+e.from.w,y1=e.from.y,x2=e.to.x,y2=e.to.y;
@@ -701,67 +716,66 @@ function gvBuildSvg(tree,assy,ecnRecords,G,forExport){
     const show=e.fts.slice(0,MAX_FAST),extra=e.fts.length-MAX_FAST;
     const lines=[];
     show.forEach((f,fi)=>{
-      lines.push({t:clip((f.name||f.pn||'?'),24)+(f.qty>1?' ×'+f.qty:''),c:LC.fastPN});
-      if(f.loctite)lines.push({t:f.loctite,c:LC.fastLoc});
-      if(f.torque)lines.push({t:f.torque+'Nm',c:LC.fastTq});
+      lines.push({t:clip((f.name||f.pn||'Fastener'),24)+(f.qty>1?' ×'+f.qty:''),c:GC.fastName});
+      if(f.loctite)lines.push({t:f.loctite,c:GC.loctite});
+      if(f.torque)lines.push({t:f.torque+'Nm',c:GC.torque});
       if(fi<show.length-1)lines.push(null);
     });
-    if(extra>0)lines.push({t:'+'+extra+' more',c:LC.dim});
+    if(extra>0)lines.push({t:'+'+extra+' more',c:GC.dimText});
+    const lineH=12,gap=4;
+    const totalLH=lines.filter(Boolean).length*lineH+lines.filter(l=>!l).length*gap;
+    const maxW=Math.max(...lines.filter(Boolean).map(l=>l.t.length),5)*6.2+12;
+
     let lbl=`<g data-role="gvLabel" data-eid="${e.id}" data-x1="${x1}" data-y1="${y1}" data-x2="${x2}" data-y2="${y2}" transform="translate(${pt.x},${pt.y-10})" style="cursor:ew-resize">`;
-    lbl+=`<circle cx="0" cy="10" r="3" fill="${LC.fastPN}" opacity="0.6"/>`;
+    lbl+=`<circle cx="0" cy="10" r="3.5" fill="${GC.labelDot}" opacity="0.7"/>`;
+    lbl+=`<line x1="0" y1="8" x2="0" y2="0" stroke="${GC.labelDot}" stroke-width="0.8" opacity="0.3"/>`;
+    lbl+=`<rect x="${-maxW}" y="${-totalLH-4}" width="${maxW+6}" height="${totalLH+8}" rx="4" fill="${GC.labelBg}" stroke="#1e2030" stroke-width="0.5"/>`;
     let ty=0;
+    const textEls=[];
     for(let i=lines.length-1;i>=0;i--){
-      const l=lines[i];if(!l){ty-=4;continue;}
-      ty-=12;lbl+=`<text x="0" y="${ty+9}" fill="${l.c}" font-size="9" font-weight="600" text-anchor="end" font-family="${mono}">${l.t}</text>`;
+      const l=lines[i];if(!l){ty-=gap;continue;}
+      ty-=lineH;
+      textEls.push(`<text x="0" y="${ty+lineH-3}" fill="${l.c}" font-size="9" font-weight="600" text-anchor="end" font-family="'JetBrains Mono',monospace">${l.t}</text>`);
     }
-    lbl+=`</g>`;svgL+=lbl;
+    lbl+=textEls.join('');
+    lbl+=`</g>`;
+    svgLabels+=lbl;
   });
 
-  return{svgE,svgN,svgL,nodes,edges,totalH,COL_CHILD,COL_STEP,COL_GRP,COL_ASSY,STEP_W,STEP_H,PART_W,PART_H,GRP_W,GRP_H,ASSY_W,ASSY_H,MAX_FAST};
-}
-
-function renderGraphView(tree, assy, ecnRecords, unit) {
-  if (!tree || !tree.groups.length) return '<div class="loading-wrap"><div style="color:var(--dim)">No tree data</div></div>';
-  const G=S.gvGaps;
-  const r=gvBuildSvg(tree,assy,ecnRecords,G,false);
-  const z=S.gvZoom,px=S.gvPan.x,py=S.gvPan.y;
-  const partCount=r.nodes.filter(n=>n.type==='part').length;
-  const stepCount=r.nodes.filter(n=>n.type==='step').length;
-  const L=LEVELS;
+  const z=S.gvZoom, px=S.gvPan.x, py=S.gvPan.y;
+  const partCount=nodes.filter(n=>n.type==='part').length;
+  const stepCount=nodes.filter(n=>n.type==='step').length;
 
   return `<div class="gv-wrap" id="gvWrap">
     <div class="gv-header">
       <button class="gv-btn" data-action="gvZoomOut">−</button>
-      <span class="mono" style="font-size:10px;color:#666;min-width:36px;text-align:center">${Math.round(z*100)}%</span>
+      <span class="mono" style="font-size:10px;color:var(--muted);min-width:36px;text-align:center">${Math.round(z*100)}%</span>
       <button class="gv-btn" data-action="gvZoomIn">+</button>
       <button class="gv-btn" style="width:auto;padding:0 8px;font-size:9px" data-action="gvReset">Reset</button>
-      <button class="gv-btn" style="width:auto;padding:0 8px;font-size:10px;${S.gvPanelOpen?'color:#7b1fa2;border-color:#7b1fa2':''}" data-action="gvTogglePanel">⇔</button>
+      <button class="gv-btn" style="width:auto;padding:0 8px;font-size:10px;${S.gvPanelOpen?'color:var(--accent);border-color:var(--accent)':''}" data-action="gvTogglePanel">⇔</button>
       <button class="gv-btn" style="width:auto;padding:0 8px;font-size:9px;margin-left:4px" data-action="gvExport">📷 Export</button>
     </div>
     ${S.gvPanelOpen?`<div class="gv-panel">
-      <label><span>⬡→◇ Parts ↔ Steps</span><span class="val">${G.partsToSteps}px</span></label>
+      <label><span>⬡→▣ Parts ↔ Steps</span><span class="val">${G.partsToSteps}px</span></label>
       <input type="range" min="60" max="400" value="${G.partsToSteps}" data-role="gvGap" data-key="partsToSteps">
-      <label><span>◇→⬮ Steps ↔ Groups</span><span class="val">${G.stepsToGroups}px</span></label>
+      <label><span>▣→◎ Steps ↔ Groups</span><span class="val">${G.stepsToGroups}px</span></label>
       <input type="range" min="60" max="500" value="${G.stepsToGroups}" data-role="gvGap" data-key="stepsToGroups">
-      <label><span>⬮→⯃ Groups ↔ Assembly</span><span class="val">${G.groupsToAssy}px</span></label>
+      <label><span>◎→● Groups ↔ Assembly</span><span class="val">${G.groupsToAssy}px</span></label>
       <input type="range" min="60" max="400" value="${G.groupsToAssy}" data-role="gvGap" data-key="groupsToAssy">
-      <button class="btn-sm" style="width:100%;margin-top:4px;text-align:center;color:#7b1fa2;border-color:rgba(123,31,162,0.2);background:rgba(123,31,162,0.05)" data-action="gvResetGaps">Reset Spacing</button>
+      <button class="btn-sm" style="width:100%;margin-top:4px;text-align:center;color:var(--accent);border-color:rgba(245,158,11,0.2);background:rgba(245,158,11,0.05)" data-action="gvResetGaps">Reset Spacing</button>
     </div>`:''}
     <svg id="gvSvg" width="100%" height="100%" style="position:absolute;top:0;left:0">
+      <defs><filter id="gvGlow" x="-50%" y="-50%" width="200%" height="200%"><feGaussianBlur in="SourceGraphic" stdDeviation="6" result="b"/><feMerge><feMergeNode in="b"/><feMergeNode in="SourceGraphic"/></feMerge></filter></defs>
       <g id="gvCanvas" transform="translate(${px},${py}) scale(${z})">
-        ${r.svgE}${r.svgN}${r.svgL}
+        ${svgEdges}${svgNodes}${svgLabels}
       </g>
     </svg>
-    <div class="gv-footer">Scroll to zoom · Drag to pan · ↔ Slide labels · 📷 Export · ${partCount} parts · ${stepCount} steps</div>
+    <div class="gv-footer">Scroll to zoom · Drag to pan · ↔ Slide labels · 📷 Export · Layout auto-saves to DB · ${partCount} parts · ${stepCount} steps</div>
     <div class="gv-legend">
-      <span><i style="background:${L[3].fill};border:1px solid ${L[3].stroke}"></i>L4 Part</span>
-      <span><i style="background:${L[2].fill};border:1px solid ${L[2].stroke}"></i>L3 Step</span>
-      <span><i style="background:${L[1].fill};border:1px solid ${L[1].stroke}"></i>L2 Group</span>
-      <span><i style="background:${L[0].fill};border:1px solid ${L[0].stroke}"></i>L1 Assembly</span>
-      <span><i style="background:#ef4444"></i>ECN</span>
-      <span style="color:${LC.fastPN}">● Fastener</span>
-      <span style="color:${LC.fastLoc}">● Loctite</span>
-      <span style="color:${LC.fastTq}">● Torque</span>
+      <span><i style="background:#2563eb"></i>Part</span><span><i style="background:#7c3aed"></i>Step</span>
+      <span><i style="background:#d97706"></i>Prep</span><span><i style="background:#16a34a"></i>Kanryo</span>
+      <span><i style="background:#ef4444"></i>ECN</span><span><i style="background:#f59e0b"></i>Fastener</span>
+      <span><i style="background:#a78bfa"></i>Loctite</span><span><i style="background:#22c55e"></i>Torque</span>
     </div>
   </div>`;
 }
@@ -784,89 +798,121 @@ function exportGraphImage(){
   if(!tree){toast('❌ No tree data');return;}
   toast('📷 Rendering PNG...');
 
-  // Use shared layout
+  // Run layout
   const G=S.gvGaps;
-  const r=gvBuildSvg(tree,S.assy,ecnRecords,G,true);
-  const{nodes,edges}=r;
+  const STEP_W=220,STEP_H=54,PART_W=140,PART_H=32,GRP_W=185,GRP_H=54,ASSY_W=200,ASSY_H=60,MAX_FAST=2;
+  const COL_CHILD=50,COL_STEP=COL_CHILD+PART_W+G.partsToSteps,COL_GRP=COL_STEP+STEP_W+G.stepsToGroups,COL_ASSY=COL_GRP+GRP_W+G.groupsToAssy;
+  function sc(type,ecn){
+    if(type==='PREP')return{f:'#1a1406',s:ecn?'#ef4444':'#d97706',t:'#fbbf24'};
+    if(type==='CHECK')return{f:'#1a0820',s:ecn?'#ef4444':'#db2777',t:'#f9a8d4'};
+    if(type==='KANRYO')return{f:'#061a12',s:ecn?'#ef4444':'#16a34a',t:'#86efac'};
+    return{f:'#140c24',s:ecn?'#ef4444':'#7c3aed',t:'#c4b5fd'};
+  }
   function clip(s,n){return s&&s.length>n?s.slice(0,n-1)+'…':s||'';}
-  const MAX_FAST=2;
 
-  // Canvas setup — white background, print-friendly
-  const sc2=2;
+  // Layout pass
+  const nodes=[],edges=[];let y=50;
+  tree.groups.forEach(g=>{
+    const gy0=y,gSteps=stepsForGroup(tree,g.id),stepNds=[];
+    gSteps.forEach(step=>{
+      const pts=partsForStep(tree,step.id),fts=fastenersForStep(tree,step.id),np=pts.length;
+      const isSingle=np===1,isMulti=np>1;
+      const hasEcn=step.ecn_status==='changed'||ecnRecords.some(c=>c.step_id===step.id);
+      const colors=sc((step.type||'STEP').toUpperCase(),hasEcn);
+      const childNds=[];
+      if(isMulti){const tCH=np*(PART_H+12)-12;const cy0=y-tCH/2+PART_H/2;pts.forEach((p,pi)=>{const py=cy0+pi*(PART_H+12);const cn={id:'cp-'+step.id+'-'+pi,type:'part',x:COL_CHILD,y:py,w:PART_W,h:PART_H,pn:p.pn||'',name:p.name||p.pn||'Part',qty:p.qty||1};nodes.push(cn);childNds.push(cn);});}
+      const sn={id:'s-'+step.id,type:'step',x:COL_STEP,y,w:STEP_W,h:STEP_H,stepId:step.id,seq:step.seq_tag||'',name:step.label||step.pn||'',stepType:(step.type||'STEP').toUpperCase(),colors,isSingle,isMulti,hasEcn,inlineName:isSingle?(pts[0].name||pts[0].pn||''):'',inlinePn:isSingle?(pts[0].pn||''):'',fts};
+      nodes.push(sn);stepNds.push(sn);
+      if(isMulti){childNds.forEach((cn,ci)=>{edges.push({from:cn,to:sn,kind:'part-step',fts:ci===0?fts:[],defT:0.45,id:'e-cp-'+step.id+'-'+ci});});}
+      y+=(isMulti?Math.max(STEP_H,np*(PART_H+12)):STEP_H)+26;
+    });
+    const gmid=(gy0+y-26)/2;
+    const gn={id:'g-'+g.id,type:'group',x:COL_GRP,y:gmid,w:GRP_W,h:GRP_H,label:g.label,icon:g.icon||'📦',color:g.color||'#6b7280',cnt:gSteps.length};
+    nodes.push(gn);
+    stepNds.forEach(sn=>{edges.push({from:sn,to:gn,kind:'step-grp',fts:sn.isMulti?[]:sn.fts,defT:0.35,id:'e-sg-'+sn.stepId});});
+    y+=44;
+  });
+  const grps=nodes.filter(n=>n.type==='group'),ay=grps.length?grps.reduce((a,n)=>a+n.y,0)/grps.length:200;
+  const an={id:'assy',type:'assy',x:COL_ASSY,y:ay,w:ASSY_W,h:ASSY_H};nodes.push(an);
+  grps.forEach(gn=>{edges.push({from:gn,to:an,kind:'grp-assy',fts:[],defT:0.5,id:'e-ga-'+gn.id});});
+  const totalH=y+80;
+
+  // Canvas setup
+  const sc2=window.devicePixelRatio>=2?2:1.5;
   const PAD=60;
-  const cW=Math.ceil((r.COL_ASSY+r.ASSY_W+PAD*2)*sc2);
-  const cH=Math.ceil((r.totalH+PAD*2)*sc2);
+  const cW=Math.ceil((COL_ASSY+ASSY_W+PAD*2)*sc2);
+  const cH=Math.ceil((totalH+PAD*2)*sc2);
   const cvs=document.createElement('canvas');cvs.width=cW;cvs.height=cH;
   const ctx=cvs.getContext('2d');
   ctx.scale(sc2,sc2);
   const ox=PAD,oy=PAD;
 
-  // White background
-  ctx.fillStyle='#ffffff';ctx.fillRect(0,0,cW/sc2,cH/sc2);
+  // Background
+  ctx.fillStyle='#08090d';ctx.fillRect(0,0,cW/sc2,cH/sc2);
 
   // Watermark
-  ctx.fillStyle='#ccc';ctx.font='bold 11px monospace';ctx.textAlign='right';
+  ctx.fillStyle='#252838';ctx.font='bold 11px monospace';ctx.textAlign='right';
   ctx.fillText(`${S.assy.name} · v${S.assy.version} · ${new Date().toLocaleDateString()}`,cW/sc2-20,22);
   ctx.textAlign='left';
 
   // Helpers
   function bezier(x1,y1,x2,y2,t){const d=Math.abs(x2-x1)*0.42,cx1=x1+d,cy1=y1,cx2=x2-d,cy2=y2,u=1-t;return{x:u*u*u*x1+3*u*u*t*cx1+3*u*t*t*cx2+t*t*t*x2,y:u*u*u*y1+3*u*u*t*cy1+3*u*t*t*cy2+t*t*t*y2};}
   function bezPath(x1,y1,x2,y2){const d=Math.abs(x2-x1)*0.42;ctx.beginPath();ctx.moveTo(ox+x1,oy+y1);ctx.bezierCurveTo(ox+x1+d,oy+y1,ox+x2-d,oy+y2,ox+x2,oy+y2);ctx.stroke();}
+  function rr(x,y,w,h,r){ctx.beginPath();ctx.moveTo(x+r,y);ctx.lineTo(x+w-r,y);ctx.quadraticCurveTo(x+w,y,x+w,y+r);ctx.lineTo(x+w,y+h-r);ctx.quadraticCurveTo(x+w,y+h,x+w-r,y+h);ctx.lineTo(x+r,y+h);ctx.quadraticCurveTo(x,y+h,x,y+h-r);ctx.lineTo(x,y+r);ctx.quadraticCurveTo(x,y,x+r,y);ctx.closePath();}
 
-  // Draw edges — light gray
+  // Draw edges
   edges.forEach(e=>{
     const x1=e.from.x+e.from.w,y1=e.from.y,x2=e.to.x,y2=e.to.y;
     const isHi=e.kind==='grp-assy';
-    ctx.strokeStyle=e.to.hasEcn?'rgba(239,68,68,0.4)':(isHi?'#777':'#aaa');
-    ctx.lineWidth=isHi?2:1.2;
+    ctx.strokeStyle=e.to.hasEcn?'rgba(239,68,68,0.25)':(isHi?'#3d4160':'#252838');
+    ctx.lineWidth=isHi?2.2:1.2;
     bezPath(x1,y1,x2,y2);
     ctx.fillStyle=ctx.strokeStyle;
-    ctx.beginPath();ctx.arc(ox+x2,oy+y2,2.5,0,Math.PI*2);ctx.fill();
+    ctx.beginPath();ctx.arc(ox+x2,oy+y2,2.8,0,Math.PI*2);ctx.fill();
   });
 
-  // Draw nodes — level-based shapes
-  const L=LEVELS;
+  // Draw nodes
   nodes.forEach(n=>{
-    const li=lvl(n.type),lv=L[li]||L[7];
-    const cx=ox+n.x+n.w/2,cy=oy+n.y,hW=n.w/2,hH=n.h/2;
-    const ecnStroke=n.hasEcn?LC.ecn:lv.stroke;
-
-    ctx.fillStyle=lv.fill;ctx.strokeStyle=ecnStroke;ctx.lineWidth=n.hasEcn?2.5:1.5;
-    canvasShape(ctx,lv.shape,cx,cy,hW,hH);
-
-    if(n.hasEcn){ctx.fillStyle=LC.ecn;ctx.beginPath();ctx.arc(ox+n.x+12,cy-hH+10,4,0,Math.PI*2);ctx.fill();}
-
+    const nx=ox+n.x,ny=oy+n.y;
     if(n.type==='part'){
-      ctx.fillStyle=lv.text;ctx.font='600 9.5px monospace';ctx.textAlign='center';ctx.fillText(clip(n.name||n.pn,16),cx,cy+3);
-      if(n.qty>1){ctx.fillStyle=lv.stroke;ctx.font='700 7px monospace';ctx.textAlign='end';ctx.fillText('×'+n.qty,cx+hW-8,cy+hH-4);}
+      const ind=11;
+      ctx.beginPath();ctx.moveTo(nx+ind,ny-n.h/2);ctx.lineTo(nx+n.w-ind,ny-n.h/2);ctx.lineTo(nx+n.w,ny);ctx.lineTo(nx+n.w-ind,ny+n.h/2);ctx.lineTo(nx+ind,ny+n.h/2);ctx.lineTo(nx,ny);ctx.closePath();
+      ctx.fillStyle='#0c1824';ctx.fill();ctx.strokeStyle='#2563eb';ctx.lineWidth=1.2;ctx.stroke();
+      ctx.fillStyle='#7dd3fc';ctx.font='600 9px monospace';ctx.textAlign='center';ctx.fillText(clip(n.name||n.pn,17),nx+n.w/2,ny+3);
+      if(n.qty>1){ctx.fillStyle='#2563eb';ctx.font='700 7px monospace';ctx.textAlign='end';ctx.fillText('×'+n.qty,nx+n.w-ind-2,ny+n.h/2-3);}
       ctx.textAlign='left';
     }
     else if(n.type==='step'){
-      // Seq tag — bold text above shape
-      if(n.seq&&n.seq!=='—'){ctx.fillStyle='#333';ctx.font='900 14px sans-serif';ctx.textAlign='end';ctx.fillText(n.seq,ox+n.x+n.w-6,cy-hH-4);ctx.textAlign='left';}
-      const tx=ox+(n.hasEcn?n.x+26:n.x+14);
+      const c=n.colors,r=10;
+      if(n.hasEcn){ctx.globalAlpha=0.2;rr(nx-5,ny-n.h/2-5,n.w+10,n.h+10,r+4);ctx.fillStyle='transparent';ctx.strokeStyle='#ef4444';ctx.lineWidth=2.5;ctx.stroke();ctx.globalAlpha=1;}
+      rr(nx,ny-n.h/2,n.w,n.h,r);ctx.fillStyle=c.f;ctx.fill();ctx.strokeStyle=c.s;ctx.lineWidth=1.5;ctx.stroke();
+      if(n.seq&&n.seq!=='—'){rr(nx+n.w-38,ny-n.h/2-10,36,20,5);ctx.fillStyle='#1a1408';ctx.fill();ctx.strokeStyle='#f59e0b';ctx.lineWidth=1.2;ctx.stroke();ctx.fillStyle='#f59e0b';ctx.font='800 11px monospace';ctx.textAlign='center';ctx.fillText(n.seq,nx+n.w-20,ny-n.h/2+5);ctx.textAlign='left';}
+      if(n.hasEcn){ctx.fillStyle='#ef4444';ctx.beginPath();ctx.arc(nx+14,ny-n.h/2+15,5.5,0,Math.PI*2);ctx.fill();}
+      const ix=n.hasEcn?28:12;
       if(n.isSingle&&n.inlineName){
-        ctx.fillStyle=lv.text;ctx.font='700 13px sans-serif';ctx.fillText(clip(n.inlineName,22),tx,cy-2);
-        ctx.fillStyle='#999';ctx.font='400 8.5px monospace';ctx.fillText(n.inlinePn,tx,cy+12);
+        ctx.fillStyle=c.t;ctx.font='700 14px sans-serif';ctx.fillText(clip(n.inlineName,24),nx+ix,ny-1);
+        ctx.fillStyle='#363950';ctx.font='400 9px monospace';ctx.fillText(n.inlinePn,nx+ix,ny+14);
       }else{
-        ctx.fillStyle=lv.text;ctx.font='700 13px sans-serif';ctx.fillText(clip(n.name,20),tx,cy-2);
-        ctx.fillStyle='#999';ctx.font='600 8px monospace';ctx.fillText(n.stepType,tx,cy+12);
+        ctx.fillStyle=c.t;ctx.font='700 13px sans-serif';ctx.fillText(clip(n.name,22),nx+ix,ny-1);
+        ctx.fillStyle=c.s;ctx.globalAlpha=0.4;ctx.font='700 8px monospace';ctx.fillText(n.stepType,nx+ix,ny+12);ctx.globalAlpha=1;
       }
     }
     else if(n.type==='group'){
-      ctx.font='15px sans-serif';ctx.fillText(n.icon,cx-hW+16,cy+5);
-      ctx.fillStyle=lv.text;ctx.font='700 13px sans-serif';ctx.fillText(n.label,cx-hW+36,cy-4);
-      ctx.fillStyle='#999';ctx.font='600 8.5px monospace';ctx.fillText('完了 · '+n.stepCount+' steps',cx-hW+36,cy+10);
+      rr(nx,ny-n.h/2,n.w,n.h,14);ctx.fillStyle='#0e0f14';ctx.fill();ctx.strokeStyle=n.color;ctx.lineWidth=2;ctx.stroke();
+      ctx.font='16px sans-serif';ctx.fillText(n.icon,nx+16,ny+6);
+      ctx.fillStyle=n.color;ctx.font='700 13px sans-serif';ctx.fillText(n.label,nx+38,ny-2);
+      ctx.fillStyle='#4b5563';ctx.font='600 9px monospace';ctx.fillText('完了 · '+n.cnt+' steps',nx+38,ny+14);
     }
     else if(n.type==='assy'){
-      ctx.fillStyle=lv.stroke;ctx.globalAlpha=0.4;ctx.beginPath();ctx.arc(cx-hW+18,cy,5,0,Math.PI*2);ctx.fill();ctx.globalAlpha=1;
-      ctx.fillStyle=lv.text;ctx.font='800 14px sans-serif';ctx.textAlign='center';ctx.fillText(S.assy.name||S.assy.tag,cx+6,cy-2);
-      ctx.fillStyle=lv.stroke;ctx.font='700 9px monospace';ctx.globalAlpha=0.6;ctx.fillText('v'+(S.assy.version||'?'),cx+6,cy+14);ctx.globalAlpha=1;
+      rr(nx,ny-n.h/2,n.w,n.h,n.h/2);ctx.fillStyle='#0a1e12';ctx.fill();ctx.strokeStyle='#22c55e';ctx.lineWidth=2.5;ctx.stroke();
+      ctx.fillStyle='rgba(34,197,94,0.3)';ctx.beginPath();ctx.arc(nx+22,ny,6,0,Math.PI*2);ctx.fill();
+      ctx.fillStyle='#4ade80';ctx.font='800 14px sans-serif';ctx.textAlign='center';ctx.fillText(S.assy.name||S.assy.tag,nx+n.w/2+8,ny+1);
+      ctx.fillStyle='rgba(34,197,94,0.5)';ctx.font='700 9px monospace';ctx.fillText('v'+(S.assy.version||'?'),nx+n.w/2+8,ny+16);
       ctx.textAlign='left';
     }
   });
 
-  // Draw fastener labels — simple colored text
+  // Draw fastener labels
   edges.filter(e=>e.fts&&e.fts.length>0).forEach(e=>{
     const tVal=S.gvTValues[e.id]??e.defT;
     const x1=e.from.x+e.from.w,y1=e.from.y,x2=e.to.x,y2=e.to.y;
@@ -875,13 +921,16 @@ function exportGraphImage(){
     const show=e.fts.slice(0,MAX_FAST),extra=e.fts.length-MAX_FAST;
     const lines=[];
     show.forEach((f,fi)=>{
-      lines.push({t:clip((f.name||f.pn||'?'),24)+(f.qty>1?' ×'+f.qty:''),c:LC.fastPN,sz:9.5});
-      if(f.loctite)lines.push({t:f.loctite,c:LC.fastLoc,sz:8.5});
-      if(f.torque)lines.push({t:f.torque+'Nm',c:LC.fastTq,sz:8.5});
+      lines.push({t:clip((f.name||f.pn||'?'),24)+(f.qty>1?' ×'+f.qty:''),c:'#f59e0b',sz:9.5});
+      if(f.loctite)lines.push({t:f.loctite,c:'#a78bfa',sz:8.5});
+      if(f.torque)lines.push({t:f.torque+'Nm',c:'#22c55e',sz:8.5});
       if(fi<show.length-1)lines.push({t:'',c:'',sz:4});
     });
-    if(extra>0)lines.push({t:'+'+extra+' more',c:'#999',sz:8});
-    ctx.fillStyle=LC.fastPN;ctx.globalAlpha=0.6;ctx.beginPath();ctx.arc(px,py+10,3,0,Math.PI*2);ctx.fill();ctx.globalAlpha=1;
+    if(extra>0)lines.push({t:'+'+extra+' more',c:'#4a4e68',sz:8});
+    // Anchor dot
+    ctx.fillStyle='rgba(245,158,11,0.7)';ctx.beginPath();ctx.arc(px,py+10,3.5,0,Math.PI*2);ctx.fill();
+    ctx.strokeStyle='rgba(245,158,11,0.3)';ctx.lineWidth=0.8;ctx.beginPath();ctx.moveTo(px,py+8);ctx.lineTo(px,py);ctx.stroke();
+    // Text stacking upward
     let ty=py;
     ctx.textAlign='end';
     for(let i=lines.length-1;i>=0;i--){
@@ -891,7 +940,7 @@ function exportGraphImage(){
     ctx.textAlign='left';
   });
 
-  // Export PNG
+  // Export
   cvs.toBlob(blob=>{
     if(!blob){toast('❌ Export failed');return;}
     const a=document.createElement('a');a.href=URL.createObjectURL(blob);
@@ -951,14 +1000,80 @@ function initGV(){
 
 function reRenderGvSvg(){
   const svg=document.getElementById('gvSvg');
-  if(!svg||!S.assy)return;
+  if(!svg)return;
   const tree=DB.tree[`${S.assy.id}`];
   const ecnRecords=DB.ecnChanges[S.assy.id]||[];
   if(!tree)return;
-  const r=gvBuildSvg(tree,S.assy,ecnRecords,S.gvGaps,false);
-  const z=S.gvZoom,px=S.gvPan.x,py=S.gvPan.y;
-  svg.innerHTML=`<g id="gvCanvas" transform="translate(${px},${py}) scale(${z})">${r.svgE}${r.svgN}${r.svgL}</g>`;
+  // Re-call renderGraphView logic for SVG only
+  const inner=renderGvSvgInner(tree,S.assy,ecnRecords);
+  svg.innerHTML=inner;
   attachGvLabels(svg);
+}
+
+function renderGvSvgInner(tree,assy,ecnRecords){
+  // Duplicate mini-layout from renderGraphView to rebuild SVG
+  const G=S.gvGaps;
+  const STEP_W=220,STEP_H=54,PART_W=140,PART_H=32,GRP_W=185,GRP_H=54,ASSY_W=200,ASSY_H=60,MAX_FAST=2;
+  const COL_CHILD=50,COL_STEP=COL_CHILD+PART_W+G.partsToSteps,COL_GRP=COL_STEP+STEP_W+G.stepsToGroups,COL_ASSY=COL_GRP+GRP_W+G.groupsToAssy;
+  const GC={partFill:'#0c1824',partStroke:'#2563eb',partText:'#7dd3fc',stepFill:'#140c24',stepStroke:'#7c3aed',stepText:'#c4b5fd',prepFill:'#1a1406',prepStroke:'#d97706',prepText:'#fbbf24',checkFill:'#1a0820',checkStroke:'#db2777',checkText:'#f9a8d4',kanryoFill:'#061a12',kanryoStroke:'#16a34a',kanryoText:'#86efac',grpFill:'#0e0f14',assyFill:'#0a1e12',assyStroke:'#22c55e',assyText:'#4ade80',ecnGlow:'#ef4444',cascadeGlow:'#f59e0b',fastName:'#f59e0b',loctite:'#a78bfa',torque:'#22c55e',arrow:'#252838',arrowHi:'#3d4160',seqBg:'#1a1408',seqCol:'#f59e0b',dim:'#363950',dimText:'#4a4e68',labelBg:'rgba(8,9,13,0.8)',labelDot:'#f59e0b'};
+  function sc(type,ecn,casc){let f=GC.stepFill,s=GC.stepStroke,t=GC.stepText;if(type==='PREP'){f=GC.prepFill;s=GC.prepStroke;t=GC.prepText;}if(type==='CHECK'){f=GC.checkFill;s=GC.checkStroke;t=GC.checkText;}if(type==='KANRYO'){f=GC.kanryoFill;s=GC.kanryoStroke;t=GC.kanryoText;}if(ecn)s=GC.ecnGlow;return{f,s,t};}
+  function clip(s,n){return s&&s.length>n?s.slice(0,n-1)+'…':s||'';}
+  function bezP(x1,y1,x2,y2){const d=Math.abs(x2-x1)*0.42;return`M${x1},${y1} C${x1+d},${y1} ${x2-d},${y2} ${x2},${y2}`;}
+  function bezPt(x1,y1,x2,y2,t){const d=Math.abs(x2-x1)*0.42,cx1=x1+d,cy1=y1,cx2=x2-d,cy2=y2,u=1-t;return{x:u*u*u*x1+3*u*u*t*cx1+3*u*t*t*cx2+t*t*t*x2,y:u*u*u*y1+3*u*u*t*cy1+3*u*t*t*cy2+t*t*t*y2};}
+
+  const nodes=[],edges=[];let y=50;
+  tree.groups.forEach(g=>{
+    const gy0=y,gSteps=stepsForGroup(tree,g.id),stepNds=[];
+    gSteps.forEach(step=>{
+      const pts=partsForStep(tree,step.id),fts=fastenersForStep(tree,step.id),np=pts.length;
+      const isSingle=np===1,isMulti=np>1;
+      const hasEcn=step.ecn_status==='changed'||ecnRecords.some(c=>c.step_id===step.id);
+      const colors=sc((step.type||'STEP').toUpperCase(),hasEcn,false);
+      const childNds=[];
+      if(isMulti){const totalCH=np*(PART_H+12)-12;const cy0=y-totalCH/2+PART_H/2;pts.forEach((p,pi)=>{const py=cy0+pi*(PART_H+12);const cn={id:'cp-'+step.id+'-'+pi,type:'part',x:COL_CHILD,y:py,w:PART_W,h:PART_H,pn:p.pn||'',name:p.name||p.pn||'Part',qty:p.qty||1};nodes.push(cn);childNds.push(cn);});}
+      const sn={id:'s-'+step.id,type:'step',x:COL_STEP,y,w:STEP_W,h:STEP_H,stepId:step.id,seq:step.seq_tag||'',name:step.label||step.pn||'',stepType:(step.type||'STEP').toUpperCase(),colors,isSingle,isMulti,hasEcn,inlinePartName:isSingle?(pts[0].name||pts[0].pn||''):'',inlinePartPn:isSingle?(pts[0].pn||''):'',fts};
+      nodes.push(sn);stepNds.push(sn);
+      if(isMulti){childNds.forEach((cn,ci)=>{edges.push({id:'e-cp-'+step.id+'-'+ci,from:cn,to:sn,kind:'part-step',fts:ci===0?fts:[],defT:0.45});});}
+      const blockH=isMulti?Math.max(STEP_H,np*(PART_H+12)):STEP_H;
+      y+=blockH+26;
+    });
+    const gmid=(gy0+y-26)/2;
+    const gn={id:'g-'+g.id,type:'group',x:COL_GRP,y:gmid,w:GRP_W,h:GRP_H,label:g.label,icon:g.icon||'📦',color:g.color||'#6b7280',stepCount:gSteps.length};
+    nodes.push(gn);
+    stepNds.forEach(sn=>{edges.push({id:'e-sg-'+sn.stepId,from:sn,to:gn,kind:'step-grp',fts:sn.isMulti?[]:sn.fts,defT:0.35});});
+    y+=44;
+  });
+  const grps=nodes.filter(n=>n.type==='group'),ay=grps.length?grps.reduce((a,n)=>a+n.y,0)/grps.length:200;
+  const an={id:'assy',type:'assy',x:COL_ASSY,y:ay,w:ASSY_W,h:ASSY_H};nodes.push(an);
+  grps.forEach(gn=>{edges.push({id:'e-ga-'+gn.id,from:gn,to:an,kind:'grp-assy',fts:[],defT:0.5});});
+  const totalH=y+80;
+
+  // Stash for label sliding
+  window._gvEdges=edges;
+
+  let svgE='',svgN='',svgL='';
+  [{x:COL_CHILD,l:'Parts',c:GC.partStroke},{x:COL_STEP,l:'Steps',c:GC.stepStroke},{x:COL_GRP,l:'Groups',c:'#6b7280'},{x:COL_ASSY,l:'Assembly',c:GC.assyStroke}].forEach(g=>{svgE+=`<line x1="${g.x}" y1="-20" x2="${g.x}" y2="${totalH}" stroke="${g.c}" stroke-width="0.5" opacity="0.08" stroke-dasharray="6 4"/><text x="${g.x+4}" y="-8" fill="${g.c}" font-size="8" font-weight="700" opacity="0.2" font-family="'JetBrains Mono',monospace">${g.l}</text>`;});
+  edges.forEach(e=>{const x1=e.from.x+e.from.w,y1=e.from.y,x2=e.to.x,y2=e.to.y,isHi=e.kind==='grp-assy',sw=isHi?2.2:1.2,ecn=e.to.hasEcn,col=ecn?(GC.ecnGlow+'40'):(isHi?GC.arrowHi:GC.arrow);svgE+=`<path d="${bezP(x1,y1,x2,y2)}" fill="none" stroke="${col}" stroke-width="${sw}"/><circle cx="${x2}" cy="${y2}" r="2.8" fill="${col}"/>`;});
+  nodes.forEach(n=>{
+    if(n.type==='part'){const ind=11,pts=`${n.x+ind},${n.y-n.h/2} ${n.x+n.w-ind},${n.y-n.h/2} ${n.x+n.w},${n.y} ${n.x+n.w-ind},${n.y+n.h/2} ${n.x+ind},${n.y+n.h/2} ${n.x},${n.y}`;svgN+=`<polygon points="${pts}" fill="${GC.partFill}" stroke="${GC.partStroke}" stroke-width="1.2"/><text x="${n.x+n.w/2}" y="${n.y+1}" fill="${GC.partText}" font-size="9" font-weight="600" text-anchor="middle" font-family="'JetBrains Mono',monospace">${clip(n.name||n.pn,17)}</text>`;if(n.qty>1)svgN+=`<text x="${n.x+n.w-ind-2}" y="${n.y+n.h/2-3}" fill="${GC.partStroke}" font-size="7" font-weight="700" text-anchor="end" font-family="'JetBrains Mono',monospace">×${n.qty}</text>`;}
+    else if(n.type==='step'){const r=10,c=n.colors,glow=n.hasEcn?GC.ecnGlow:null,iconX=n.hasEcn?28:12;if(glow)svgN+=`<rect x="${n.x-5}" y="${n.y-n.h/2-5}" width="${n.w+10}" height="${n.h+10}" rx="${r+4}" fill="none" stroke="${glow}" stroke-width="2.5" opacity="0.28" filter="url(#gvGlow)"/>`;svgN+=`<rect x="${n.x}" y="${n.y-n.h/2}" width="${n.w}" height="${n.h}" rx="${r}" fill="${c.f}" stroke="${c.s}" stroke-width="1.5"/>`;if(n.seq&&n.seq!=='—'){svgN+=`<rect x="${n.x+n.w-38}" y="${n.y-n.h/2-10}" width="36" height="20" rx="5" fill="${GC.seqBg}" stroke="${GC.seqCol}" stroke-width="1.2"/><text x="${n.x+n.w-20}" y="${n.y-n.h/2+5}" fill="${GC.seqCol}" font-size="11" font-weight="800" text-anchor="middle" font-family="'JetBrains Mono',monospace">${n.seq}</text>`;}if(n.hasEcn)svgN+=`<circle cx="${n.x+14}" cy="${n.y-n.h/2+15}" r="5.5" fill="${GC.ecnGlow}"/>`;if(n.isSingle&&n.inlinePartName){svgN+=`<text x="${n.x+iconX}" y="${n.y-4}" fill="${c.t}" font-size="14" font-weight="700" font-family="'DM Sans',sans-serif">${clip(n.inlinePartName,24)}</text><text x="${n.x+iconX}" y="${n.y+12}" fill="${GC.dim}" font-size="9" font-family="'JetBrains Mono',monospace">${n.inlinePartPn}</text>`;}else{svgN+=`<text x="${n.x+iconX}" y="${n.y-4}" fill="${c.t}" font-size="13" font-weight="700" font-family="'DM Sans',sans-serif">${clip(n.name,22)}</text><text x="${n.x+iconX}" y="${n.y+10}" fill="${c.s}" font-size="8" font-weight="700" opacity="0.4" font-family="'JetBrains Mono',monospace">${n.stepType}</text>`;}}
+    else if(n.type==='group'){svgN+=`<rect x="${n.x}" y="${n.y-n.h/2}" width="${n.w}" height="${n.h}" rx="14" fill="${GC.grpFill}" stroke="${n.color}" stroke-width="2"/><text x="${n.x+16}" y="${n.y+2}" font-size="16">${n.icon}</text><text x="${n.x+38}" y="${n.y-6}" fill="${n.color}" font-size="13" font-weight="700" font-family="'DM Sans',sans-serif">${n.label}</text><text x="${n.x+38}" y="${n.y+10}" fill="#4b5563" font-size="9" font-weight="600" font-family="'JetBrains Mono',monospace">完了 · ${n.stepCount} steps</text>`;}
+    else if(n.type==='assy'){svgN+=`<rect x="${n.x}" y="${n.y-n.h/2}" width="${n.w}" height="${n.h}" rx="${n.h/2}" fill="${GC.assyFill}" stroke="${GC.assyStroke}" stroke-width="2.5"/><circle cx="${n.x+22}" cy="${n.y}" r="6" fill="${GC.assyStroke}" opacity="0.3"/><text x="${n.x+n.w/2+8}" y="${n.y-3}" fill="${GC.assyText}" font-size="14" font-weight="800" text-anchor="middle" font-family="'DM Sans',sans-serif">${assy.name||assy.tag}</text><text x="${n.x+n.w/2+8}" y="${n.y+13}" fill="${GC.assyStroke}" font-size="9" font-weight="700" text-anchor="middle" opacity="0.5" font-family="'JetBrains Mono',monospace">v${assy.version||'?'}</text>`;}
+  });
+  edges.filter(e=>e.fts&&e.fts.length>0).forEach(e=>{
+    const tVal=S.gvTValues[e.id]??e.defT,x1=e.from.x+e.from.w,y1=e.from.y,x2=e.to.x,y2=e.to.y,pt=bezPt(x1,y1,x2,y2,tVal);
+    const show=e.fts.slice(0,MAX_FAST),extra=e.fts.length-MAX_FAST,lines=[];
+    show.forEach((f,fi)=>{lines.push({t:clip((f.name||f.pn||'Fastener'),24)+(f.qty>1?' ×'+f.qty:''),c:GC.fastName});if(f.loctite)lines.push({t:f.loctite,c:GC.loctite});if(f.torque)lines.push({t:f.torque+'Nm',c:GC.torque});if(fi<show.length-1)lines.push(null);});
+    if(extra>0)lines.push({t:'+'+extra+' more',c:GC.dimText});
+    const lineH=12,gap=4,totalLH=lines.filter(Boolean).length*lineH+lines.filter(l=>!l).length*gap,maxW=Math.max(...lines.filter(Boolean).map(l=>l.t.length),5)*6.2+12;
+    let lbl=`<g data-role="gvLabel" data-eid="${e.id}" data-x1="${x1}" data-y1="${y1}" data-x2="${x2}" data-y2="${y2}" transform="translate(${pt.x},${pt.y-10})" style="cursor:ew-resize">`;
+    lbl+=`<circle cx="0" cy="10" r="3.5" fill="${GC.labelDot}" opacity="0.7"/><line x1="0" y1="8" x2="0" y2="0" stroke="${GC.labelDot}" stroke-width="0.8" opacity="0.3"/>`;
+    lbl+=`<rect x="${-maxW}" y="${-totalLH-4}" width="${maxW+6}" height="${totalLH+8}" rx="4" fill="${GC.labelBg}" stroke="#1e2030" stroke-width="0.5"/>`;
+    let ty=0;for(let i=lines.length-1;i>=0;i--){const l=lines[i];if(!l){ty-=gap;continue;}ty-=lineH;lbl+=`<text x="0" y="${ty+lineH-3}" fill="${l.c}" font-size="9" font-weight="600" text-anchor="end" font-family="'JetBrains Mono',monospace">${l.t}</text>`;}
+    lbl+=`</g>`;svgL+=lbl;
+  });
+  const z=S.gvZoom,px=S.gvPan.x,py=S.gvPan.y;
+  return`<defs><filter id="gvGlow" x="-50%" y="-50%" width="200%" height="200%"><feGaussianBlur in="SourceGraphic" stdDeviation="6" result="b"/><feMerge><feMergeNode in="b"/><feMergeNode in="SourceGraphic"/></feMerge></filter></defs><g id="gvCanvas" transform="translate(${px},${py}) scale(${z})">${svgE}${svgN}${svgL}</g>`;
 }
 
 function attachGvLabels(svg){

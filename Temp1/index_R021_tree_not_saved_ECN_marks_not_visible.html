@@ -393,7 +393,6 @@ const S = {
   // Graph view
   gvZoom:0.65, gvPan:{x:10,y:0}, gvTValues:{}, gvPanelOpen:false,
   gvGaps:{partsToSteps:150,stepsToGroups:160,groupsToAssy:140},
-  gvLocked:true, gvEcnView:false, gvYOffsets:{},
   // Tree editor
   teAssy:null, teVer:null, teSel:null, teSelGroup:null,
   teVersions:[], teFrozen:false,
@@ -598,9 +597,6 @@ function canvasShape(ctx,sh,cx,cy,hW,hH){
 // Light-theme color constants
 const LC={edge:'#aaa',edgeHi:'#777',ecn:'#ef4444',fastPN:'#e65100',fastLoc:'#7b1fa2',fastTq:'#1b5e20',dim:'#999',seqText:'#333',guideCol:'#ccc'};
 
-// ECN disposition print-safe colors
-const DISP_PRINT={scrap:{icon:'🗑️',c:'#c62828'},replace:{icon:'🔄',c:'#1565c0'},repair:{icon:'🔧',c:'#e65100'},reuse:{icon:'♻️',c:'#2e7d32'}};
-
 function gvBuildSvg(tree,assy,ecnRecords,G,forExport){
   const STEP_W=220,STEP_H=54,PART_W=140,PART_H=36,GRP_W=185,GRP_H=54,ASSY_W=200,ASSY_H=60,MAX_FAST=2;
   const COL_CHILD=50,COL_STEP=COL_CHILD+PART_W+G.partsToSteps,COL_GRP=COL_STEP+STEP_W+G.stepsToGroups,COL_ASSY=COL_GRP+GRP_W+G.groupsToAssy;
@@ -608,74 +604,32 @@ function gvBuildSvg(tree,assy,ecnRecords,G,forExport){
   function bezP(x1,y1,x2,y2){const d=Math.abs(x2-x1)*0.42;return`M${x1},${y1} C${x1+d},${y1} ${x2-d},${y2} ${x2},${y2}`;}
   function bezPt(x1,y1,x2,y2,t){const d=Math.abs(x2-x1)*0.42,cx1=x1+d,cy1=y1,cx2=x2-d,cy2=y2,u=1-t;return{x:u*u*u*x1+3*u*u*t*cx1+3*u*t*t*cx2+t*t*t*x2,y:u*u*u*y1+3*u*u*t*cy1+3*u*t*t*cy2+t*t*t*y2};}
 
-  // Build ECN-affected step IDs + their dispositions
-  const ecnStepIds=new Set();
-  const ecnStepDisp={};// stepId -> disposition
-  ecnRecords.forEach(c=>{
-    if(c.step_id){ecnStepIds.add(c.step_id);if(c.disposition)ecnStepDisp[c.step_id]=c.disposition;}
-  });
-  tree.steps.forEach(s=>{if(s.ecn_status==='changed')ecnStepIds.add(s.id);});
-
-  // ECN cascade: parts and fasteners of affected steps are also affected
-  const ecnCascadeIds=new Set();// node IDs that cascade from ECN
-  const ecnCascadeDisp={};// node ID -> disposition (inherited from step)
-
-  // Layout pass
+  // Layout pass (unchanged)
   const nodes=[],edges=[];let y=50;
   tree.groups.forEach(g=>{
     const gy0=y,gSteps=stepsForGroup(tree,g.id),stepNds=[];
-    let groupHasEcn=false;
     gSteps.forEach(step=>{
       const pts=partsForStep(tree,step.id),fts=fastenersForStep(tree,step.id),np=pts.length;
       const isSingle=np===1,isMulti=np>1;
-      const hasEcn=ecnStepIds.has(step.id);
-      const disp=ecnStepDisp[step.id]||null;
-      if(hasEcn)groupHasEcn=true;
+      const hasEcn=step.ecn_status==='changed'||ecnRecords.some(c=>c.step_id===step.id);
       const childNds=[];
-      if(isMulti){const tCH=np*(PART_H+12)-12;const cy0=y-tCH/2+PART_H/2;pts.forEach((p,pi)=>{
-        const nid='cp-'+step.id+'-'+pi;
-        let py=cy0+pi*(PART_H+12)+(S.gvYOffsets[nid]||0);
-        const cn={id:nid,type:'part',x:COL_CHILD,y:py,w:PART_W,h:PART_H,pn:p.pn||'',name:p.name||p.pn||'Part',qty:p.qty||1,hasEcn:false};
-        if(hasEcn){cn.hasEcn=true;ecnCascadeIds.add(nid);if(disp)ecnCascadeDisp[nid]=disp;}
-        nodes.push(cn);childNds.push(cn);
-      });}
-      const nid='s-'+step.id;
-      const sn={id:nid,type:'step',x:COL_STEP,y:y+(S.gvYOffsets[nid]||0),w:STEP_W,h:STEP_H,stepId:step.id,seq:step.seq_tag||'',name:step.label||step.pn||'',stepType:(step.type||'STEP').toUpperCase(),isSingle,isMulti,hasEcn,disp,inlineName:isSingle?(pts[0].name||pts[0].pn||''):'',inlinePn:isSingle?(pts[0].pn||''):'',fts};
+      if(isMulti){const tCH=np*(PART_H+12)-12;const cy0=y-tCH/2+PART_H/2;pts.forEach((p,pi)=>{const py=cy0+pi*(PART_H+12);const cn={id:'cp-'+step.id+'-'+pi,type:'part',x:COL_CHILD,y:py,w:PART_W,h:PART_H,pn:p.pn||'',name:p.name||p.pn||'Part',qty:p.qty||1};nodes.push(cn);childNds.push(cn);});}
+      const sn={id:'s-'+step.id,type:'step',x:COL_STEP,y,w:STEP_W,h:STEP_H,stepId:step.id,seq:step.seq_tag||'',name:step.label||step.pn||'',stepType:(step.type||'STEP').toUpperCase(),isSingle,isMulti,hasEcn,inlineName:isSingle?(pts[0].name||pts[0].pn||''):'',inlinePn:isSingle?(pts[0].pn||''):'',fts};
       nodes.push(sn);stepNds.push(sn);
-      // Single-part inline: cascade ECN to that part too
-      if(isSingle&&hasEcn){ecnCascadeIds.add('inline-'+step.id);if(disp)ecnCascadeDisp['inline-'+step.id]=disp;}
       if(isMulti){childNds.forEach((cn,ci)=>{edges.push({id:'e-cp-'+step.id+'-'+ci,from:cn,to:sn,kind:'part-step',fts:ci===0?fts:[],defT:0.45});});}
       y+=(isMulti?Math.max(STEP_H,np*(PART_H+12)):STEP_H)+26;
     });
-    const gnid='g-'+g.id;
-    const gmid=(gy0+y-26)/2+(S.gvYOffsets[gnid]||0);
-    const gn={id:gnid,type:'group',x:COL_GRP,y:gmid,w:GRP_W,h:GRP_H,label:g.label,icon:g.icon||'📦',color:g.color||'#6b7280',stepCount:gSteps.length,hasEcn:groupHasEcn};
+    const gmid=(gy0+y-26)/2;
+    const gn={id:'g-'+g.id,type:'group',x:COL_GRP,y:gmid,w:GRP_W,h:GRP_H,label:g.label,icon:g.icon||'📦',color:g.color||'#6b7280',stepCount:gSteps.length};
     nodes.push(gn);
     stepNds.forEach(sn=>{edges.push({id:'e-sg-'+sn.stepId,from:sn,to:gn,kind:'step-grp',fts:sn.isMulti?[]:sn.fts,defT:0.35});});
     y+=44;
   });
   const grps=nodes.filter(n=>n.type==='group'),ay=grps.length?grps.reduce((a,n)=>a+n.y,0)/grps.length:200;
-  const anyEcn=grps.some(n=>n.hasEcn);
-  const an={id:'assy',type:'assy',x:COL_ASSY,y:ay,w:ASSY_W,h:ASSY_H,hasEcn:anyEcn};nodes.push(an);
+  const an={id:'assy',type:'assy',x:COL_ASSY,y:ay,w:ASSY_W,h:ASSY_H};nodes.push(an);
   grps.forEach(gn=>{edges.push({id:'e-ga-'+gn.id,from:gn,to:an,kind:'grp-assy',fts:[],defT:0.5});});
   const totalH=y+80;
   window._gvEdges=edges;
-  window._gvNodes=nodes;
-
-  // ECN view mode — which nodes to dim
-  const ecnView=S.gvEcnView;
-  function isAffected(n){
-    if(n.hasEcn)return true;
-    if(ecnCascadeIds.has(n.id))return true;
-    if(n.type==='group'&&n.hasEcn)return true;
-    if(n.type==='assy'&&anyEcn)return true;
-    return false;
-  }
-  function getDisp(n){
-    if(n.disp)return n.disp;
-    if(ecnCascadeDisp[n.id])return ecnCascadeDisp[n.id];
-    return null;
-  }
 
   // Build SVG
   let svgE='',svgN='',svgL='';
@@ -688,31 +642,21 @@ function gvBuildSvg(tree,assy,ecnRecords,G,forExport){
     svgE+=`<text x="${g.x+4}" y="-8" fill="${g.c}" font-size="8" font-weight="700" opacity="0.5" font-family="${mono}">${g.l}</text>`;
   });
 
-  // Edges — dim in ECN view if neither endpoint is affected
+  // Edges
   edges.forEach(e=>{
     const x1=e.from.x+e.from.w,y1=e.from.y,x2=e.to.x,y2=e.to.y;
     const isHi=e.kind==='grp-assy',sw=isHi?2:1.2;
-    const eAffected=isAffected(e.from)||isAffected(e.to);
-    const dimEdge=ecnView&&!eAffected;
-    const ecn=e.to.hasEcn||e.from.hasEcn;
+    const ecn=e.to.hasEcn;
     const col=ecn?'rgba(239,68,68,0.35)':(isHi?LC.edgeHi:LC.edge);
-    svgE+=`<path d="${bezP(x1,y1,x2,y2)}" fill="none" stroke="${col}" stroke-width="${sw}" ${dimEdge?'opacity="0.15"':''}/>`;
-    svgE+=`<circle cx="${x2}" cy="${y2}" r="2.5" fill="${col}" ${dimEdge?'opacity="0.15"':''}/>`;
+    svgE+=`<path d="${bezP(x1,y1,x2,y2)}" fill="none" stroke="${col}" stroke-width="${sw}"/>`;
+    svgE+=`<circle cx="${x2}" cy="${y2}" r="2.5" fill="${col}"/>`;
   });
 
-  // Nodes — level-based shapes with ECN view dimming + disposition markers
+  // Nodes — level-based shapes
   nodes.forEach(n=>{
     const li=lvl(n.type),lv=L[li]||L[7];
     const cx=n.x+n.w/2,cy=n.y,hW=n.w/2,hH=n.h/2;
-    const affected=isAffected(n);
-    const dimNode=ecnView&&!affected;
-    const disp=getDisp(n);
-    const dp=disp?DISP_PRINT[disp]:null;
-    const ecnStroke=n.hasEcn?LC.ecn:(affected&&ecnView?'#ef9a9a':lv.stroke);
-    const opacity=dimNode?0.2:1;
-
-    // Wrap in g for dragging
-    svgN+=`<g data-role="gvNode" data-nid="${n.id}" style="cursor:${S.gvLocked?'default':'ns-resize'}" ${dimNode?`opacity="${opacity}"`:''}>`;
+    const ecnStroke=n.hasEcn?LC.ecn:lv.stroke;
 
     // Shape
     svgN+=svgShape(lv.shape,cx,cy,hW,hH,lv.fill,ecnStroke,n.hasEcn?2.5:1.5);
@@ -720,17 +664,14 @@ function gvBuildSvg(tree,assy,ecnRecords,G,forExport){
     // ECN indicator dot
     if(n.hasEcn)svgN+=`<circle cx="${n.x+12}" cy="${cy-hH+10}" r="4.5" fill="${LC.ecn}"/>`;
 
-    // Disposition marker — show on affected nodes
-    if(dp&&affected){
-      svgN+=`<text x="${n.x+n.w+4}" y="${cy+4}" fill="${dp.c}" font-size="14" font-family="${sans}">${dp.icon}</text>`;
-    }
-
     if(n.type==='part'){
       svgN+=`<text x="${cx}" y="${cy+1}" fill="${lv.text}" font-size="9.5" font-weight="600" text-anchor="middle" font-family="${mono}">${clip(n.name||n.pn,16)}</text>`;
       if(n.qty>1)svgN+=`<text x="${cx+hW-8}" y="${cy+hH-4}" fill="${lv.stroke}" font-size="7" font-weight="700" text-anchor="end" font-family="${mono}">×${n.qty}</text>`;
     }
     else if(n.type==='step'){
+      // Seq tag — bold text above/right of shape
       if(n.seq&&n.seq!=='—')svgN+=`<text x="${n.x+n.w-6}" y="${cy-hH-4}" fill="${LC.seqText}" font-size="14" font-weight="900" text-anchor="end" font-family="${sans}">${n.seq}</text>`;
+      // Content
       const tx=n.hasEcn?n.x+26:n.x+14;
       if(n.isSingle&&n.inlineName){
         svgN+=`<text x="${tx}" y="${cy-2}" fill="${lv.text}" font-size="13" font-weight="700" font-family="${sans}">${clip(n.inlineName,22)}</text>`;
@@ -750,7 +691,6 @@ function gvBuildSvg(tree,assy,ecnRecords,G,forExport){
       svgN+=`<text x="${cx+6}" y="${cy-3}" fill="${lv.text}" font-size="14" font-weight="800" text-anchor="middle" font-family="${sans}">${assy.name||assy.tag}</text>`;
       svgN+=`<text x="${cx+6}" y="${cy+13}" fill="${lv.stroke}" font-size="9" font-weight="700" text-anchor="middle" opacity="0.6" font-family="${mono}">v${assy.version||'?'}</text>`;
     }
-    svgN+=`</g>`;
   });
 
   // Fastener labels — simple colored text, no dark box
@@ -796,11 +736,6 @@ function renderGraphView(tree, assy, ecnRecords, unit) {
       <button class="gv-btn" data-action="gvZoomIn">+</button>
       <button class="gv-btn" style="width:auto;padding:0 8px;font-size:9px" data-action="gvReset">Reset</button>
       <button class="gv-btn" style="width:auto;padding:0 8px;font-size:10px;${S.gvPanelOpen?'color:#7b1fa2;border-color:#7b1fa2':''}" data-action="gvTogglePanel">⇔</button>
-      <span style="width:1px;height:16px;background:#ddd;margin:0 2px"></span>
-      <button class="gv-btn" style="width:auto;padding:0 8px;font-size:9px;${S.gvLocked?'':'color:#c62828;border-color:#c62828;background:rgba(198,40,40,0.06)'}" data-action="gvToggleLock" title="${S.gvLocked?'Unlock positions (admin only)':'Lock positions'}">${S.gvLocked?'🔒 Locked':'🔓 Unlocked'}</button>
-      ${!S.gvLocked?`<button class="gv-btn" style="width:auto;padding:0 8px;font-size:9px;color:#2e7d32;border-color:#2e7d32;background:rgba(46,125,50,0.06)" data-action="gvSavePositions">💾 Save</button>`:''}
-      <span style="width:1px;height:16px;background:#ddd;margin:0 2px"></span>
-      <button class="gv-btn" style="width:auto;padding:0 8px;font-size:9px;${S.gvEcnView?'color:#c62828;border-color:#c62828;background:rgba(198,40,40,0.06)':''}" data-action="gvToggleEcn">${S.gvEcnView?'🔴 ECN View':'🔴 ECN'}</button>
       <button class="gv-btn" style="width:auto;padding:0 8px;font-size:9px;margin-left:4px" data-action="gvExport">📷 Export</button>
     </div>
     ${S.gvPanelOpen?`<div class="gv-panel">
@@ -837,7 +772,7 @@ function saveGvLayout(){
   clearTimeout(_gvSaveTimer);
   _gvSaveTimer=setTimeout(()=>{
     if(!S.assy)return;
-    const data={zoom:S.gvZoom,panX:S.gvPan.x,panY:S.gvPan.y,tVals:S.gvTValues,gaps:{...S.gvGaps},yOffsets:{...S.gvYOffsets}};
+    const data={zoom:S.gvZoom,panX:S.gvPan.x,panY:S.gvPan.y,tVals:S.gvTValues,gaps:{...S.gvGaps}};
     DB.saveGraphLayout(S.assy.id,S.assy.version,data);
   },1500);
 }
@@ -900,11 +835,6 @@ function exportGraphImage(){
     canvasShape(ctx,lv.shape,cx,cy,hW,hH);
 
     if(n.hasEcn){ctx.fillStyle=LC.ecn;ctx.beginPath();ctx.arc(ox+n.x+12,cy-hH+10,4,0,Math.PI*2);ctx.fill();}
-
-    // Disposition marker on export
-    const disp=n.disp||(n.hasEcn?null:null);
-    const dp=disp?DISP_PRINT[disp]:null;
-    if(dp){ctx.font='14px sans-serif';ctx.fillText(dp.icon,ox+n.x+n.w+4,cy+5);}
 
     if(n.type==='part'){
       ctx.fillStyle=lv.text;ctx.font='600 9.5px monospace';ctx.textAlign='center';ctx.fillText(clip(n.name||n.pn,16),cx,cy+3);
@@ -976,45 +906,21 @@ function initGV(){
   const svg=document.getElementById('gvSvg');
   if(!wrap||!svg)return;
   let dragging=false,dragX=0,dragY=0;
-  let nodeDragging=null,nodeStartY=0,nodeOrigOffset=0;
 
-  // Pan (only when not dragging a node)
+  // Pan
   svg.addEventListener('mousedown',e=>{
     if(e.target.closest('[data-role="gvLabel"]'))return;
-    // Check for node drag (only when unlocked)
-    if(!S.gvLocked){
-      const nodeG=e.target.closest('[data-role="gvNode"]');
-      if(nodeG&&e.button===0){
-        e.stopPropagation();
-        const nid=nodeG.dataset.nid;
-        nodeDragging=nid;
-        nodeStartY=e.clientY;
-        nodeOrigOffset=S.gvYOffsets[nid]||0;
-        wrap.classList.add('dragging');
-        return;
-      }
-    }
     if(e.button!==0)return;
     dragging=true;wrap.classList.add('dragging');
     dragX=e.clientX-S.gvPan.x;dragY=e.clientY-S.gvPan.y;
   });
   svg.addEventListener('mousemove',e=>{
-    if(nodeDragging){
-      const dy=(e.clientY-nodeStartY)/S.gvZoom;
-      S.gvYOffsets[nodeDragging]=nodeOrigOffset+dy;
-      // Live re-render
-      reRenderGvSvg();
-      return;
-    }
     if(!dragging)return;
     S.gvPan.x=e.clientX-dragX;S.gvPan.y=e.clientY-dragY;
     const c=document.getElementById('gvCanvas');
     if(c)c.setAttribute('transform',`translate(${S.gvPan.x},${S.gvPan.y}) scale(${S.gvZoom})`);
   });
-  const stopDrag=()=>{
-    if(nodeDragging){nodeDragging=null;wrap.classList.remove('dragging');return;}
-    if(dragging)saveGvLayout();dragging=false;wrap.classList.remove('dragging');
-  };
+  const stopDrag=()=>{if(dragging)saveGvLayout();dragging=false;wrap.classList.remove('dragging');};
   svg.addEventListener('mouseup',stopDrag);
   svg.addEventListener('mouseleave',stopDrag);
 
@@ -1027,16 +933,15 @@ function initGV(){
     saveGvLayout();
   },{passive:false});
 
-  // Column gap sliders (live update) — only when unlocked
+  // Column gap sliders (live update)
   wrap.querySelectorAll('[data-role="gvGap"]').forEach(slider=>{
-    if(S.gvLocked)slider.disabled=true;
     slider.addEventListener('input',()=>{
-      if(S.gvLocked)return;
       const key=slider.dataset.key;
       S.gvGaps[key]=parseInt(slider.value);
       const valEl=slider.previousElementSibling?.querySelector('.val');
       if(valEl)valEl.textContent=slider.value+'px';
       reRenderGvSvg();
+      saveGvLayout();
     });
   });
 
@@ -1064,7 +969,6 @@ function attachGvLabels(svg){
     const defT=edge?edge.defT:0.4;
 
     el.addEventListener('mousedown',ev=>{
-      if(S.gvLocked)return;// Only drag when unlocked
       ev.stopPropagation();startX=ev.clientX;t0=S.gvTValues[eid]??defT;
       function bezPt(t){const d=Math.abs(x2-x1)*0.42,cx1=x1+d,cy1=y1,cx2=x2-d,cy2=y2,u=1-t;return{x:u*u*u*x1+3*u*u*t*cx1+3*u*t*t*cx2+t*t*t*x2,y:u*u*u*y1+3*u*u*t*cy1+3*u*t*t*cy2+t*t*t*y2};}
       const onMove=e=>{if(startX===null)return;const dx=(e.clientX-startX)/S.gvZoom,dt=dx/Math.abs(x2-x1),newT=Math.max(0.05,Math.min(0.95,t0+dt));S.gvTValues[eid]=newT;const pt=bezPt(newT);el.setAttribute('transform',`translate(${pt.x},${pt.y-10})`);};
@@ -1459,7 +1363,6 @@ function attachEvents(){
             if(layout.panX!==undefined)S.gvPan={x:layout.panX,y:layout.panY||0};
             if(layout.tVals)S.gvTValues=layout.tVals;
             if(layout.gaps)S.gvGaps=layout.gaps;
-            if(layout.yOffsets)S.gvYOffsets=layout.yOffsets;
           }
           render();setTimeout(initGV,50);
         }else{render();}
@@ -1469,19 +1372,9 @@ function attachEvents(){
       // Graph view controls
       else if(a==='gvZoomIn'){S.gvZoom=Math.min(3,S.gvZoom+0.12);const c=document.getElementById('gvCanvas');if(c)c.setAttribute('transform',`translate(${S.gvPan.x},${S.gvPan.y}) scale(${S.gvZoom}`);saveGvLayout();}
       else if(a==='gvZoomOut'){S.gvZoom=Math.max(0.1,S.gvZoom-0.12);const c=document.getElementById('gvCanvas');if(c)c.setAttribute('transform',`translate(${S.gvPan.x},${S.gvPan.y}) scale(${S.gvZoom}`);saveGvLayout();}
-      else if(a==='gvReset'){S.gvZoom=0.65;S.gvPan={x:10,y:0};S.gvTValues={};if(!S.gvLocked)S.gvYOffsets={};render();setTimeout(initGV,50);saveGvLayout();}
+      else if(a==='gvReset'){S.gvZoom=0.65;S.gvPan={x:10,y:0};S.gvTValues={};render();setTimeout(initGV,50);saveGvLayout();}
       else if(a==='gvTogglePanel'){S.gvPanelOpen=!S.gvPanelOpen;render();setTimeout(initGV,50);}
-      else if(a==='gvResetGaps'){if(S.gvLocked){toast('🔒 Unlock first',true);return;}S.gvGaps={partsToSteps:150,stepsToGroups:160,groupsToAssy:140};render();setTimeout(initGV,50);}
-      // Lock/unlock positions (admin only — requires name)
-      else if(a==='gvToggleLock'){
-        if(S.gvLocked){const name=prompt('🔒 Admin unlock required.\\nEnter your name:');if(!name||name.trim().toLowerCase()!=='aniket'){toast('❌ Unauthorized',true);return;}S.gvLocked=false;toast('🔓 Unlocked — drag nodes, adjust gaps, then Save');}
-        else{S.gvLocked=true;toast('🔒 Positions locked');}
-        render();setTimeout(initGV,50);
-      }
-      // Explicit save positions
-      else if(a==='gvSavePositions'){saveGvLayout();toast('💾 Positions saved to DB');}
-      // ECN view toggle
-      else if(a==='gvToggleEcn'){S.gvEcnView=!S.gvEcnView;render();setTimeout(initGV,50);}
+      else if(a==='gvResetGaps'){S.gvGaps={partsToSteps:150,stepsToGroups:160,groupsToAssy:140};render();setTimeout(initGV,50);saveGvLayout();}
       else if(a==='openChange'){S.modal=parseInt(el.dataset.idx);render();}
       else if(a==='closeModal'){S.modal=null;render();}
       else if(a==='toggleApply'){try{await DB.toggleApplied(S.selectedUnits[0].sn,el.dataset.seq,parseInt(el.dataset.sid));S.modal=null;toast('💾 Saved');render();}catch(err){toast('❌ '+err.message,true);}}
